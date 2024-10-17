@@ -1,0 +1,12 @@
+# Ignore build folders
+.build/
+build/
+inputs/
+models/
+libs/
+
+# MacOS specific
+.DS_Store
+
+# QNN Specific
+QnnTFLiteDelegate.h
