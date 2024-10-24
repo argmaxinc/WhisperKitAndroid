@@ -12,8 +12,8 @@ LOCAL_INPUTS="$SOURCE_DIR/inputs"
 
 REMOTE_BIN_DIR="/data/local/tmp/bin"
 REMOTE_LIB_DIR="/data/local/tmp/lib"
-REMOTE_MODELS_DIR="/sdcard/tflite/models"
-REMOTE_INPUTS_DIR="/sdcard/tflite/inputs"
+REMOTE_MODELS_DIR="/sdcard/argmax/tflite/models"
+REMOTE_INPUTS_DIR="/sdcard/argmax/tflite/inputs"
 
 # Function to push files only if they do not exist
 push_if_not_exists() {
