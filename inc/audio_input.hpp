@@ -50,6 +50,7 @@ public:
     short int* get_buffer() { return _buffer; }
 };
 
+<<<<<<< HEAD
 class AudioInputModel: public MODEL_SUPER_CLASS {
 public:
     AudioInputModel(int freq, int channels, int format = SAMPLE_FMT_DEF);
@@ -61,6 +62,14 @@ public:
         std::string cache_dir, 
         int backend, 
         bool debug=false);
+=======
+class AudioInputModel : public TFLiteModel {
+   public:
+    AudioInputModel(const std::string& modelPath);
+    virtual ~AudioInputModel() {};
+
+    bool initialize(const std::string& model_path, const std::string& lib_dir, const std::string& cache_dir, int backend = kUndefinedBackend);
+>>>>>>> 978c0f6 (C API: Config, Pipeline, and error types)
     void uninitialize();
     virtual void invoke(bool measure_time=false);
 

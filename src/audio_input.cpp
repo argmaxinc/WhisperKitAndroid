@@ -6,6 +6,7 @@
 
 using namespace std;
 
+<<<<<<< HEAD
 AudioBuffer::AudioBuffer() 
 {
     _buffer = nullptr;
@@ -160,6 +161,15 @@ bool AudioInputModel::initialize(
     SDL_SetMainReady();
     if (!SDL_Init(0)) {
         LOGE("Couldn't initialize SDL: %s", SDL_GetError());
+=======
+AudioInputModel::AudioInputModel(const std::string& input_file) : TFLiteModel("audio_input") {
+    _audio_input_file = input_file;
+}
+
+bool AudioInputModel::initialize(const std::string& model_file, const std::string& lib_dir, const std::string& cache_dir, int backend) {
+    if (!TFLiteModel::initialize(model_file, lib_dir, cache_dir, backend)) {
+        std::cerr << "Failed to initialize" << std::endl;
+>>>>>>> 978c0f6 (C API: Config, Pipeline, and error types)
         return false;
     }
 
@@ -168,8 +178,13 @@ bool AudioInputModel::initialize(
         return false;
     }
 
+<<<<<<< HEAD
     _float_buffer.resize(1.5 * MAX_CHUNK_LENGTH);
     _pcm_buffer->initialize(&_source_spec, &_target_spec);
+=======
+    read_audio_file(_audio_input_file);
+    chunk_all();
+>>>>>>> 978c0f6 (C API: Config, Pipeline, and error types)
 
     return true;
 }
