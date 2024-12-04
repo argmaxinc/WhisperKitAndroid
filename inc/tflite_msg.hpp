@@ -11,9 +11,9 @@
 #ifdef ANDROID_JNI
 #include <android/log.h>
 
-#define TAG "com.argmax.whisperax"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+constexpr const char* ARGMAX_WHISPERKIT_BUNDLE_INFO = "com.argmax.whisperax";
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  ARGMAX_WHISPERKIT_BUNDLE_INFO, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, ARGMAX_WHISPERKIT_BUNDLE_INFO, __VA_ARGS__)
 
 #else
 
@@ -22,19 +22,17 @@
 
 #endif
 
-using namespace std;
-
 class TFLiteMessenger{
 public:
     TFLiteMessenger() {
-        _msg = make_unique<string>();
+        _msg = std::make_unique<std::string>();
     }
-    mutex _mutex;
-    condition_variable _cond_var;
+    std::mutex _mutex;
+    std::condition_variable _cond_var;
 
     bool _running = false;
     float _timestamp = 0;
-    unique_ptr<string> _msg;
+    std::unique_ptr<std::string> _msg;
 
     void print(){
         if (_msg->empty()) {

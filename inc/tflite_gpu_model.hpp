@@ -5,18 +5,18 @@
 
 class TFLiteGPU: public TFLiteModel {
 public:
-    TFLiteGPU(const string& name);
+    TFLiteGPU(const std::string& name);
     virtual ~TFLiteGPU();
 
     virtual bool initialize(
-        string model_path, 
-        string lib_dir,
-        string cache_path, 
+        std::string model_path, 
+        std::string lib_dir,
+        std::string cache_path, 
         int backend, 
         bool debug=false
     );
     virtual void uninitialize();
 
 protected: 
-    virtual bool create_interpreter_delegate(string model_path);
+    virtual bool create_interpreter_delegate(std::string model_path);
 };

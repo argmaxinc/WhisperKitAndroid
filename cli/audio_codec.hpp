@@ -16,8 +16,8 @@ extern "C"
 #include <libavutil/samplefmt.h>
 }
 
-#define INPUT_BUFFER_SIZE   (8<<20)
-#define STREAM_READ_SIZE    (512<<10)           // has to be larger than 128KB
+constexpr const uint64_t INPUT_BUFFER_SIZE = (8<<20);
+constexpr const uint64_t STREAM_READ_SIZE = (512<<10);  // has to be larger than 128KB
 
 using namespace std;
 

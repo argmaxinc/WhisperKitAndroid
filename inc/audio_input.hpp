@@ -14,18 +14,18 @@
 
 #include <backend_class.hpp>
 
-#define SAMPLE_FREQ      16000 
-#define SAMPLE_FMT_DEF   0          // AV_SAMPLE_FMT_NONE in ffmpeg
-#define SAMPLE_FMT_FLT   3          // AV_SAMPLE_FMT_FLT in ffmpeg
-#define SAMPLE_FMT_S16P  6          // AV_SAMPLE_FMT_S16P in ffmpeg
-#define SAMPLE_FMT_FLTP  8          // AV_SAMPLE_FMT_FLTP in ffmpeg
+constexpr const int SAMPLE_FREQ = 16000;
+constexpr const int SAMPLE_FMT_DEF = 0;     // AV_SAMPLE_FMT_NONE in ffmpeg
+constexpr const int SAMPLE_FMT_FLT = 3;     // AV_SAMPLE_FMT_FLT in ffmpeg
+constexpr const int SAMPLE_FMT_S16P = 6;    // AV_SAMPLE_FMT_S16P in ffmpeg
+constexpr const int SAMPLE_FMT_FLTP = 8;    // AV_SAMPLE_FMT_FLTP in ffmpeg
 
 class AudioBuffer {
 private: 
     SDL_AudioSpec* _source_spec;
     SDL_AudioSpec* _target_spec;
     SDL_AudioStream* _stream;
-    mutex _mutex;
+    std::mutex _mutex;
 
     // target buf associated, with 16khz, mono PCM data
     uint32_t _end_index; // unit of short int
@@ -56,9 +56,9 @@ public:
     virtual ~AudioInputModel() {};
 
     bool initialize(
-        string model_path, 
-        string lib_dir,
-        string cache_dir, 
+        std::string model_path, 
+        std::string lib_dir,
+        std::string cache_dir, 
         int backend, 
         bool debug=false);
     void uninitialize();
@@ -78,7 +78,7 @@ private:
     int32_t _total_src_bytes = 0;
     int32_t _buffer_index = 0;
 
-    unique_ptr<AudioBuffer> _pcm_buffer;
+    std::unique_ptr<AudioBuffer> _pcm_buffer;
 
     SDL_AudioSpec _source_spec;
     SDL_AudioSpec _target_spec;
@@ -86,12 +86,12 @@ private:
     const float _energy_threshold = 0.02;
     const int _frame_length_samples = (0.1 * 16000);
 
-    vector<float> _float_buffer;
+    std::vector<float> _float_buffer;
     int32_t _silence_index = 0;
     int32_t _remain_samples = 0;
     int _curr_buf_time = 0;
 
-    void read_audio_file(string input_file);
+    void read_audio_file(std::string input_file);
     void chunk_all(); 
     float get_silence_index(char* output, int audio_samples);
     int get_next_samples();

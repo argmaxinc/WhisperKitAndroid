@@ -2,10 +2,9 @@
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
 #include <tflite_qnn_model.hpp>
 #include <filesystem>   // C++ 17 or later
-
-#if TFLITE_OPTIONAL_DEBUG    
 #include "tensorflow/lite/optional_debug_tools.h"
-#endif
+
+using namespace std;
 
 TFLiteQNN::TFLiteQNN(const string& name)
 :TFLiteModel(name)
@@ -58,12 +57,10 @@ bool TFLiteQNN::initialize(
 
     modify_graph_delegate();
 
-#ifdef TFLITE_OPTIONAL_DEBUG
     if(debug){
         LOGI("\n========== %s delegation info ==========\n", _model_name.c_str());
         tflite::PrintInterpreterState(_interpreter.get());
     }
-#endif
     return true;
 }
 

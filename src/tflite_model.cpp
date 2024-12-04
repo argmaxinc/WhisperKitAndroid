@@ -3,6 +3,8 @@
 #include <tflite_model.hpp>
 #include <filesystem>   // C++ 17 or later
 
+using namespace std;
+
 TFLiteModel::TFLiteModel(const string& name)
 {
     _delegate = nullptr;

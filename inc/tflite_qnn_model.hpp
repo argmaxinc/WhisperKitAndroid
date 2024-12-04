@@ -6,13 +6,13 @@
 
 class TFLiteQNN: public TFLiteModel {
 public:
-    TFLiteQNN(const string& name);
+    TFLiteQNN(const std::string& name);
     virtual ~TFLiteQNN();
 
     virtual bool initialize(
-        string model_path, 
-        string lib_dir,
-        string cache_path, 
+        std::string model_path, 
+        std::string lib_dir,
+        std::string cache_path, 
         int backend=kHtpBackend, 
         bool debug=false
     );
@@ -21,5 +21,5 @@ public:
 protected: 
     TfLiteQnnDelegateOptions _options;
 
-    virtual bool create_interpreter_delegate(string model_path);
+    virtual bool create_interpreter_delegate(std::string model_path);
 };

@@ -3,7 +3,7 @@
 # Copyright © 2024 Argmax, Inc. All rights reserved.
 
 # This build script runs when docker image is created.
-# The resulting `libSDL3.so` is copied into /libs folder in the build.sh
+# The resulting `libSDL3.so` and header files are copied into /libs & /inc folder
 echo "Usage: "
 echo "      ${0} x86  : build for x86 (in build_x86)"
 echo "      ${0}      : build for arm64 Android (in build_android)"

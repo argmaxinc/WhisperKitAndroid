@@ -10,8 +10,10 @@ if (NOT DEFINED TENSORFLOW_SOURCE_DIR)
     message(FATAL_ERROR  "TensorFlow path is not defined. Please use cmake -DTENSORFLOW_SOURCE_DIR=/path/to/tensorflow")
 endif()
 
+set(CMAKE_CXX_STANDARD 23)
+set(COMPILE_WARNING_AS_ERROR ON)
 set(CMAKE_BUILD_TYPE Release)
-set(CMAKE_CXX_STANDARD 17)
+
 set(AXIE_SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 set(AXIE_INC_DIR ${CMAKE_SOURCE_DIR}/inc)
 set(AXIE_CLI_DIR ${CMAKE_SOURCE_DIR}/cli)
@@ -32,11 +34,6 @@ add_subdirectory(
   "${CMAKE_CURRENT_BINARY_DIR}/tensorflow-lite"
   EXCLUDE_FROM_ALL
 )
-
-OPTION(TFLITE_OPTIONAL_DEBUG "Option description" OFF) # Enabled by default
-IF(TFLITE_OPTIONAL_DEBUG)
-    ADD_DEFINITIONS(-DTFLITE_OPTIONAL_DEBUG)
-ENDIF(TFLITE_OPTIONAL_DEBUG)
 
 link_directories(
   ${AXIE_LIB_DIR}

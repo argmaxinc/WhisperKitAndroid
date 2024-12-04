@@ -19,15 +19,15 @@
 
 using json = nlohmann::json;
 
-extern shared_ptr<TFLiteMessenger> messenger;
+extern std::shared_ptr<TFLiteMessenger> messenger;
 
-extern int tflite_init(string argstr);
+extern int tflite_init(std::string argstr);
 extern int tflite_loop();
 extern int tflite_close();
-extern unique_ptr<json> tflite_perfjson();
+extern std::unique_ptr<json> tflite_perfjson();
 extern int tflite_write_data(char* pcm_buffer, int size);
 
-extern unique_ptr<json> get_test_json(
+extern std::unique_ptr<json> get_test_json(
     const char* audiofile, 
     const char* model_size,
     float duration

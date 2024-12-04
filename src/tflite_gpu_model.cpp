@@ -2,10 +2,9 @@
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
 #include <tflite_gpu_model.hpp>
 #include <filesystem>   // C++ 17 or later
-
-#if TFLITE_OPTIONAL_DEBUG    
 #include "tensorflow/lite/optional_debug_tools.h"
-#endif
+
+using namespace std;
 
 TFLiteGPU::TFLiteGPU(const string& name)
 :TFLiteModel(name)
@@ -36,12 +35,10 @@ bool TFLiteGPU::initialize(
 
     modify_graph_delegate();
 
-#ifdef TFLITE_OPTIONAL_DEBUG
     if(debug){
         LOGI("\n========== %s delegation info ==========\n", _model_name.c_str());
         tflite::PrintInterpreterState(_interpreter.get());
     }
-#endif
     return true;
 }
 
@@ -65,9 +62,9 @@ bool TFLiteGPU::create_interpreter_delegate(string model_path)
     TFLITE_FUNCTION_CHECK(builder(&_interpreter))
 
     TfLiteGpuDelegateOptionsV2 gpu_options = TfLiteGpuDelegateOptionsV2Default();
-    gpu_options.experimental_flags |= TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_SERIALIZATION;
     gpu_options.serialization_dir = _cache_dir.c_str();
-    gpu_options.model_token = "model_token";;
+    gpu_options.experimental_flags |= TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_SERIALIZATION;
+    gpu_options.max_delegated_partitions = 3;
     _delegate = TfLiteGpuDelegateV2Create(&gpu_options);
 
     if (_delegate == nullptr) 

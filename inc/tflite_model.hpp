@@ -28,55 +28,54 @@
         return false;                                         \
     }
 
-using namespace std;
 using json = nlohmann::json;
 
 class TFLiteModel {
 public:
-    TFLiteModel(const string& name);
+    TFLiteModel(const std::string& name);
     virtual ~TFLiteModel();
 
     bool initialize(
-        string model_path, 
-        string lib_dir,
-        string cache_path, 
+        std::string model_path, 
+        std::string lib_dir,
+        std::string cache_path, 
         int backend, 
         bool debug=false
     );
     void uninitialize();
     virtual void invoke(bool measure_time=false);
 
-    mutex* get_mutex() { return &_mutex; }
-    void read_input_file(string input_file, int idx);
+    std::mutex* get_mutex() { return &_mutex; }
+    void read_input_file(std::string input_file, int idx);
     void read_input_data(char* input_data, int idx);
-    vector<pair<char*, int>> get_input_ptrs();
-    vector<pair<char*, int>> get_output_ptrs();
+    std::vector<std::pair<char*, int>> get_input_ptrs();
+    std::vector<std::pair<char*, int>> get_output_ptrs();
 
     void print_tensor_dims();
-    unique_ptr<json> get_latency_json();
+    std::unique_ptr<json> get_latency_json();
     float get_latency_median();
     float get_latency_sum();
     float get_latency_avg();
     int get_inference_num()     { return _latencies.size(); }
 
-    static void save_tensor(string filename, char* tensor, int size);
+    static void save_tensor(std::string filename, char* tensor, int size);
 
 protected: 
-    mutex _mutex;
-    unique_ptr<tflite::FlatBufferModel> _model;
-    unique_ptr<tflite::Interpreter> _interpreter;
+    std::mutex _mutex;
+    std::unique_ptr<tflite::FlatBufferModel> _model;
+    std::unique_ptr<tflite::Interpreter> _interpreter;
     TfLiteDelegate* _delegate = nullptr;
-    string _model_name;
-    string _lib_dir; 
-    string _cache_dir; 
-    string _model_token;
-    vector<float> _latencies;
+    std::string _model_name;
+    std::string _lib_dir; 
+    std::string _cache_dir; 
+    std::string _model_token;
+    std::vector<float> _latencies;
 
-    vector<pair<char*, int>> _input_ptrs;
-    vector<pair<char*, int>> _output_ptrs;    
+    std::vector<std::pair<char*, int>> _input_ptrs;
+    std::vector<std::pair<char*, int>> _output_ptrs;    
 
-    bool create_interpreter_delegate(string model_path);
+    bool create_interpreter_delegate(std::string model_path);
     bool allocate_tensors();
     void modify_graph_delegate();
-    void set_dirs(string filename, string lib_dir, string cache_dir);
+    void set_dirs(std::string filename, std::string lib_dir, std::string cache_dir);
 };
