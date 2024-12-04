@@ -4,6 +4,14 @@ build/
 inputs/
 models/
 libs/
+cache/
+build_android/
+build_x86/
+inc/libavcodec/
+inc/libavformat/
+inc/libavutil/
+inc/libswresample/
+inc/SDL3/
 
 # MacOS specific
 .DS_Store

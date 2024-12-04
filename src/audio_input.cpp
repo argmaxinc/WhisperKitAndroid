@@ -1,183 +1,284 @@
 //  For licensing see accompanying LICENSE file.
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
-
 #include <audio_input.hpp>
 
-#define WAVE_HEADER_BYTES 78
-#define MAX_CHUNK_LENGTH (16000 * 30)  // 30 seconds of PCM audio samples
-#define WINDOW_PADDING 16000           // 1 second of silence padding
+#define MAX_CHUNK_LENGTH    (16000 * 30) // 30 seconds of PCM audio samples
 
-#define USE_MODEL 1
+using namespace std;
 
-AudioInputModel::AudioInputModel(const string input_file) : TFLiteModel("audio_input") {
-    _audio_input_file = input_file;
+AudioBuffer::AudioBuffer() 
+{
+    _buffer = nullptr;
+    _source_spec = nullptr;
+    _stream = nullptr;
+    _cap_bytes = 0;
+    _bytes_per_sample = sizeof(short int);
+    _end_index = 0;
 }
 
-bool AudioInputModel::initialize(string model_file, string lib_dir, string cache_dir, int backend) {
-    if (!TFLiteModel::initialize(model_file, lib_dir, cache_dir, backend)) {
-        cerr << "Failed to initialize" << endl;
+AudioBuffer::~AudioBuffer() {
+    uninitialize();
+}
+
+void AudioBuffer::initialize(
+    SDL_AudioSpec* src_spec,
+    SDL_AudioSpec* tgt_spec
+){
+    lock_guard<mutex> lock(_mutex);
+
+    _source_spec = src_spec;
+    _target_spec = tgt_spec;
+    if(_source_spec->format == SDL_AUDIO_F32){
+        _bytes_per_sample = sizeof(float);
+    } else {
+        _bytes_per_sample = sizeof(short int);
+    }
+    _cap_bytes = (int)(1.5 * MAX_CHUNK_LENGTH * _bytes_per_sample);
+    _buffer = (short int*)SDL_malloc(_cap_bytes);
+
+    _stream = SDL_CreateAudioStream(_source_spec, _target_spec);
+    if (_stream == nullptr) {
+        LOGE("Failed to create audio stream: %s\n", SDL_GetError());
+        return;
+    }
+
+    LOGI("Stream: freq - %d, channels - %d, format - %d, target_buf size - %d\n", 
+        _source_spec->freq, 
+        _source_spec->channels, 
+        _source_spec->format,
+        _cap_bytes
+    );
+}
+
+void AudioBuffer::uninitialize(){
+    lock_guard<mutex> lock(_mutex);
+
+    if (_stream == nullptr)
+        return;
+
+    SDL_free(_buffer);
+    SDL_DestroyAudioStream(_stream);
+    SDL_Quit();
+
+    _buffer = nullptr;
+    _source_spec = nullptr;
+    _stream = nullptr;
+    _cap_bytes = 0;
+}
+
+int AudioBuffer::append(int bytes, char* input) {
+    lock_guard<mutex> lock(_mutex);
+
+    bool bRet = false;
+
+        bRet = SDL_PutAudioStreamData(
+            _stream, input, bytes
+        );
+        if (!bRet) {
+            LOGE("Failed from SDL_PutAudioStreamData: %s\n", SDL_GetError());
+            return 0;
+        }
+        SDL_FlushAudioStream(_stream);
+
+        auto target_bytes = SDL_GetAudioStreamAvailable(_stream);
+        if ((_end_index * _bytes_per_sample + target_bytes) > _cap_bytes) {
+            LOGE("buffer overflow..\n");
+            return 0;
+        }
+
+        auto ret = SDL_GetAudioStreamData(
+        _stream, &_buffer[_end_index], target_bytes
+        );
+        if (ret < 0) {
+            LOGE("Failed from SDL_GetAudioStreamData: %s\n", SDL_GetError());
+            return 0;
+        }
+    auto samples = (target_bytes / _bytes_per_sample);
+    _end_index += samples;
+
+    return samples;
+}
+
+int AudioBuffer::samples(int desired_samples) {
+    if (desired_samples == 0) {
+        return _end_index;
+    } else if (_end_index > desired_samples){
+        return desired_samples;
+    } else 
+        return _end_index;
+}
+
+void AudioBuffer::consumed(int samples){
+    lock_guard<mutex> lock(_mutex);
+
+    if(_end_index > samples){
+        // move the remaining samples to the beginning of _target_buffer
+        memmove(
+            _buffer, 
+            &_buffer[_end_index], 
+            (_end_index - samples) * _bytes_per_sample
+        );
+        _end_index -= samples;
+    } else {
+        if(_end_index < samples){
+            LOGE("requested samples (%d) > available (%d)\n", 
+                samples, _end_index
+            );
+        }
+        _end_index = 0;
+    }
+}
+
+// AudioInputModel
+AudioInputModel::AudioInputModel( // buffer input mode
+   int freq, int channels, int format
+) :MODEL_SUPER_CLASS("audio_input")
+{
+    _source_spec.freq = freq;
+    _source_spec.channels = channels;
+    _target_spec.channels = 1;
+    _target_spec.freq = SAMPLE_FREQ;
+
+    if (format == SAMPLE_FMT_FLT) {
+        _source_spec.format = SDL_AUDIO_F32;
+        _target_spec.format = SDL_AUDIO_F32;
+    } else {
+        _source_spec.format = SDL_AUDIO_S16;
+        _target_spec.format = SDL_AUDIO_S16;
+    }
+
+    _pcm_buffer = make_unique<AudioBuffer>();
+}
+
+bool AudioInputModel::initialize(
+    string model_file,
+    string lib_dir,
+    string cache_dir, 
+    int backend, 
+    bool debug
+){
+    SDL_SetMainReady();
+    if (!SDL_Init(0)) {
+        LOGE("Couldn't initialize SDL: %s", SDL_GetError());
         return false;
     }
 
-    chrono::time_point<chrono::high_resolution_clock> before_exec = chrono::high_resolution_clock::now();
+    if(!MODEL_SUPER_CLASS::initialize(model_file, lib_dir, cache_dir, backend, debug)){
+        LOGE("Failed to initialize\n");
+        return false;
+    }
 
-    read_audio_file(_audio_input_file);
-    chunk_all();
-    // for (auto chunk : _chunks) {
-    //     cout << "chunk: " << chunk.start_index << ", " << (float)chunk.start_index / 16000
-    //         << " ~ " << (float)(chunk.start_index + chunk.num_samples) / 16000
-    //         << endl;
-    // }
+    _float_buffer.resize(1.5 * MAX_CHUNK_LENGTH);
+    _pcm_buffer->initialize(&_source_spec, &_target_spec);
 
-    auto after_exec = chrono::high_resolution_clock::now();
-    float interval_infs = chrono::duration_cast<std::chrono::microseconds>(after_exec - before_exec).count() / 1000.0;
-    _latencies.push_back(interval_infs);
     return true;
 }
 
 void AudioInputModel::uninitialize() {
-    _sample_buffer.clear();
-    _chunks.clear();
-    TFLiteModel::uninitialize();
+    _float_buffer.clear();
+    _pcm_buffer->uninitialize();
+
+    MODEL_SUPER_CLASS::uninitialize();
 }
 
-void AudioInputModel::invoke(bool measure_time) { TFLiteModel::invoke(measure_time); }
+void AudioInputModel::invoke(bool measure_time){
+    MODEL_SUPER_CLASS::invoke(measure_time);
+}
 
-float AudioInputModel::get_next_chunk(char* output) {
+float AudioInputModel::get_next_chunk(char* output){
+    int audio_bytes = 0, audio_samples = 0;
+    int ret, i;
+
     memset(output, 0, MAX_CHUNK_LENGTH * sizeof(float));
-
-    if (_chunks.empty()) {
+    if (_pcm_buffer->samples() == 0){
         return -1.0;
     }
 
-    auto start_time = (float)_chunks[0].start_index / 16000;
-    _curr_timestamp = (float)(_chunks[0].start_index + _chunks[0].num_samples) / 16000;
+    chrono::time_point<chrono::high_resolution_clock> 
+        before_exec = chrono::high_resolution_clock::now();
+    if (_remain_samples < MAX_CHUNK_LENGTH) {
+        audio_samples = get_next_samples();
+        if (audio_samples < 0) {
+            return audio_samples;
+        }
+    }
 
-    memcpy(output, _chunks[0].data, _chunks[0].num_samples * sizeof(float));
+    auto start_time = get_silence_index(output, audio_samples);
 
-    _chunks.erase(_chunks.begin());
+    auto after_exec = chrono::high_resolution_clock::now();
+    float interval_infs =
+        chrono::duration_cast<std::chrono::microseconds>(
+            after_exec - before_exec).count() / 1000.0;
+    _latencies.push_back(interval_infs);  
+
     return start_time;
 }
 
-void AudioInputModel::read_audio_file(string input_file) {
-    ifstream audio_file;
-
-    int skip_bytes = 0;
-    if (input_file.find(".wav") != string::npos || input_file.find(".wave") != string::npos) {
-        skip_bytes = WAVE_HEADER_BYTES;
+float AudioInputModel::get_silence_index(char* output, int audio_samples){
+    uint32_t max_index, end_index;
+    max_index = _silence_index + _remain_samples + audio_samples;
+    if (_silence_index + MAX_CHUNK_LENGTH <= max_index) {
+        end_index = split_on_middle_silence(max_index);
+    }
+    else {
+        end_index = max_index;
+    }
+    if (end_index <= _silence_index) {
+        return -1.0;
     }
 
-    audio_file.open(input_file, ios::binary | ios::ate);
-    audio_file.seekg(0, audio_file.end);
-    _sample_size = (uint32_t)((int)audio_file.tellg() - skip_bytes) / sizeof(short int);
-    audio_file.seekg(skip_bytes, audio_file.beg);
-    _sample_buffer.resize(_sample_size);
+    _remain_samples = max_index - end_index;
+    auto start_time = (float)_silence_index / SAMPLE_FREQ;
+    memcpy(output, &_float_buffer[0], (end_index - _silence_index) * sizeof(float));
 
-    // // middle of the buffer to the end: use it as a temp PCM buffer
-    auto* short_int_buf = (short int*)&_sample_buffer[_sample_size / sizeof(short int)];
-    audio_file.read(reinterpret_cast<char*>(short_int_buf), _sample_size * sizeof(short int));
-    audio_file.close();
+    // move the remaining samples to the beginning of _float_buffer
+    memmove(
+        &_float_buffer[0], 
+        &_float_buffer[end_index - _silence_index], 
+        _remain_samples * sizeof(float)
+    );
 
-    int i;
-    for (i = 0; i < _sample_size; i++) {
-        // float type output = short int PCM input / 32768.0
-        _sample_buffer[i] = (float)short_int_buf[i] / 32768.0;
-    }
+    _silence_index = end_index;    
+
+    return start_time;
 }
 
-void AudioInputModel::chunk_all() {
-    uint32_t start_index = 0, end_index = 0;
+uint32_t AudioInputModel::split_on_middle_silence(uint32_t max_index)
+{
+    auto mid_index = _silence_index + (max_index - _silence_index) / 2;
 
-    // all indices here mean the audio sample index
-    if (_sample_size < MAX_CHUNK_LENGTH) {
-        AudioChunk chunk;
-        chunk.start_index = start_index;
-        chunk.num_samples = _sample_size;
-        chunk.data = &_sample_buffer[0];
-        _chunks.push_back(chunk);
-
-        return;  // just a single chunk
-    }
-
-    while (start_index < _sample_size - WINDOW_PADDING) {
-        end_index = _sample_size;
-        if (start_index + MAX_CHUNK_LENGTH < end_index) {
-            end_index = split_on_middle_silence(start_index, min(_sample_size, start_index + MAX_CHUNK_LENGTH));
-        }
-
-        if (end_index <= start_index) {
-            break;
-        }
-
-        AudioChunk chunk;
-        chunk.start_index = start_index;
-        chunk.num_samples = end_index - start_index;
-        chunk.data = &_sample_buffer[start_index];
-        _chunks.push_back(chunk);
-
-        start_index = end_index;
-    }
-}
-
-uint32_t AudioInputModel::split_on_middle_silence(uint32_t start_index, uint32_t end_index) {
-    auto mid_index = start_index + (end_index - start_index) / 2;
-
-    auto count = (int)ceil((float)(end_index - mid_index) / _frame_length_samples);
+    auto count = (int)ceil((float)(max_index - mid_index) / _frame_length_samples);
     vector<bool> voices;
 
     // calculateVoiceActivityInChunks
-#if USE_MODEL
     auto inputs = get_input_ptrs();
-    memcpy(inputs[0].first, (char*)&_sample_buffer[mid_index], (count * _frame_length_samples) * sizeof(float));
+    memcpy(
+        inputs[0].first, 
+        (char*)&_float_buffer[mid_index - _silence_index], 
+        (count * _frame_length_samples) * sizeof(float)
+    );
     memcpy(inputs[1].first, &_energy_threshold, sizeof(float));
 
     invoke();
 
     auto outputs = get_output_ptrs();
-#else
-    auto frame_start = mid_index;
-    uint32_t frame_end;
-    voices.reserve(count);
 
-    for (int idx = 0; idx < count; idx++) {
-        frame_end = min(frame_start + _frame_length_samples, end_index);
-        // calculate energy for the next 0.1 sec frame
-        float energy = 0.0;
-        for (int i = frame_start; i < frame_end; i++) {
-            energy += (_sample_buffer[i] * _sample_buffer[i]);
-        }
-        auto avg_energy = sqrtf(energy / (frame_end - frame_start));
-        voices.push_back((avg_energy > _energy_threshold));
-
-        frame_start += _frame_length_samples;
-    }
-#endif
-
-    // find the Longest Silence
+    // find the Longest Silence 
     // all indices here mean voices index from above, not audio samples
     int longest_count = 0, longest_start = 0, longest_end = 0;
     int idx = 0, is_voice = 0;
-#if USE_MODEL
     auto output_size = outputs[0].second / sizeof(float);
     auto output = reinterpret_cast<float*>(outputs[0].first);
 
     while (idx < output_size) {
         if (output[idx] > 0) {
-#else
-    while (idx < voices.size()) {
-        if (voices[idx]) {
-#endif
             idx++;
             is_voice++;
             continue;
         }
         // silence starts at idx
         auto endidx = idx;
-#if USE_MODEL
         while (endidx < output_size && output[endidx] <= 0) {
-#else
-        while (endidx < voices.size() && !voices[endidx]) {
-#endif
             endidx++;
         }
 
@@ -191,10 +292,50 @@ uint32_t AudioInputModel::split_on_middle_silence(uint32_t start_index, uint32_t
     }
 
     if (longest_count == 0) {
-        return end_index;
+        return max_index;
     }
 
     auto silence_mid_idx = longest_start + (longest_end - longest_start) / 2;
     // voice activity index to audio sample index + mid_index
     return mid_index + silence_mid_idx * _frame_length_samples;
+}
+
+void AudioInputModel::fill_pcmdata(int bytes, char* pcm_buffer){
+    int ret = _pcm_buffer->append(bytes, pcm_buffer);
+
+    _curr_buf_time = (_pcm_buffer->samples() + _remain_samples) 
+                    / _target_spec.freq;
+    _total_src_bytes += bytes; 
+}
+
+int AudioInputModel::get_next_samples()
+{
+    auto remaining_time_x100 = 
+        (unsigned int)(_remain_samples * 100)/ SAMPLE_FREQ;
+
+    int max_target_samples = 
+        (int)(_target_spec.freq * (3000 - remaining_time_x100)/100);
+    auto target_samples = _pcm_buffer->samples(max_target_samples);
+    if (target_samples <= 0) {
+        LOGE(" audio buffer is null\n");
+        return -1;
+    }
+
+    auto audio_buffer = _pcm_buffer->get_buffer();
+    if (_source_spec.format == SDL_AUDIO_F32){
+        // it is already in float type format audio samples
+        memcpy(
+            &_float_buffer[_remain_samples], 
+            audio_buffer, 
+            target_samples * sizeof(float)
+        );
+    } else {
+        // float type sample = short int type PCM / 32768.0
+        for (int i = 0; i < target_samples; i++) {
+            _float_buffer[_remain_samples + i] = 
+                (float)audio_buffer[i] / 32768.0;
+        }
+    }
+    _pcm_buffer->consumed(target_samples);
+    return target_samples;
 }

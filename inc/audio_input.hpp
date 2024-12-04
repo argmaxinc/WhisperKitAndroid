@@ -1,46 +1,99 @@
 //  For licensing see accompanying LICENSE file.
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
-
 #pragma once
 
-#include <fstream>
 #include <iostream>
+#include <fstream>
 #include <string>
-#include <tflite_model.hpp>
 #include <vector>
 
-using namespace std;
+#define SDL_MAIN_HANDLED
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
+#include <SDL3/SDL_audio.h>
 
-class AudioChunk {
-   public:
-    int start_index;
-    int num_samples;
-    float* data;
+#include <backend_class.hpp>
+
+#define SAMPLE_FREQ      16000 
+#define SAMPLE_FMT_DEF   0          // AV_SAMPLE_FMT_NONE in ffmpeg
+#define SAMPLE_FMT_FLT   3          // AV_SAMPLE_FMT_FLT in ffmpeg
+#define SAMPLE_FMT_S16P  6          // AV_SAMPLE_FMT_S16P in ffmpeg
+#define SAMPLE_FMT_FLTP  8          // AV_SAMPLE_FMT_FLTP in ffmpeg
+
+class AudioBuffer {
+private: 
+    SDL_AudioSpec* _source_spec;
+    SDL_AudioSpec* _target_spec;
+    SDL_AudioStream* _stream;
+    mutex _mutex;
+
+    // target buf associated, with 16khz, mono PCM data
+    uint32_t _end_index; // unit of short int
+    uint32_t _cap_bytes;
+    short int *_buffer;
+    int _bytes_per_sample;
+
+public:
+    AudioBuffer();
+    ~AudioBuffer();
+
+    void initialize(
+        SDL_AudioSpec* src_spec,
+        SDL_AudioSpec* tgt_spec
+    );
+    void uninitialize();
+    bool empty_source();
+
+    int append(int bytes, char* buffer = nullptr);
+    int samples(int desired_samples = 0);
+    void consumed(int samples);
+    short int* get_buffer() { return _buffer; }
 };
 
-class AudioInputModel : public TFLiteModel {
-   public:
-    AudioInputModel(const string input_file);
+class AudioInputModel: public MODEL_SUPER_CLASS {
+public:
+    AudioInputModel(int freq, int channels, int format = SAMPLE_FMT_DEF);
     virtual ~AudioInputModel() {};
 
-    bool initialize(string model_path, string lib_dir, string cache_dir, int backend = kUndefinedBackend);
+    bool initialize(
+        string model_path, 
+        string lib_dir,
+        string cache_dir, 
+        int backend, 
+        bool debug=false);
     void uninitialize();
-    virtual void invoke(bool measure_time = false);
+    virtual void invoke(bool measure_time=false);
 
+    void fill_pcmdata(int size, char* pcm_buffer=nullptr);
     float get_next_chunk(char* output);
+    int get_curr_buf_time() { return _curr_buf_time; }
+    float get_total_input_time() { 
+        return (_total_src_bytes / (_source_spec.freq * _source_spec.channels * 2)); 
+    }
+    bool empty_source() { return _pcm_buffer->empty_source(); }
 
-   private:
-    uint32_t _sample_size;
-    float _curr_timestamp = 0.0;
-    string _audio_input_file;
+private:
+    SDL_AudioStream* _stream = nullptr;
+
+    int32_t _total_src_bytes = 0;
+    int32_t _buffer_index = 0;
+
+    unique_ptr<AudioBuffer> _pcm_buffer;
+
+    SDL_AudioSpec _source_spec;
+    SDL_AudioSpec _target_spec;
+
     const float _energy_threshold = 0.02;
     const int _frame_length_samples = (0.1 * 16000);
 
-    vector<float> _sample_buffer;
-    vector<AudioChunk> _chunks;
+    vector<float> _float_buffer;
+    int32_t _silence_index = 0;
+    int32_t _remain_samples = 0;
+    int _curr_buf_time = 0;
 
-    int move_and_fill_pcm(char* output);
     void read_audio_file(string input_file);
-    void chunk_all();
-    uint32_t split_on_middle_silence(uint32_t start_index, uint32_t end_index);
+    void chunk_all(); 
+    float get_silence_index(char* output, int audio_samples);
+    int get_next_samples();
+    uint32_t split_on_middle_silence(uint32_t end_index);
 };
