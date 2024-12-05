@@ -9,12 +9,9 @@ echo "      ${0} gpu  : build for arm64 Android (in build_android)"
 echo "      ${0}      : build for Android with QNN (in build_android)"
 
 arg=$1
-if [[ "$arg" == "clean" ]]; then
-    if [ -d "build_android" ]; then
-        cd build_android
-    else
-     	cd build_x86
-    fi
+
+function build_clean {
+    # clean up the previous build
     ninja clean
     rm CMakeCache.txt
     rm -rf CMakeFiles
@@ -23,11 +20,23 @@ if [[ "$arg" == "clean" ]]; then
     rm -rf compile_commands.json
     find . -name \CMakeCache.txt -type f -delete
     rm build.ninja
-    exit 0
-fi
+}
 
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
+
+if [[ "$arg" == "clean" ]]; then
+    if [ -d "$SOURCE_DIR/build_android" ]; then
+        cd $SOURCE_DIR/build_android
+        build_clean
+    fi
+
+    if [ -d "$SOURCE_DIR/build_x86" ]; then
+        cd $SOURCE_DIR/build_x86
+        build_clean
+    fi
+    exit 0
+fi
 
 if [[ "$arg" == "x86" ]]; then
     PLATFORM="x86"
@@ -47,6 +56,10 @@ if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libavcodec.so ]; then
     ./build_ffmpeg.sh $arg
 fi
 
+if [ -d "$SOURCE_DIR/$BUILD_DIR" ]; then
+    cd $SOURCE_DIR/$BUILD_DIR
+    build_clean
+fi
 
 if [[ "$arg" == "x86" ]]; then
     cmake \
@@ -58,9 +71,6 @@ if [[ "$arg" == "x86" ]]; then
     -GNinja \
     -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR}
 else
-    CURRENT_DIR="$(dirname "$(realpath "$0")")"
-    SOURCE_DIR="$CURRENT_DIR/.."
-
     find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ -name libtensorflowlite_gpu_delegate.so -exec cp {} $SOURCE_DIR/libs/android/ \;
 
     if [[ "$arg" == "gpu" ]]; then # Generic TFLite GPU delegate

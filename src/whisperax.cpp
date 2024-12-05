@@ -12,39 +12,37 @@
         exit(0);                                         \
     }
 
-using namespace std;
+std::mutex gmutex;
 
-mutex gmutex;
+std::unique_ptr<std::thread> encode_decode_thread;
+std::shared_ptr<TFLiteMessenger> messenger;
 
-unique_ptr<thread> encode_decode_thread;
-shared_ptr<TFLiteMessenger> messenger;
+std::unique_ptr<MODEL_SUPER_CLASS> melspectro;
+std::unique_ptr<MODEL_SUPER_CLASS> encoder;
+std::unique_ptr<MODEL_SUPER_CLASS> decoder;
+std::unique_ptr<AudioInputModel> audioinput;
+std::unique_ptr<PostProcModel> postproc;
 
-unique_ptr<MODEL_SUPER_CLASS> melspectro;
-unique_ptr<MODEL_SUPER_CLASS> encoder;
-unique_ptr<MODEL_SUPER_CLASS> decoder;
-unique_ptr<AudioInputModel> audioinput;
-unique_ptr<PostProcModel> postproc;
+std::vector<int> all_tokens;
+std::vector<std::pair<char*, int>> melspectro_inputs;
+std::vector<std::pair<char*, int>> melspectro_outputs;
+std::vector<std::pair<char*, int>> encoder_inputs;
+std::vector<std::pair<char*, int>> encoder_outputs;
+std::vector<std::pair<char*, int>> decoder_outputs;
 
-vector<int> all_tokens;
-vector<pair<char*, int>> melspectro_inputs;
-vector<pair<char*, int>> melspectro_outputs;
-vector<pair<char*, int>> encoder_inputs;
-vector<pair<char*, int>> encoder_outputs;
-vector<pair<char*, int>> decoder_outputs;
+std::chrono::time_point<std::chrono::high_resolution_clock> start_exec;
 
-chrono::time_point<chrono::high_resolution_clock> start_exec;
-
-unique_ptr<string> cmdexec(const char* cmd) {
-    array<char, 128> buffer;
-    auto result = make_unique<string>();
-    unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+std::unique_ptr<std::string> cmdexec(const char* cmd) {
+    std::array<char, 128> buffer;
+    auto result = std::make_unique<std::string>();
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
     if (!pipe) {
-        throw runtime_error("popen() failed!");
+        throw std::runtime_error("popen() failed!");
     }
     while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get()) != nullptr) {
         (*result) += buffer.data();
     }
-    while (result->find('\n') != string::npos){
+    while (result->find('\n') != std::string::npos){
         auto pos = result->find('\n');
         result->erase(result->begin() + pos, result->begin()+pos+1);
     }
@@ -53,7 +51,7 @@ unique_ptr<string> cmdexec(const char* cmd) {
 }
 
 bool check_qcom_soc(){
-    vector<string> supported_socs{
+    std::vector<std::string> supported_socs{
         "SM8650", "SM8550", "SM8450","SM8350"
     };
 
@@ -69,17 +67,17 @@ bool check_qcom_soc(){
     }
 }
 
-int tflite_init(string argstr){
+int tflite_init(std::string argstr){
     if (argstr.size() < 8) {
         return -1;
     }
 
-    lock_guard<mutex> lock(gmutex);
+    std::lock_guard<std::mutex> lock(gmutex);
 
     LOGI("tflite_init input: %s\n", argstr.c_str());
     auto args = json::parse(argstr);
 
-    string model_size = args["size"];
+    std::string model_size = args["size"];
     assert(args.contains("freq"));
     assert(args.contains("ch"));
 
@@ -88,7 +86,7 @@ int tflite_init(string argstr){
     {
         format = args["fmt"];
     }
-    string root_path = TFLITE_ROOT_PATH;
+    std::string root_path = TFLITE_ROOT_PATH;
     if (args.contains("root_path"))
     {
         root_path = args["root_path"];
@@ -102,27 +100,27 @@ int tflite_init(string argstr){
     LOGI("SoC: \tgeneric CPU (x86, arm64, etc) \n");
 #endif
 
-    audioinput = make_unique<AudioInputModel>(
+    audioinput = std::make_unique<AudioInputModel>(
         (int)args["freq"], (int)args["ch"], format
     );
 
-    string tokenizer_json = root_path + "/inputs/converted_vocab.json";
-    string audio_model = root_path + "/models/voice_activity_detection.tflite";
-    string melspectro_model = root_path + "/models/melspectrogram.tflite";
-    string encoder_model = root_path + "/models/encoder_" + model_size + ".tflite";
-    string decoder_model = root_path + "/models/decoder_" + model_size + ".tflite";
-    string postproc_model = root_path + "/models/postproc.tflite";
+    std::string tokenizer_json = root_path + "/inputs/converted_vocab.json";
+    std::string audio_model = root_path + "/models/voice_activity_detection.tflite";
+    std::string melspectro_model = root_path + "/models/melspectrogram.tflite";
+    std::string encoder_model = root_path + "/models/encoder_" + model_size + ".tflite";
+    std::string decoder_model = root_path + "/models/decoder_" + model_size + ".tflite";
+    std::string postproc_model = root_path + "/models/postproc.tflite";
 
-    melspectro = make_unique<MODEL_SUPER_CLASS>("mel_spectrogram");
-    encoder = make_unique<MODEL_SUPER_CLASS>("whisper_encoder");
-    decoder = make_unique<MODEL_SUPER_CLASS>("whisper_decoder");
-    postproc = make_unique<PostProcModel>(tokenizer_json);
+    melspectro = std::make_unique<MODEL_SUPER_CLASS>("mel_spectrogram");
+    encoder = std::make_unique<MODEL_SUPER_CLASS>("whisper_encoder");
+    decoder = std::make_unique<MODEL_SUPER_CLASS>("whisper_decoder");
+    postproc = std::make_unique<PostProcModel>(tokenizer_json);
 
-    string lib_dir(DEFAULT_LIB_DIR); 
+    std::string lib_dir(DEFAULT_LIB_DIR); 
     if (args.contains("lib")) {
         lib_dir = args["lib"];
     }
-    string cache_dir(DEFAULT_CACHE_DIR); 
+    std::string cache_dir(DEFAULT_CACHE_DIR); 
     if (args.contains("cache")) {
         cache_dir = args["cache"];
     }
@@ -169,9 +167,9 @@ int tflite_init(string argstr){
     all_tokens.clear();
     all_tokens.reserve(1 << 18); // max 256K tokens
 
-    start_exec = chrono::high_resolution_clock::now();
+    start_exec = std::chrono::high_resolution_clock::now();
 
-    messenger = make_shared<TFLiteMessenger>();
+    messenger = std::make_shared<TFLiteMessenger>();
     messenger->_running = true;
     LOGI("tflite_init done..\n");
 
@@ -179,7 +177,7 @@ int tflite_init(string argstr){
 }
 
 int tflite_close(){
-    lock_guard<mutex> lock(gmutex);
+    std::lock_guard<std::mutex> lock(gmutex);
 
     messenger->_running = false;
     if (encode_decode_thread.get() != nullptr && 
@@ -206,7 +204,7 @@ void encode_decode_postproc(float timestamp)
 {
     auto x = TOKEN_SOT; 
     int index = 0;
-    vector<int> tokens;
+    std::vector<int> tokens;
     tokens.push_back(TOKEN_SOT);
 
     encoder->read_input_data(melspectro_outputs[0].first, 0);
@@ -255,7 +253,7 @@ void encode_decode_postproc(float timestamp)
 
 int tflite_loop()
 {
-    lock_guard<mutex> lock(gmutex);
+    std::lock_guard<std::mutex> lock(gmutex);
 
     // parallel execution of 2 threads for a pipeline of
     // 1) audio input & melspectrogram,
@@ -275,40 +273,41 @@ int tflite_loop()
         encode_decode_thread->join();
     }
 
-    encode_decode_thread = make_unique<thread>(encode_decode_postproc, timestamp);
+    encode_decode_thread = 
+        std::make_unique<std::thread>(encode_decode_postproc, timestamp);
     return 0;
 }
 
-unique_ptr<json> tflite_perfjson(){
-    auto perfjson = make_unique<json>(); 
+std::unique_ptr<json> tflite_perfjson(){
+    auto perfjson = std::make_unique<json>(); 
     (*perfjson)["audioinput"] =  *audioinput->get_latency_json();
     (*perfjson)["melspectro"] = *melspectro->get_latency_json();
     (*perfjson)["encoder"] = *encoder->get_latency_json();
     (*perfjson)["decoder"] = *decoder->get_latency_json();
     (*perfjson)["postproc"] = *postproc->get_latency_json();
 
-    auto end_exec = chrono::high_resolution_clock::now();
+    auto end_exec = std::chrono::high_resolution_clock::now();
     float duration =
-        chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
             end_exec - start_exec).count();
 
     (*perfjson)["duration"] = ceil(duration * 100.0) / 100.0;
     return perfjson;
 }
 
-unique_ptr<json> get_test_json(
+std::unique_ptr<json> get_test_json(
     const char* audiofile, 
     const char* model_size, 
     float duration
 ) {
-    auto testjson = make_unique<json>();
+    auto testjson = std::make_unique<json>();
     auto testinfo = json(); 
     auto staticattr = json();
     auto latstats = json();
     auto measure = json();
     auto timings = json();
 
-    testinfo["model"] = string("openai_whisper-") + model_size;
+    testinfo["model"] = std::string("openai_whisper-") + model_size;
 #if (defined(QNN_DELEGATE) || defined(GPU_DELEGATE)) 
     testinfo["device"] = *cmdexec("getprop ro.product.brand") + " " 
                         + *cmdexec("getprop ro.soc.model");
@@ -321,7 +320,7 @@ unique_ptr<json> get_test_json(
     strftime(buf, sizeof buf, "%FT%TZ", gmtime(&now));
     testinfo["date"] = buf;
 
-    filesystem::path audio_path(audiofile); 
+    std::filesystem::path audio_path(audiofile); 
     testinfo["audioFile"] = audio_path.filename().string();
     testinfo["prediction"] = all_tokens; 
     testinfo["timeElapsedInSeconds"] = duration;

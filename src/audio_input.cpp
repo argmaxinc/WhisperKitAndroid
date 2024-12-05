@@ -4,8 +4,6 @@
 
 #define MAX_CHUNK_LENGTH    (16000 * 30) // 30 seconds of PCM audio samples
 
-using namespace std;
-
 AudioBuffer::AudioBuffer() 
 {
     _buffer = nullptr;
@@ -24,7 +22,7 @@ void AudioBuffer::initialize(
     SDL_AudioSpec* src_spec,
     SDL_AudioSpec* tgt_spec
 ){
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     _source_spec = src_spec;
     _target_spec = tgt_spec;
@@ -51,7 +49,7 @@ void AudioBuffer::initialize(
 }
 
 void AudioBuffer::uninitialize(){
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     if (_stream == nullptr)
         return;
@@ -67,7 +65,7 @@ void AudioBuffer::uninitialize(){
 }
 
 int AudioBuffer::append(int bytes, char* input) {
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     bool bRet = false;
 
@@ -109,7 +107,7 @@ int AudioBuffer::samples(int desired_samples) {
 }
 
 void AudioBuffer::consumed(int samples){
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     if(_end_index > samples){
         // move the remaining samples to the beginning of _target_buffer
@@ -147,13 +145,13 @@ AudioInputModel::AudioInputModel( // buffer input mode
         _target_spec.format = SDL_AUDIO_S16;
     }
 
-    _pcm_buffer = make_unique<AudioBuffer>();
+    _pcm_buffer = std::make_unique<AudioBuffer>();
 }
 
 bool AudioInputModel::initialize(
-    string model_file,
-    string lib_dir,
-    string cache_dir, 
+    std::string model_file,
+    std::string lib_dir,
+    std::string cache_dir, 
     int backend, 
     bool debug
 ){
@@ -194,8 +192,8 @@ float AudioInputModel::get_next_chunk(char* output){
         return -1.0;
     }
 
-    chrono::time_point<chrono::high_resolution_clock> 
-        before_exec = chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> 
+        before_exec = std::chrono::high_resolution_clock::now();
     if (_remain_samples < MAX_CHUNK_LENGTH) {
         audio_samples = get_next_samples();
         if (audio_samples < 0) {
@@ -205,9 +203,9 @@ float AudioInputModel::get_next_chunk(char* output){
 
     auto start_time = get_silence_index(output, audio_samples);
 
-    auto after_exec = chrono::high_resolution_clock::now();
+    auto after_exec = std::chrono::high_resolution_clock::now();
     float interval_infs =
-        chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::duration_cast<std::chrono::microseconds>(
             after_exec - before_exec).count() / 1000.0;
     _latencies.push_back(interval_infs);  
 
@@ -248,7 +246,7 @@ uint32_t AudioInputModel::split_on_middle_silence(uint32_t max_index)
     auto mid_index = _silence_index + (max_index - _silence_index) / 2;
 
     auto count = (int)ceil((float)(max_index - mid_index) / _frame_length_samples);
-    vector<bool> voices;
+    std::vector<bool> voices;
 
     // calculateVoiceActivityInChunks
     auto inputs = get_input_ptrs();

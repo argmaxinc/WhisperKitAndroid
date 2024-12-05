@@ -8,12 +8,10 @@
 
 #define DEC_2_ROUND(x) (round((x) * 100.0) / 100.0)
 
-
-using namespace std;
 using json = nlohmann::json;
 
 PostProcModel::PostProcModel(
-    const string& token_file, bool timestamp_text
+    const std::string& token_file, bool timestamp_text
 ):MODEL_SUPER_CLASS("post_proc")
 {
     _token_file = token_file;
@@ -21,14 +19,14 @@ PostProcModel::PostProcModel(
 }
 
 bool PostProcModel::initialize(
-    string model_file, 
-    string lib_dir,
-    string cache_dir, 
+    std::string model_file, 
+    std::string lib_dir,
+    std::string cache_dir, 
     int backend,
     bool debug
 ){
-    ifstream json_file(_token_file);
-    _vocab_json = make_unique<json>(json::parse(json_file));
+    std::ifstream json_file(_token_file);
+    _vocab_json = std::make_unique<json>(json::parse(json_file));
 
     LOGI("postproc vocab size: %lu\n", _vocab_json->size());
 
@@ -46,7 +44,7 @@ void PostProcModel::invoke(bool measure_time){
 void PostProcModel::apply_timestamp_rules(
     float* logits, 
     int logits_size, 
-    vector<int>& tokens
+    std::vector<int>& tokens
 ){
     logits[TOKEN_NO_TIMESTAMP] = -1e9;
     bool last_was_timestamp = (tokens.size() >= 2 && 
@@ -69,7 +67,7 @@ void PostProcModel::apply_timestamp_rules(
             )
     }
 
-    vector<int> timestamps;
+    std::vector<int> timestamps;
     int timestamp_last;
     for(auto& token : tokens){
         if (token >= TOKEN_TIMESTAMP_BEGIN)
@@ -106,11 +104,11 @@ int PostProcModel::process(
     int idx, 
     float* logits, 
     int logits_size,
-    vector<int>& decoded_tokens, 
+    std::vector<int>& decoded_tokens, 
     float base_timestamp
 ){
-    chrono::time_point<chrono::high_resolution_clock> 
-        before_exec = chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> 
+        before_exec = std::chrono::high_resolution_clock::now();
 
     if (idx == 0) {
         logits[TOKEN_EOT] = -1e9;
@@ -144,12 +142,12 @@ int PostProcModel::process(
         )
     }
 
-    vector<float> v_logits(logits, &logits[logits_size]);
+    std::vector<float> v_logits(logits, &logits[logits_size]);
     auto max_elem = max_element(v_logits.begin(), v_logits.end());
 
-    auto after_exec = chrono::high_resolution_clock::now();
+    auto after_exec = std::chrono::high_resolution_clock::now();
     float interval_infs =
-        chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::duration_cast<std::chrono::microseconds>(
             after_exec - before_exec).count() / 1000.0;
     _latencies.push_back(interval_infs);
     auto token = distance(v_logits.begin(), max_elem);
@@ -162,10 +160,10 @@ void PostProcModel::proc_token(int token, float base_timestamp)
 {
     if(token == TOKEN_EOT)
         return;
-    string word, timestr;
+    std::string word, timestr;
     size_t start, end;
 
-    word = (*_vocab_json)[to_string(token)];
+    word = (*_vocab_json)[std::to_string(token)];
     if(token == TOKEN_BLANK)
         return;
 
@@ -173,18 +171,18 @@ void PostProcModel::proc_token(int token, float base_timestamp)
         start = word.find("<|");
         end = word.find("|>");
         
-        if( start != string::npos && end != string::npos && end > start){
+        if( start != std::string::npos && end != std::string::npos && end > start){
             if (_timestamp_text){
                 start += 2;
                 timestr = word.substr(start, end-start);
-                if(timestr.find_first_not_of("0123456789.", start) != string::npos)
+                if(timestr.find_first_not_of("0123456789.", start) != std::string::npos)
                     return;
 
                 // this is optional. Whisper encoder doesn't support timestamps beyong
                 // 30sec mark, but I add the previous segment time to the latest timestamp
                 // so it's easier to track the entire time in the transcript
                 auto timestamp = (int)(stof(timestr) * 100) + (int)(base_timestamp * 100);
-                string ts_str = to_string(timestamp / 100.0);
+                std::string ts_str = std::to_string(timestamp / 100.0);
                 ts_str.erase ( ts_str.find_last_not_of('0') + 1, std::string::npos );
                 ts_str.erase ( ts_str.find_last_not_of('.') + 1, std::string::npos );
                 word = "<|" + ts_str + "|>";
@@ -193,15 +191,15 @@ void PostProcModel::proc_token(int token, float base_timestamp)
             }
         }
     }
-    if (word.find_first_of(" .,'\"?!") != string::npos)
+    if (word.find_first_of(" .,'\"?!") != std::string::npos)
         _sentence += word;
     else
         _sentence += " " + word;
 }
 
-unique_ptr<string> PostProcModel::get_sentence(bool bClear)   
+std::unique_ptr<std::string> PostProcModel::get_sentence(bool bClear)   
 { 
-    auto out = make_unique<string>(_sentence);
+    auto out = std::make_unique<std::string>(_sentence);
     if(bClear)
         _sentence.clear();
 
