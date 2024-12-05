@@ -18,3 +18,7 @@ inc/SDL3/
 
 # QNN Specific
 QnnTFLiteDelegate.h
+
+# test
+test/json/
+test/__pycache__/
