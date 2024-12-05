@@ -5,6 +5,7 @@ inputs/
 models/
 libs/
 cache/
+openai_whisper-*/
 build_android/
 build_x86/
 inc/libavcodec/
