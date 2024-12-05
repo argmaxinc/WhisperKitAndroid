@@ -4,9 +4,8 @@
 #include <filesystem>   // C++ 17 or later
 #include "tensorflow/lite/optional_debug_tools.h"
 
-using namespace std;
 
-TFLiteQNN::TFLiteQNN(const string& name)
+TFLiteQNN::TFLiteQNN(const std::string& name)
 :TFLiteModel(name)
 {
 }
@@ -16,9 +15,9 @@ TFLiteQNN::~TFLiteQNN() {
 }
 
 bool TFLiteQNN::initialize(
-    string model_path, 
-    string lib_dir,
-    string cache_dir,
+    std::string model_path, 
+    std::string lib_dir,
+    std::string cache_dir,
     int backend, 
     bool debug)
 {
@@ -76,7 +75,7 @@ void TFLiteQNN::uninitialize() {
     TFLiteModel::uninitialize();
 }
 
-bool TFLiteQNN::create_interpreter_delegate(string model_path) 
+bool TFLiteQNN::create_interpreter_delegate(std::string model_path) 
 {
     _model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     if (_model.get() == nullptr) 
@@ -106,7 +105,7 @@ bool TFLiteQNN::create_interpreter_delegate(string model_path)
     if (_delegate == nullptr) 
         return false; 
 
-    const auto processor_count = thread::hardware_concurrency();
+    const auto processor_count = std::thread::hardware_concurrency();
     _interpreter->SetNumThreads(processor_count);
 
     return true;

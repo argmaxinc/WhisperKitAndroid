@@ -3,9 +3,8 @@
 #include <tflite_model.hpp>
 #include <filesystem>   // C++ 17 or later
 
-using namespace std;
 
-TFLiteModel::TFLiteModel(const string& name)
+TFLiteModel::TFLiteModel(const std::string& name)
 {
     _delegate = nullptr;
     _model_name = name;
@@ -16,9 +15,9 @@ TFLiteModel::~TFLiteModel() {
 }
 
 bool TFLiteModel::initialize(
-    string model_path, 
-    string lib_dir,
-    string cache_dir,
+    std::string model_path, 
+    std::string lib_dir,
+    std::string cache_dir,
     int backend, 
     bool debug)
 {
@@ -55,7 +54,7 @@ void TFLiteModel::modify_graph_delegate() {
     _interpreter->ModifyGraphWithDelegate(_delegate);
 }
 
-bool TFLiteModel::create_interpreter_delegate(string model_path) 
+bool TFLiteModel::create_interpreter_delegate(std::string model_path) 
 {
     _model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     if (_model.get() == nullptr) 
@@ -65,15 +64,15 @@ bool TFLiteModel::create_interpreter_delegate(string model_path)
     tflite::InterpreterBuilder builder(*_model, resolver);
     TFLITE_FUNCTION_CHECK(builder(&_interpreter))
 
-    const auto processor_count = thread::hardware_concurrency();
+    const auto processor_count = std::thread::hardware_concurrency();
     _interpreter->SetNumThreads(processor_count/2);
 
     return true;
 }
 
-void TFLiteModel::read_input_file(string input_file, int idx) {
+void TFLiteModel::read_input_file(std::string input_file, int idx) {
     get_input_ptrs();
-    ifstream fin(input_file, ios::binary);
+    std::ifstream fin(input_file, std::ios::binary);
     auto ptr = _input_ptrs[idx];
 
     auto data_size = fin.tellg();
@@ -93,7 +92,7 @@ void TFLiteModel::read_input_data(char* input_data, int idx) {
     memcpy(reinterpret_cast<char*>(ptr.first), input_data, ptr.second);
 }
 
-vector<pair<char*, int>> TFLiteModel::get_input_ptrs() {
+std::vector<std::pair<char*, int>> TFLiteModel::get_input_ptrs() {
     if (!_input_ptrs.empty()) {
         return _input_ptrs;
     }
@@ -112,12 +111,14 @@ vector<pair<char*, int>> TFLiteModel::get_input_ptrs() {
                 fprintf(stderr, "Error: unsupported tensor type\n");
                 exit(-1);
         }
-        _input_ptrs.push_back(make_pair(reinterpret_cast<char*>(input_ptr), tensor->bytes));
+        _input_ptrs.push_back(
+            std::make_pair(reinterpret_cast<char*>(input_ptr), tensor->bytes)
+        );
     }
     return _input_ptrs;
 }
 
-vector<pair<char*, int>> TFLiteModel::get_output_ptrs() {
+std::vector<std::pair<char*, int>> TFLiteModel::get_output_ptrs() {
     if (!_output_ptrs.empty()) {
         return _output_ptrs;
     }
@@ -136,24 +137,26 @@ vector<pair<char*, int>> TFLiteModel::get_output_ptrs() {
                 fprintf(stderr, "Error: unsupported tensor type\n");
                 exit(-1);
         }
-        _output_ptrs.push_back(make_pair(reinterpret_cast<char*>(output_ptr), tensor->bytes));
+        _output_ptrs.push_back(
+            std::make_pair(reinterpret_cast<char*>(output_ptr), tensor->bytes)
+        );
     }
     return _output_ptrs;
 }
 
 void TFLiteModel::invoke(bool measure_time) {
    
-    chrono::time_point<chrono::high_resolution_clock> before_exec;
+    std::chrono::time_point<std::chrono::high_resolution_clock> before_exec;
     if(measure_time) {
-        before_exec = chrono::high_resolution_clock::now();
+        before_exec = std::chrono::high_resolution_clock::now();
     }
 
     _interpreter->Invoke();
 
     if(measure_time) {
-        auto after_exec = chrono::high_resolution_clock::now();
+        auto after_exec = std::chrono::high_resolution_clock::now();
         float interval_infs =
-            chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::duration_cast<std::chrono::microseconds>(
                 after_exec - before_exec).count() / 1000.0;
         _latencies.push_back(interval_infs);
     }
@@ -202,19 +205,19 @@ void TFLiteModel::print_tensor_dims(){
 }
 
 void TFLiteModel::set_dirs(
-    string filename, 
-    string lib_dir,
-    string cache_dir
+    std::string filename, 
+    std::string lib_dir,
+    std::string cache_dir
 ) {
-    vector<string> model_sizes = {"tiny", "base", "small"};
+    std::vector<std::string> model_sizes = {"tiny", "base", "small"};
     _lib_dir = lib_dir;
     // NOTE: for Android, fs /sdcard does not support flock() operation,
     // so we need to use /data/* such as /data/local/tmp/cache
     _cache_dir = cache_dir;
 
-    if (!filesystem::exists(_cache_dir)) {
+    if (!std::filesystem::exists(_cache_dir)) {
         LOGI("Creating cache directory: %s\n", _cache_dir.c_str());
-        filesystem::create_directory(_cache_dir);
+        std::filesystem::create_directory(_cache_dir);
     }
 
     for(auto& size : model_sizes){
@@ -227,22 +230,22 @@ void TFLiteModel::set_dirs(
     _model_token = _model_name;
 }
 
-void TFLiteModel::save_tensor(string filename, char* tensor, int size)
+void TFLiteModel::save_tensor(std::string filename, char* tensor, int size)
 {
-    fstream fout;
-    fout.open(filename, fstream::out);
+    std::fstream fout;
+    fout.open(filename, std::fstream::out);
     fout.write(tensor, size);
     fout.close();
 }
 
-unique_ptr<json> TFLiteModel::get_latency_json() {
-    auto perfjson = make_unique<json>();
+std::unique_ptr<json> TFLiteModel::get_latency_json() {
+    auto perfjson = std::make_unique<json>();
 
     (*perfjson)["inf"] = _latencies.size();
     auto avg = get_latency_avg();
     (*perfjson)["avg"] = avg; 
 
-    vector<float> diff(_latencies.size());
+    std::vector<float> diff(_latencies.size());
     transform(_latencies.begin(), _latencies.end(), diff.begin(), [avg](double x) { return x - avg; });
     float sq_sum = inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
     auto stdev = sqrt(sq_sum / _latencies.size());
