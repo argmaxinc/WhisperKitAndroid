@@ -34,6 +34,7 @@ struct whisperkit_configuration_t {
         int get_log_level() const;
         bool get_prewarm() const;
         bool get_load() const;
+        whisperkit_pipeline_t* get_pipeline() const;
         
     private:
 
@@ -45,6 +46,7 @@ struct whisperkit_configuration_t {
         std::string postproc;
         std::string lib_dir;
         std::string cache_dir;
+        whisperkit_pipeline_t* pipeline;
         bool verbose;
         int log_level;
         bool prewarm;

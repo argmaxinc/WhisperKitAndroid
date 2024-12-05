@@ -3,7 +3,7 @@
 #include "WhisperKitPipeline.h"
 
 #pragma mark - initializers
-whisperkit_status_t whisperkit_create_configuration(whisperkit_configuration_t **configuration) {
+whisperkit_status_t whisperkit_configuration_create(whisperkit_configuration_t **configuration) {
     if(configuration == nullptr) {
         return WHISPERKIT_STATUS_INVALID_ARGUMENT;
     }
@@ -11,25 +11,15 @@ whisperkit_status_t whisperkit_create_configuration(whisperkit_configuration_t *
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
-whisperkit_status_t whisperkit_create_pipeline(whisperkit_pipeline_t **pipeline) {
-    if(pipeline == nullptr || configuration == nullptr) {
+whisperkit_status_t whisperkit_pipeline_create(whisperkit_pipeline_t **pipeline) {
+    if(pipeline == nullptr) {
         return WHISPERKIT_STATUS_INVALID_ARGUMENT;
     }
     *pipeline = new whisperkit_pipeline_t();
+    *pipeline->set_state(WHISPERKIT_PIPELINE_STATUS_INITIALIZED);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
-#pragma mark - configuration setters
-whisperkit_status_t whisperkit_configuration_set_audio_model(whisperkit_configuration_t *config, const char* audio_model) {
-    if(config == nullptr || audio_model == nullptr) {
-        return WHISPERKIT_STATUS_INVALID_ARGUMENT;
-    }
-    if(config->pipeline != nullptr) {
-        return WHISPERKIT_STATUS_INVALID_STATE;
-    }
-    config->set_audio_model(audio_model);
-    return WHISPERKIT_STATUS_SUCCESS;
-};
 
 whisperkit_status_t whisperkit_configuration_set_audio_encoder(whisperkit_configuration_t *config, const char* audio_encoder) {
     if(config == nullptr || audio_encoder == nullptr) {
@@ -163,16 +153,60 @@ whisperkit_status_t whisperkit_configuration_set_load(whisperkit_configuration_t
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
+#pragma mark - pipeline state
+whisperkit_status_t whisperkit_pipeline_get_status(whisperkit_pipeline_t *pipeline, whisperkit_pipeline_status_t* status) {
+    if(pipeline == nullptr || status == nullptr) {
+        return WHISPERKIT_STATUS_INVALID_ARGUMENT;
+    }
+    *status = pipeline->get_state();
+    return WHISPERKIT_STATUS_SUCCESS;
+};
+
+whisperkit_status_t whisperkit_pipeline_set_configuration(whisperkit_pipeline_t *pipeline, whisperkit_configuration_t *config) {
+    if(pipeline == nullptr || config == nullptr) {
+        return WHISPERKIT_STATUS_INVALID_ARGUMENT;
+    }
+    if(pipeline->get_state() != WHISPERKIT_PIPELINE_STATUS_INITIALIZED) {
+        return WHISPERKIT_STATUS_INVALID_STATE;
+    }
+    pipeline->set_configuration(config);
+    pipeline->set_state(WHISPERKIT_PIPELINE_STATUS_CONFIGURED);
+    return WHISPERKIT_STATUS_SUCCESS;
+};
+
+whisperkit_status_t whisperkit_pipeline_build(whisperkit_pipeline_t *pipeline) {
+    if(pipeline == nullptr) {
+        return WHISPERKIT_STATUS_INVALID_ARGUMENT;
+    }
+    if(pipeline->get_state() != WHISPERKIT_PIPELINE_STATUS_CONFIGURED) {
+        return WHISPERKIT_STATUS_INVALID_STATE;
+    }
+
+    try {
+        pipeline->build();
+        pipeline->set_state(WHISPERKIT_PIPELINE_STATUS_BUILT);
+    } catch (const std::exception& e) {
+        return WHISPERKIT_STATUS_ERROR_GENERIC;
+    }
+};
 
 #pragma mark - transcription
 whisperkit_status_t whisperkit_transcribe(whisperkit_pipeline_t *pipeline, const char* audio_file, char **transcription) {
+
     if(pipeline == nullptr || audio_file == nullptr || transcription == nullptr) {
         return WHISPERKIT_STATUS_INVALID_ARGUMENT;
     }
-    if(pipeline->configuration == nullptr) {
+
+    if(pipeline->get_state() != WHISPERKIT_PIPELINE_STATUS_BUILT) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    return pipeline->transcribe(audio_file, transcription);
+
+    try {
+        pipeline->transcribe(audio_file, transcription);
+    } catch (const std::exception& e) {
+        return WHISPERKIT_STATUS_ERROR_TRANSCRIPTION_FAILED;
+    }
+    return WHISPERKIT_STATUS_SUCCESS;
 };
 
 #pragma mark - teardown
@@ -191,3 +225,4 @@ whisperkit_status_t whisperkit_destroy_pipeline(whisperkit_pipeline_t *pipeline)
     delete pipeline;
     return WHISPERKIT_STATUS_SUCCESS;
 };
+

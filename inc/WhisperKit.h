@@ -34,6 +34,19 @@ typedef enum {
     WHISPERKIT_STATUS_ERROR_GENERIC = 1000,
 } whisperkit_status_t;
 
+
+/** \brief WhisperKit pipeline enum codes
+ *
+ *  Pipeline status codes for WhisperKit.
+ *  The pipeline status is used to track the state of the pipeline object.
+ */
+typedef enum {
+    WHISPERKIT_PIPELINE_STATUS_INITIALIZED = 0,
+    WHISPERKIT_PIPELINE_STATUS_CONFIGURED = 1,
+    WHISPERKIT_PIPELINE_STATUS_BUILT = 2,
+    WHISPERKIT_PIPELINE_STATUS_INVALID = 999,
+} whisperkit_pipeline_status_t;
+
 #pragma mark - Configuration
 
 /** \brief WhisperKit configuration object.
@@ -67,6 +80,8 @@ whisperkit_status_t whisperkit_configuration_create(whisperkit_configuration_t *
  *  Allocates and initializes a new WhisperKit pipeline object.
  *  The returned object is owned by the client, and should be destroyed using
  *  whisperkit_pipeline_destroy().
+ * 
+ *  The pipeline object is in state INITIALIZED after creation.
  */
 whisperkit_status_t whisperkit_pipeline_create(whisperkit_pipeline_t **pipeline);
 
@@ -155,14 +170,27 @@ whisperkit_status_t whisperkit_configuration_set_prewarm(whisperkit_configuratio
  */
 whisperkit_status_t whisperkit_configuration_set_load(whisperkit_configuration_t *config, bool load);
 
+#pragma mark - pipeline state
+
+/** \brief WhisperKit pipeline status query
+ * 
+ *  Returns the current status of the WhisperKit pipeline.
+ */
+whisperkit_status_t whisperkit_pipeline_get_status(whisperkit_pipeline_t *pipeline, whisperkit_pipeline_status_t* status);
+
 #pragma mark - pipeline configuration
 
 /** \brief WhisperKit pipeline builder
  * 
- *  Builds and initializes the WhisperKit pipeline with the configuration settings that
- *  have been set.
- *  Pipeline creation may fail if the configuration settings are invalid, if 
- *  models fail to load, or if other resources fail to initialize.
+ *  Sets a configuration object for the WhisperKit pipeline.
+ *  The configuration object must be set before the pipeline can be built.
+ * 
+ *  The pipeline must be in the INITIALIZED state before 
+ *  whisperkit_pipeline_set_configuration can be called.  
+ *  It is illegal to set the configuration on pipelines in the BUILT state.
+ * 
+ *  whisperkit_pipeline_set_configuration takes pipeline objects from the INITIALIZED state
+ *  to the CONFIGURED state.
  */
 whisperkit_status_t whisperkit_pipeline_set_configuration(whisperkit_pipeline_t *pipeline, whisperkit_configuration_t *config);
 
@@ -170,10 +198,12 @@ whisperkit_status_t whisperkit_pipeline_set_configuration(whisperkit_pipeline_t 
 
 /** \brief WhisperKit pipeline builder
  * 
- *  Builds and initializes the WhisperKit pipeline with the configuration settings that
- *  have been set.
- *  Pipeline creation may fail if the configuration settings are invalid, if 
+ *  Builds the WhisperKit pipeline with the configuration settings that
+ *  have been set.  Pipeline creation may fail if the configuration settings are invalid, if 
  *  models fail to load, or if other resources fail to initialize.
+ * 
+ *  Pipelines must be in the CONFIGURED state before calling whisperkit_pipeline_build.
+ *  Pipelines that have been built are in the BUILT state.
  */
 whisperkit_status_t whisperkit_pipeline_build(whisperkit_pipeline_t *pipeline);
 
@@ -183,6 +213,7 @@ whisperkit_status_t whisperkit_pipeline_build(whisperkit_pipeline_t *pipeline);
  * 
  *  Transcribes the provided audio file using the created WhisperKit pipeline object.
  *  The transcription is returned as a string.
+ * 
  *  The pipeline must be in the BUILT state before whisperkit_pipeline_transcribe can be 
  *  called.
  */
