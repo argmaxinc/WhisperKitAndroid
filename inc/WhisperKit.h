@@ -115,19 +115,45 @@ whisperkit_status_t whisperkit_configuration_set_melspectrogram_model(whisperkit
  */
 whisperkit_status_t whisperkit_configuration_set_postproc(whisperkit_configuration_t *config, const char* postproc);
 
+/** \brief Set the path to QNN Skel library directory for the WhisperKit pipeline.
+ * 
+ *  Sets the path to the Skel library directory for use with models delegated to QNN backend.
+ */
 whisperkit_status_t whisperkit_configuration_set_lib_dir(whisperkit_configuration_t *config, const char* lib_dir);
 
+/** \brief Set the path to cache directory for use by models within the WhisperKit pipeline.
+ * 
+ *  Sets the path to a directory to be used as a cache for assorted purposes, including 
+ *  but not limited to GPU shader compilation and model caching.
+ */
 whisperkit_status_t whisperkit_configuration_set_cache_dir(whisperkit_configuration_t *config, const char* cache_dir);
 
+/** \brief Set verbosity on or off for the WhisperKit pipeline
+ * 
+ *  Enables verbose printing and logging for debugging purposes.
+ *  This should not be used in production scenarios.
+ */
 whisperkit_status_t whisperkit_configuration_set_verbose(whisperkit_configuration_t *config, bool verbose);
 
+/** \brief Set log level for the WhisperKit pipeline
+ * 
+ *  Sets the log level to a given specification.
+ */
 whisperkit_status_t whisperkit_configuration_set_log_level(whisperkit_configuration_t *config, int log_level);
 
+/** \brief Enable or disable prewarming for the WhisperKit pipeline
+ * 
+ *  Prewarming can lead to faster first inference times, but increase peak memory or 
+ *  power consumption while initializing the pipeline.
+ */
 whisperkit_status_t whisperkit_configuration_set_prewarm(whisperkit_configuration_t *config, bool prewarm);
 
+/** \brief Enable or disable prewarming for the WhisperKit pipeline
+ * 
+ *  Prewarming can lead to faster first inference times, but increase peak memory or 
+ *  power consumption while initializing the pipeline.
+ */
 whisperkit_status_t whisperkit_configuration_set_load(whisperkit_configuration_t *config, bool load);
-
-whisperkit_status_t whisperkit_configuration_set_use_background_download_session(whisperkit_configuration_t *config, bool use_background_download_session);
 
 #pragma mark - pipeline configuration
 
@@ -152,11 +178,28 @@ whisperkit_status_t whisperkit_pipeline_set_configuration(whisperkit_pipeline_t 
 whisperkit_status_t whisperkit_pipeline_build(whisperkit_pipeline_t *pipeline);
 
 #pragma mark - transcription
+
+/** \brief WhisperKit pipeline transcription
+ * 
+ *  Transcribes the provided audio file using the created WhisperKit pipeline object.
+ *  The transcription is returned as a string.
+ *  The pipeline must be in the BUILT state before whisperkit_pipeline_transcribe can be 
+ *  called.
+ */
 whisperkit_status_t whisperkit_pipeline_transcribe(whisperkit_pipeline_t *pipeline, const char* audio_file, char **transcription);
 
 #pragma mark - teardown
+
+/** \brief WhisperKit configuration destroyer
+ * 
+ *  Releases the created configuration object and frees the memory.
+ */
 whisperkit_status_t whisperkit_configuration_destroy(whisperkit_configuration_t *config);
 
+/** \brief WhisperKit pipeline destroyer
+ * 
+ *  Releases the created pipeline object and frees the memory.
+ */
 whisperkit_status_t whisperkit_pipeline_destroy(whisperkit_pipeline_t *pipeline);
 
 #ifdef __cplusplus
