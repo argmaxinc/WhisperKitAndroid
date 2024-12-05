@@ -1,5 +1,6 @@
 //  For licensing see accompanying LICENSE file.
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
+#pragma once
 #include <tflite_model.hpp>
 #include "QnnTFLiteDelegate.h"
 #include "tensorflow/lite/delegates/gpu/delegate.h"

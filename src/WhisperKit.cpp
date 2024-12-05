@@ -1,5 +1,6 @@
 #include "WhisperKit.h"
-
+#include "WhisperKitConfiguration.h"
+#include "WhisperKitPipeline.h"
 
 #pragma mark - initializers
 whisperkit_status_t whisperkit_create_configuration(whisperkit_configuration_t **configuration) {
@@ -10,12 +11,11 @@ whisperkit_status_t whisperkit_create_configuration(whisperkit_configuration_t *
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
-whisperkit_status_t whisperkit_create_pipeline(whisperkit_pipeline_t **pipeline, whisperkit_configuration_t *configuration) {
+whisperkit_status_t whisperkit_create_pipeline(whisperkit_pipeline_t **pipeline) {
     if(pipeline == nullptr || configuration == nullptr) {
         return WHISPERKIT_STATUS_INVALID_ARGUMENT;
     }
-    *pipeline = new whisperkit_pipeline_t(configuration);
-    configuration->pipeline = *pipeline;
+    *pipeline = new whisperkit_pipeline_t();
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
@@ -27,7 +27,7 @@ whisperkit_status_t whisperkit_configuration_set_audio_model(whisperkit_configur
     if(config->pipeline != nullptr) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    config->audio_model = audio_model;
+    config->set_audio_model(audio_model);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
@@ -38,7 +38,7 @@ whisperkit_status_t whisperkit_configuration_set_audio_encoder(whisperkit_config
     if(config->pipeline != nullptr) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    config->audio_encoder = audio_encoder;
+    config->set_audio_encoder(audio_encoder);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
@@ -49,7 +49,7 @@ whisperkit_status_t whisperkit_configuration_set_text_decoder(whisperkit_configu
     if(config->pipeline != nullptr) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    config->text_decoder = text_decoder;
+    config->set_text_decoder(text_decoder);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
@@ -60,7 +60,7 @@ whisperkit_status_t whisperkit_configuration_set_voice_activity_detector(whisper
     if(config->pipeline != nullptr) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    config->voice_activity_detector = voice_activity_detector;
+    config->set_voice_activity_detector(voice_activity_detector);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
@@ -71,7 +71,7 @@ whisperkit_status_t whisperkit_configuration_set_tokenizer(whisperkit_configurat
     if(config->pipeline != nullptr) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    config->tokenizer = tokenizer;
+    config->set_tokenizer(tokenizer);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
@@ -82,7 +82,7 @@ whisperkit_status_t whisperkit_configuration_set_melspectrogram_model(whisperkit
     if(config->pipeline != nullptr) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    config->melspectrogram_model = melspectrogram_model;
+    config->set_melspectrogram_model(melspectrogram_model);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
@@ -93,7 +93,7 @@ whisperkit_status_t whisperkit_configuration_set_postproc(whisperkit_configurati
     if(config->pipeline != nullptr) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    config->postproc = postproc;
+    config->set_postproc(postproc);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
@@ -104,7 +104,7 @@ whisperkit_status_t whisperkit_configuration_set_lib_dir(whisperkit_configuratio
     if(config->pipeline != nullptr) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    config->lib_dir = lib_dir;
+    config->set_lib_dir(lib_dir);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
@@ -115,7 +115,7 @@ whisperkit_status_t whisperkit_configuration_set_cache_dir(whisperkit_configurat
     if(config->pipeline != nullptr) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    config->cache_dir = cache_dir;
+    config->set_cache_dir(cache_dir);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
@@ -126,7 +126,7 @@ whisperkit_status_t whisperkit_configuration_set_verbose(whisperkit_configuratio
     if(config->pipeline != nullptr) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    config->verbose = verbose;
+    config->set_verbose(verbose);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
@@ -137,7 +137,7 @@ whisperkit_status_t whisperkit_configuration_set_log_level(whisperkit_configurat
     if(config->pipeline != nullptr) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    config->log_level = log_level;
+    config->set_log_level(log_level);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
@@ -148,7 +148,7 @@ whisperkit_status_t whisperkit_configuration_set_prewarm(whisperkit_configuratio
     if(config->pipeline != nullptr) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    config->prewarm = prewarm;
+    config->set_prewarm(prewarm);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
@@ -159,20 +159,10 @@ whisperkit_status_t whisperkit_configuration_set_load(whisperkit_configuration_t
     if(config->pipeline != nullptr) {
         return WHISPERKIT_STATUS_INVALID_STATE;
     }
-    config->load = load;
+    config->set_load(load);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
-whisperkit_status_t whisperkit_configuration_set_use_background_download_session(whisperkit_configuration_t *config, bool use_background_download_session) {
-    if(config == nullptr) {
-        return WHISPERKIT_STATUS_INVALID_ARGUMENT;
-    }
-    if(config->pipeline != nullptr) {
-        return WHISPERKIT_STATUS_INVALID_STATE;
-    }
-    config->use_background_download_session = use_background_download_session;
-    return WHISPERKIT_STATUS_SUCCESS;
-};
 
 #pragma mark - transcription
 whisperkit_status_t whisperkit_transcribe(whisperkit_pipeline_t *pipeline, const char* audio_file, char **transcription) {

@@ -6,7 +6,7 @@
 
 using namespace std;
 
-<<<<<<< HEAD
+
 AudioBuffer::AudioBuffer() 
 {
     _buffer = nullptr;
