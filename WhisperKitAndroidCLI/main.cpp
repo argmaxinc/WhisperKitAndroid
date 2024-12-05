@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
     try {
         cxxopts::Options options("whisperkit-cli", "WhisperKit CLI for Android & Linux");
 
-        options.add_options()
+        options.add_options("transcribe", "OVERVIEW: Transcribe audio to text using WhisperKit")
             ("h,help", "Print help")
             ("audioPath", "Path to audio file", cxxopts::value<std::string>())
             ("modelPath", "Path of model files", cxxopts::value<std::string>())
