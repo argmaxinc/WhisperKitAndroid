@@ -1,12 +1,16 @@
 # For licensing see accompanying LICENSE file.
 # Copyright © 2024 Argmax, Inc. All rights reserved.
-
 FROM ubuntu:22.04 AS build-env
 
 RUN apt-get update && apt-get install -y \
     openjdk-17-jre-headless build-essential cmake git \
     python3 python3-pip apt-transport-https \
-    curl wget vim g++ unzip clang \
+    curl wget vim g++ unzip clang libdrm-dev \
+    pkg-config gnome-desktop-testing libasound2-dev libpulse-dev \
+    libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev \
+    libxkbcommon-dev libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev \
+    libegl1-mesa-dev libdbus-1-dev libibus-1.0-dev libudev-dev fcitx-libs-dev \
+    libpipewire-0.3-dev libwayland-dev libdecor-0-dev nasm yasm \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 

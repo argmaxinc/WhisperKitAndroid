@@ -9,6 +9,7 @@
 IMAGE_NAME="android-ndk-qnn-tensorflow-image"
 CONTAINER_NAME="axie_tflite"
 FORCE_REBUILD=false
+FORCE_REMOVE=false
 
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
@@ -16,7 +17,8 @@ SOURCE_DIR="$CURRENT_DIR/.."
 while getopts "rf" opt; do
   case ${opt} in
     r ) FORCE_REBUILD=true ;;
-    \? ) echo "Usage: cmd [-r]"
+    f ) FORCE_REMOVE=true ;;
+    \? ) echo "Usage: cmd [-r] [-f]"
          exit 1 ;;
   esac
 done
@@ -49,7 +51,15 @@ if ! $(docker image inspect $IMAGE_NAME > /dev/null 2>&1) || $FORCE_REBUILD; the
   fi
   if [ ! -d "$BUILD_DIR/tensorflow" ]; then
     echo "Cloning tensorflow..."
-    git clone --depth 1 --branch v2.16.1 https://github.com/tensorflow/tensorflow.git "$BUILD_DIR/tensorflow"
+    git clone --depth 1 --branch v2.16.2 https://github.com/tensorflow/tensorflow.git "$BUILD_DIR/tensorflow"
+  fi
+  if [ ! -d "$BUILD_DIR/ffmpeg" ]; then
+    echo "Cloning ffmpeg..."
+    git clone --branch release/7.1 https://github.com/FFmpeg/FFmpeg.git "$BUILD_DIR/ffmpeg"
+  fi
+  if [ ! -d "$BUILD_DIR/SDL" ]; then
+    echo "Cloning SDL3..."
+    git clone https://github.com/libsdl-org/SDL.git "$BUILD_DIR/SDL"
   fi
 
   echo "Building Docker image: $IMAGE_NAME"
@@ -60,13 +70,18 @@ fi
 
 # Check if the container exists
 if [ "$(docker ps -aq -f name=$CONTAINER_NAME)" ]; then
-  if [ ! "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
+  if $FORCE_REMOVE; then
+    echo "Removing existing container: $CONTAINER_NAME"
+    docker rm -f $CONTAINER_NAME
+  else
+    if [ ! "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
     echo "Starting existing container: $CONTAINER_NAME"
     docker start $CONTAINER_NAME
+    fi
+    echo "SSHing into existing container: $CONTAINER_NAME"
+    docker exec -it $CONTAINER_NAME /bin/bash -c "echo 'Environment Variables:' && printenv && exec /bin/bash"
+    exit 0
   fi
-  echo "Exec into existing container: $CONTAINER_NAME"
-  docker exec -it $CONTAINER_NAME /bin/bash -c "echo 'Environment Variables:' && printenv && exec /bin/bash"
-  exit 0
 fi
 
 # Run a new container
