@@ -4,7 +4,7 @@
 SCRIPTS_DIR = ./scripts
 
 # Define targets for each script
-.PHONY: setup env clean rebuild-env download-models build adb-push adb-shell help
+.PHONY: setup env clean rebuild-env download-models build build_gpu build_x86 adb-push adb-shell help
 
 help:
 	@echo "Available targets:"
@@ -12,7 +12,9 @@ help:
 	@echo "  download-models   Download all models and files."
 	@echo "  env               Builds and runs docker environment to build axie_tflite CLI."
 	@echo "  rebuild-env       Rebuilds and runs docker environment."
-	@echo "  build             Build the axie_tflite CLI. Run this inside development environment."
+	@echo "  build             Build the axie_tflite CLI (QNN). Run this inside development environment."
+	@echo "  build_gpu         Build the axie_tflite CLI (GPU). Run this inside development environment."
+	@echo "  build_x86         Build the axie_tflite CLI (x86). Run this inside development environment."
 	@echo "  adb-push          Push axie_tflite CLI and other dependencies to the Android device. Run this on host."
 	@echo "  adb-shell         Open an interactive ADB shell and setups environment. Run this on host."
 	@echo "  clean             Clean up previous build, both Android and x86."
@@ -43,7 +45,13 @@ clean:
 	@bash $(SCRIPTS_DIR)/build.sh clean
 
 build:
-	@bash $(SCRIPTS_DIR)/build.sh
+	@bash $(SCRIPTS_DIR)/build.sh qnn
+
+build_x86:
+	@bash $(SCRIPTS_DIR)/build.sh x86
+
+build_gpu:
+	@bash $(SCRIPTS_DIR)/build.sh gpu
 
 adb-push:
 	@bash $(SCRIPTS_DIR)/adb_push.sh

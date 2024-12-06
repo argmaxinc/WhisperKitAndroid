@@ -48,12 +48,12 @@ BUILD_DIR="build_${PLATFORM}"
 # check if libSDL3.so is built and exists
 if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libSDL3.so ]; then
     echo "SDL3 libs are not found, building it now.."
-    ./build_SDL.sh $arg
+    $SOURCE_DIR/scripts/build_SDL.sh $arg
 fi
 
 if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libavcodec.so ]; then
     echo "ffmpeg libs are not found, building it now.."
-    ./build_ffmpeg.sh $arg
+    $SOURCE_DIR/scripts/build_ffmpeg.sh $arg
 fi
 
 if [ -d "$SOURCE_DIR/$BUILD_DIR" ]; then
