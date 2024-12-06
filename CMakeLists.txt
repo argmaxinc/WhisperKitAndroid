@@ -20,6 +20,7 @@ set(AXIE_CLI_DIR ${CMAKE_SOURCE_DIR}/cli)
 
 if(${ANDROID})
   message(NOTICE  "Config build for Android ARM64..")
+  OPTION(QNN_DELEGATE "QNN delegate" OFF) # Enabled by default
   set(CMAKE_TOOLCHAIN_FILE ${ANDROID_NDK_ROOT}/build/cmake/android.toolchain.cmake)
   set(ANDROID_ABI arm64-v8a)
   set(AXIE_LIB_DIR ${CMAKE_SOURCE_DIR}/libs/android)

@@ -2,69 +2,65 @@
 # For licensing see accompanying LICENSE file.
 # Copyright © 2024 Argmax, Inc. All rights reserved.
 
-echo "Usage: "
-echo "      ${0} clean: clean build files"
-echo "      ${0} x86  : build for x86 (in build_x86)"
-echo "      ${0} gpu  : build for arm64 Android (in build_android)"
-echo "      ${0}      : build for Android with QNN (in build_android)"
 
-arg=$1
-
-function build_clean {
-    # clean up the previous build
-    ninja clean
-    rm CMakeCache.txt
-    rm -rf CMakeFiles
-    rm -rf cmake_install.cmake
-    rm -rf Makefile
-    rm -rf compile_commands.json
-    find . -name \CMakeCache.txt -type f -delete
-    rm build.ninja
-}
-
+ARG=$1
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
 
-if [[ "$arg" == "clean" ]]; then
-    if [ -d "$SOURCE_DIR/build_android" ]; then
-        cd $SOURCE_DIR/build_android
-        build_clean
-    fi
+case $ARG in
+    "clean")
+        echo "  ${0} clean: cleaning build files"
+        if [ -d "$SOURCE_DIR/build_android" ]; then
+            cd $SOURCE_DIR/build_android
+            ninja clean
+        fi
 
-    if [ -d "$SOURCE_DIR/build_x86" ]; then
-        cd $SOURCE_DIR/build_x86
-        build_clean
-    fi
-    exit 0
-fi
+        if [ -d "$SOURCE_DIR/build_x86" ]; then
+            cd $SOURCE_DIR/build_x86
+            ninja clean
+        fi
+        exit 0 ;;
 
-if [[ "$arg" == "x86" ]]; then
-    PLATFORM="x86"
-else
-    PLATFORM="android"
-fi
+    "x86")
+        echo "  ${0} x86   : building for x86 (in build_x86)"
+        PLATFORM="x86" ;;
+
+    "gpu" | "qnn" | "" )
+        echo "  ${0} [gpu|qnn] : building for arm64 Android (in build_android)"
+        PLATFORM="android" ;;
+
+    *) 
+        echo "Usage: "
+        echo "  ${0} clean  : clean build files"
+        echo "  ${0} x86    : build for x86 (in build_x86)"
+        echo "  ${0} qnn|gpu : build for arm64 Android (QNN | GPU delegate in build_android)"
+        echo "  ${0}        : build for arm64 Android (QNN delegate in build_android)"
+        exit 1 ;;
+esac
+
 mkdir -p $SOURCE_DIR/libs
 mkdir -p $SOURCE_DIR/libs/$PLATFORM
-
 BUILD_DIR="build_${PLATFORM}"
 
 # check if libSDL3.so is built and exists
 if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libSDL3.so ]; then
     echo "SDL3 libs are not found, building it now.."
-    $SOURCE_DIR/scripts/build_SDL.sh $arg
+    $SOURCE_DIR/scripts/build_SDL.sh $ARG
 fi
 
+# check if ffmpeg libs is built and exists
 if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libavcodec.so ]; then
     echo "ffmpeg libs are not found, building it now.."
-    $SOURCE_DIR/scripts/build_ffmpeg.sh $arg
+    $SOURCE_DIR/scripts/build_ffmpeg.sh $ARG
 fi
 
 if [ -d "$SOURCE_DIR/$BUILD_DIR" ]; then
     cd $SOURCE_DIR/$BUILD_DIR
-    build_clean
+    rm whisperax_cli
+    rm libwhisperax.so
 fi
 
-if [[ "$arg" == "x86" ]]; then
+if [ "$ARG" = "x86" ]; then
     cmake \
     -H$SOURCE_DIR \
     -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=$SOURCE_DIR/$BUILD_DIR \
@@ -76,13 +72,16 @@ if [[ "$arg" == "x86" ]]; then
 else
     find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ -name libtensorflowlite_gpu_delegate.so -exec cp {} $SOURCE_DIR/libs/android/ \;
 
-    if [[ "$arg" == "gpu" ]]; then # Generic TFLite GPU delegate
-        QNN_OR_GPU="-DGPU_DELEGATE=True"
+    if [ "$ARG" = "gpu" ]; then # Generic TFLite GPU delegate
+        rm $SOURCE_DIR/libs/android/libQnn*.so
+        rm $SOURCE_DIR/libs/android/libqnn*.so
+        rm $SOURCE_DIR/inc/QnnTFLiteDelegate.h
+        QNN_DELEGATE="-DQNN_DELEGATE=OFF"
     else # QCOM QNN delegate
         cp ${QNN_RUNTIME_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/libs/android/
         cp ${QNN_SDK_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/libs/android/
         cp ${QNN_SDK_ROOT}/headers/QNN/QnnTFLiteDelegate.h $SOURCE_DIR/inc/
-        QNN_OR_GPU="-DQNN_DELEGATE=True"       
+        QNN_DELEGATE="-DQNN_DELEGATE=ON"
     fi
 
     cmake \
@@ -103,7 +102,7 @@ else
     -B$SOURCE_DIR/$BUILD_DIR \
     -GNinja \
     -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR} \
-    ${QNN_OR_GPU}
+    ${QNN_DELEGATE}
 fi
 
 echo "*****************"
