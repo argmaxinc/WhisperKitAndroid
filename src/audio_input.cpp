@@ -6,6 +6,7 @@
 
 using namespace std;
 
+
 AudioBuffer::AudioBuffer() 
 {
     _buffer = nullptr;
@@ -151,15 +152,16 @@ AudioInputModel::AudioInputModel( // buffer input mode
 }
 
 bool AudioInputModel::initialize(
-    string model_file,
-    string lib_dir,
-    string cache_dir, 
+    const string& model_file,
+    const string& lib_dir,
+    const string& cache_dir, 
     int backend, 
     bool debug
 ){
     SDL_SetMainReady();
     if (!SDL_Init(0)) {
         LOGE("Couldn't initialize SDL: %s", SDL_GetError());
+
         return false;
     }
 
@@ -170,6 +172,7 @@ bool AudioInputModel::initialize(
 
     _float_buffer.resize(1.5 * MAX_CHUNK_LENGTH);
     _pcm_buffer->initialize(&_source_spec, &_target_spec);
+
 
     return true;
 }

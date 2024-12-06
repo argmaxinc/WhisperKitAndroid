@@ -12,6 +12,7 @@ inc/libavformat/
 inc/libavutil/
 inc/libswresample/
 inc/SDL3/
+.workspace/
 
 # MacOS specific
 .DS_Store
