@@ -43,6 +43,9 @@ if [[ "$arg" == "x86" ]]; then
 else
     PLATFORM="android"
 fi
+mkdir -p $SOURCE_DIR/libs
+mkdir -p $SOURCE_DIR/libs/$PLATFORM
+
 BUILD_DIR="build_${PLATFORM}"
 
 # check if libSDL3.so is built and exists
