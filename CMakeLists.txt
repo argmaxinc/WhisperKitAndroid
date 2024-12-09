@@ -20,20 +20,16 @@ set(AXIE_CLI_DIR ${CMAKE_SOURCE_DIR}/cli)
 
 if(${ANDROID})
   message(NOTICE  "Config build for Android ARM64..")
+  OPTION(QNN_DELEGATE "QNN delegate" OFF) # Disabled by default
   set(CMAKE_TOOLCHAIN_FILE ${ANDROID_NDK_ROOT}/build/cmake/android.toolchain.cmake)
   set(ANDROID_ABI arm64-v8a)
   set(AXIE_LIB_DIR ${CMAKE_SOURCE_DIR}/libs/android)
   find_library(android_log log)
 else()
-  message(NOTICE  "Config build for x86_64..")
-  set(AXIE_LIB_DIR ${CMAKE_SOURCE_DIR}/libs/x86)
+  message(NOTICE  "Config build for linux..")
+  set(AXIE_LIB_DIR ${CMAKE_SOURCE_DIR}/libs/linux)
 endif()
 
-add_subdirectory(
-  "${TENSORFLOW_SOURCE_DIR}/tensorflow/lite"
-  "${CMAKE_CURRENT_BINARY_DIR}/tensorflow-lite"
-  EXCLUDE_FROM_ALL
-)
 
 link_directories(
   ${AXIE_LIB_DIR}
@@ -41,7 +37,6 @@ link_directories(
 
 # build top library: whisperax
 if(${ANDROID})
-
   if(${QNN_DELEGATE}) # QCOM QNN delegate
     message(NOTICE  " Delegate via QCOM QNN..")
     add_library(whisperax   SHARED
@@ -75,6 +70,7 @@ endif()
 
 target_include_directories(whisperax PRIVATE
   ${AXIE_INC_DIR}
+  ${TENSORFLOW_SOURCE_DIR}
 )
 
 if(${ANDROID})
@@ -87,7 +83,7 @@ if(${ANDROID})
     )
     target_link_libraries(whisperax PRIVATE 
       qnn_delegate 
-      tensorflow-lite 
+      tensorflowlite 
       tensorflowlite_gpu_delegate
       ${android_log}
       SDL3
@@ -96,7 +92,7 @@ if(${ANDROID})
   else() 
     ADD_DEFINITIONS(-DGPU_DELEGATE)
     target_link_libraries(whisperax PRIVATE 
-      tensorflow-lite 
+      tensorflowlite 
       tensorflowlite_gpu_delegate
       ${android_log}
       SDL3
@@ -105,7 +101,7 @@ if(${ANDROID})
 
 else()
   target_link_libraries(whisperax PRIVATE 
-    tensorflow-lite 
+    tensorflowlite 
     SDL3
   )
 endif()
