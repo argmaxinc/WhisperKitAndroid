@@ -25,6 +25,7 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
         self.test_bin = "whisperax_cli"
         self.root_path = "/sdcard/argmax/tflite"
         self.devices = []
+        self.files = []
         self.tokenizer = get_tokenizer(multilingual=False, language="en")
 
         output = subprocess.run(["adb", "devices"], stdout=subprocess.PIPE)
@@ -55,9 +56,6 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
         elif os.path.isdir(self.args.input):
             self.path = self.args.input
             self.data_set = path_parts[-1]
-            self.files = []
-
-        if os.path.isdir(self.args.input):
             for file in os.listdir(self.args.input):
                 full_file_name = os.path.join(self.args.input, file)
                 # checking if it is a file
