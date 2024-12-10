@@ -4,7 +4,7 @@
 SCRIPTS_DIR = ./scripts
 
 # Define targets for each script
-.PHONY: setup env clean rebuild-env download-models build adb-push adb-shell help
+.PHONY: setup env clean rebuild-env download-models build test adb-push adb-shell help
 
 args = `arg="$(filter-out $@,$(MAKECMDGOALS))" && echo $${arg:-${1}}`
 
@@ -55,6 +55,9 @@ linux:	# do nothing - sub target of build
 
 gpu:	# do nothing - sub target of build
 	@echo ""
+
+test:
+	@bash $(SCRIPTS_DIR)/build_test.sh
 
 adb-push:
 	@bash $(SCRIPTS_DIR)/adb_push.sh

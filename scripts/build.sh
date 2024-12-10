@@ -47,7 +47,7 @@ mkdir -p $SOURCE_DIR/libs/$PLATFORM
 BUILD_DIR="build_${PLATFORM}"
 
 # check if libtensorflow-lite.a is built and exists
-if [ ! -f $SOURCE_DIR/external_build/$PLATFORM/libtensorflow-lite.a ]; then
+if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libtensorflowlite.so ]; then
     $SOURCE_DIR/scripts/build_tensorflow.sh $PLATFORM
 fi
 
