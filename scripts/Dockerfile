@@ -59,7 +59,7 @@ RUN cd $QNN_RUNTIME_ROOT && unzip $QNN_RUNTIME && rm $QNN_RUNTIME && \
     $CMD_TOOLS/bin/sdkmanager --install "build-tools;34.0.0" --sdk_root=$ANDROID_SDK_HOME && \
     $CMD_TOOLS/bin/sdkmanager --install "cmake;$CMAKE_VERION" --sdk_root=$ANDROID_SDK_HOME && \
     ln -s $AXIE_ROOT/.build/tensorflow $TENSORFLOW_SOURCE_DIR && \
-    chmod +x $BAZEL_DIR/$BAZEL_INSTALLER && $BAZEL_DIR/$BAZEL_INSTALLER && rm $BAZEL_DIR/$BAZEL_INSTALLER
+    chmod +x $BAZEL_DIR/$BAZEL_INSTALLER && $BAZEL_DIR/$BAZEL_INSTALLER && rm -rf $BAZEL_DIR
 
 # Set up the PATH
 ENV PATH=$PATH:$ANDROID_NDK_HOME:$ANDROID_SDK_HOME/$CMD_TOOLS/bin:$ANDROID_SDK_HOME/platform-tools:$ANDROID_SDK_HOME/cmake/$CMAKE_VERION/bin

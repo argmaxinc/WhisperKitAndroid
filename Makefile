@@ -44,20 +44,11 @@ rebuild-env:
 clean:
 	@bash $(SCRIPTS_DIR)/build.sh clean $(call args,) 
 
-all:	# do nothing - sub target of clean
-	@echo ""
-
 build:
 	@bash $(SCRIPTS_DIR)/build.sh $(call args,)
 
-linux:	# do nothing - sub target of build
-	@echo ""
-
-gpu:	# do nothing - sub target of build
-	@echo ""
-
 test:
-	@bash $(SCRIPTS_DIR)/build_test.sh
+	@bash $(SCRIPTS_DIR)/build_test.sh $(call args,)
 
 adb-push:
 	@bash $(SCRIPTS_DIR)/adb_push.sh
@@ -65,3 +56,14 @@ adb-push:
 adb-shell:
 	@expect $(SCRIPTS_DIR)/adb_shell.sh
 
+all:	# do nothing - sub target of clean
+	@echo ""
+
+linux:	# do nothing - sub target of build/test
+	@echo ""
+
+qnn:	# do nothing - sub target of build/test
+	@echo ""
+
+gpu:	# do nothing - sub target of build/test
+	@echo ""

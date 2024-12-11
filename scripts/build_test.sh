@@ -4,9 +4,25 @@
 
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
+ARG=$1
 
-pip install -r $SOURCE_DIR/test/requirements.txt
+case $ARG in
+    "linux")
+        echo "  ${0} linux   : run in Docker"
+        cd $SOURCE_DIR
+        ./build_linux/whisperax_cli test/data/ted_60.m4a tiny
+        exit 0 ;;
 
-python3 $SOURCE_DIR/test/whisperkit_android_test.py -i $SOURCE_DIR/test/data -m tiny 
-# python3 $SOURCE_DIR/test/whisperkit_android_test.py -i $SOURCE_DIR/test/data -m base
-# python3 $SOURCE_DIR/test/whisperkit_android_test.py -i $SOURCE_DIR/test/data -m small
+    "gpu" | "qnn" | "" )
+        echo "  ${0} [gpu|qnn] : run on Host PC"
+        cd $SOURCE_DIR/test
+        pip install -r $SOURCE_DIR/test/requirements.txt
+        python3 whisperkit_android_test.py -i $SOURCE_DIR/test/data -m tiny
+        exit 0 ;;
+    *) 
+        echo "Usage: "
+        echo "  ${0} linux   : test for linux (in build_linux)"
+        echo "  ${0} qnn|gpu : test for arm64 Android (QNN | GPU delegate in build_android)"
+        echo "  ${0}         : test for arm64 Android (QNN delegate in build_android)"
+        exit 1 ;;
+esac
