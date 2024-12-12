@@ -4,7 +4,7 @@
 SCRIPTS_DIR = ./scripts
 
 # Define targets for each script
-.PHONY: setup env clean rebuild-env download-models build test adb-push adb-shell help
+.PHONY: setup env ci-env clean rebuild-env download-models build test adb-push help
 
 args = `arg="$(filter-out $@,$(MAKECMDGOALS))" && echo $${arg:-${1}}`
 
@@ -13,10 +13,13 @@ help:
 	@echo "  setup             Checking dependencies and any setup for the host."
 	@echo "  download-models   Download all models and files."
 	@echo "  env               Builds and runs docker environment to build axie_tflite CLI."
-	@echo "  rebuild-env       Rebuilds and runs docker environment."
-	@echo "  build             Build the axie_tflite CLI. Run this inside development environment."
+	@echo "  ci-env            Builds and runs docker environment for GitHub CI"
+	@echo "  rebuild-env       Clean and rebuilds and runs docker environment."
+	@echo "  clean        	   Clean WhisperKitAndroid build."
+	@echo "    [all]       	   Deep clean WhisperKitAndroid build, including external components"
+	@echo "  build             Build the axie_tflite CLI. **Run this inside development environment** "
+	@echo "    [qnn|gpu|linux] Build for each target: QNN or GPU for Android, or Linux"
 	@echo "  adb-push          Push axie_tflite CLI and other dependencies to the Android device. Run this on host."
-	@echo "  adb-shell         Open an interactive ADB shell and setups environment. Run this on host."
 	@echo "  test              Builds and install test dependencies."
 
 
@@ -36,7 +39,10 @@ download-models:
 	@bash $(SCRIPTS_DIR)/download_models.sh
 
 env:
-	@bash $(SCRIPTS_DIR)/dev_env.sh
+	@bash $(SCRIPTS_DIR)/dev_env.sh 
+
+ci-env:
+	@bash $(SCRIPTS_DIR)/dev_env.sh -c
 
 rebuild-env:
 	@bash $(SCRIPTS_DIR)/dev_env.sh -r
@@ -52,9 +58,6 @@ test:
 
 adb-push:
 	@bash $(SCRIPTS_DIR)/adb_push.sh
-
-adb-shell:
-	@expect $(SCRIPTS_DIR)/adb_shell.sh
 
 all:	# do nothing - sub target of clean
 	@echo ""

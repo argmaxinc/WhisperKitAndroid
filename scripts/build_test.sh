@@ -2,22 +2,45 @@
 # For licensing see accompanying LICENSE file.
 # Copyright © 2024 Argmax, Inc. All rights reserved.
 
+REMOTE_SDROOT_DIR="/sdcard/argmax/tflite"
+REMOTE_INPUTS_DIR="${REMOTE_SDROOT_DIR}/inputs"
+REMOTE_BIN_DIR="/data/local/tmp/bin"
+REMOTE_LIB_DIR="/data/local/tmp/lib"
+
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
+LINUX_BUILD_DIR=./build_linux
 ARG=$1
 
 case $ARG in
     "linux")
         echo "  ${0} linux   : run in Docker"
         cd $SOURCE_DIR
-        ./build_linux/whisperax_cli test/data/ted_60.m4a tiny
+        $LINUX_BUILD_DIR/whisperax_cli test/data/jfk_441khz.m4a tiny
         exit 0 ;;
 
     "gpu" | "qnn" | "" )
         echo "  ${0} [gpu|qnn] : run on Host PC"
+
+        for dev in `adb devices | grep -v "List" | awk '{print $1}'`
+        do 
+            DEVICE=$dev
+            break
+        done
+        if [ "$DEVICE" = "" ]; then
+            echo "No Android device is connected via adb"
+            exit -1
+        fi
+        echo "Test on: $DEVICE"
+
+        CMD="cd ${REMOTE_SDROOT_DIR} && \
+            export LD_LIBRARY_PATH=${REMOTE_LIB_DIR} && \
+            ${REMOTE_BIN_DIR}/whisperax_cli \
+            ${REMOTE_INPUTS_DIR}/jfk_441khz.m4a tiny"
+
         cd $SOURCE_DIR/test
-        pip install -r $SOURCE_DIR/test/requirements.txt
-        python3 whisperkit_android_test.py -i $SOURCE_DIR/test/data -m tiny
+        adb -s $DEVICE push ./data/jfk_441khz.m4a $REMOTE_INPUTS_DIR/.
+        adb -s $DEVICE shell $CMD
         exit 0 ;;
     *) 
         echo "Usage: "
