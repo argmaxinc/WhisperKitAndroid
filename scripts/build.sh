@@ -47,8 +47,9 @@ mkdir -p $SOURCE_DIR/libs/$PLATFORM
 BUILD_DIR="build_${PLATFORM}"
 
 # check if libtensorflowlite.so and its headers are built and installed
-if [[ ! -f $SOURCE_DIR/libs/$PLATFORM/libtensorflowlite.so || \
-     ! -d $SOURCE_DIR/inc/flatbuffers ]]; then
+if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libtensorflowlite.so ]; then
+    $SOURCE_DIR/scripts/build_tensorflow.sh $PLATFORM
+elif [ ! -d $SOURCE_DIR/inc/flatbuffers ]; then
     $SOURCE_DIR/scripts/build_tensorflow.sh $PLATFORM
 fi
 
