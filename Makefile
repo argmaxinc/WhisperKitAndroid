@@ -4,20 +4,23 @@
 SCRIPTS_DIR = ./scripts
 
 # Define targets for each script
-.PHONY: setup env clean rebuild-env download-models build build_gpu build_x86 adb-push adb-shell help
+.PHONY: setup env ci-env clean rebuild-env download-models build test adb-push help
+
+args = `arg="$(filter-out $@,$(MAKECMDGOALS))" && echo $${arg:-${1}}`
 
 help:
 	@echo "Available targets:"
 	@echo "  setup             Checking dependencies and any setup for the host."
 	@echo "  download-models   Download all models and files."
 	@echo "  env               Builds and runs docker environment to build axie_tflite CLI."
-	@echo "  rebuild-env       Rebuilds and runs docker environment."
-	@echo "  build             Build the axie_tflite CLI (QNN). Run this inside development environment."
-	@echo "  build_gpu         Build the axie_tflite CLI (GPU). Run this inside development environment."
-	@echo "  build_x86         Build the axie_tflite CLI (x86). Run this inside development environment."
+	@echo "  ci-env            Builds and runs docker environment for GitHub CI"
+	@echo "  rebuild-env       Clean and rebuilds and runs docker environment."
+	@echo "  clean        	   Clean WhisperKitAndroid build."
+	@echo "    [all]       	   Deep clean WhisperKitAndroid build, including external components"
+	@echo "  build             Build the axie_tflite CLI. **Run this inside development environment** "
+	@echo "    [qnn|gpu|linux] Build for each target: QNN or GPU for Android, or Linux"
 	@echo "  adb-push          Push axie_tflite CLI and other dependencies to the Android device. Run this on host."
-	@echo "  adb-shell         Open an interactive ADB shell and setups environment. Run this on host."
-	@echo "  clean             Clean up previous build, both Android and x86."
+	@echo "  test              Builds and install test dependencies."
 
 
 setup:
@@ -36,25 +39,34 @@ download-models:
 	@bash $(SCRIPTS_DIR)/download_models.sh
 
 env:
-	@bash $(SCRIPTS_DIR)/dev_env.sh
+	@bash $(SCRIPTS_DIR)/dev_env.sh 
+
+ci-env:
+	@bash $(SCRIPTS_DIR)/dev_env.sh -c
 
 rebuild-env:
-	@bash $(SCRIPTS_DIR)/dev_env.sh -r
+	@bash $(SCRIPTS_DIR)/dev_env.sh -rf
 
 clean:
-	@bash $(SCRIPTS_DIR)/build.sh clean
+	@bash $(SCRIPTS_DIR)/build.sh clean $(call args,) 
 
 build:
-	@bash $(SCRIPTS_DIR)/build.sh qnn
+	@bash $(SCRIPTS_DIR)/build.sh $(call args,)
 
-build_x86:
-	@bash $(SCRIPTS_DIR)/build.sh x86
-
-build_gpu:
-	@bash $(SCRIPTS_DIR)/build.sh gpu
+test:
+	@bash $(SCRIPTS_DIR)/build_test.sh $(call args,)
 
 adb-push:
 	@bash $(SCRIPTS_DIR)/adb_push.sh
 
-adb-shell:
-	@expect $(SCRIPTS_DIR)/adb_shell.sh
+all:	# do nothing - sub target of clean
+	@echo ""
+
+linux:	# do nothing - sub target of build/test
+	@echo ""
+
+qnn:	# do nothing - sub target of build/test
+	@echo ""
+
+gpu:	# do nothing - sub target of build/test
+	@echo ""
