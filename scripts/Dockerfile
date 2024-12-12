@@ -33,6 +33,7 @@ ENV ANDROID_HOME=$ANDROID_SDK_HOME
 
 ENV QNN_SDK_ROOT=/opt/qnn-sdk
 ENV QNN_RUNTIME_ROOT=/opt/qnn-runtime
+ENV AXIE_ROOT=/src/AXIE
 
 ARG ANDROID_NDK_ZIP=$ANDROID_NDK_VERSION-linux.zip
 ARG BAZEL_INSTALLER=bazel-6.5.0-installer-linux-x86_64.sh
@@ -42,8 +43,6 @@ ARG QNN_TFLITE_DELEGATE=qnn-tflite-delegate-2.27.0.aar
 ARG ANDROID_COMMAND_LINE_TOOLS=commandlinetools-linux-11076708_latest.zip
 
 # Copy build dependencies
-ADD .build/tensorflow $TENSORFLOW_SOURCE_DIR/
-ADD scripts/build_tensorflow.sh /tmp/
 ADD .build/$ANDROID_NDK_ZIP $ANDROID_NDK_PATH/
 ADD .build/$BAZEL_INSTALLER $BAZEL_DIR/$BAZEL_INSTALLER
 ADD .build/$QNN_RUNTIME $QNN_RUNTIME_ROOT/
@@ -59,10 +58,10 @@ RUN cd $QNN_RUNTIME_ROOT && unzip $QNN_RUNTIME && rm $QNN_RUNTIME && \
     $CMD_TOOLS/bin/sdkmanager --install "platforms;android-34" --sdk_root=$ANDROID_SDK_HOME && \
     $CMD_TOOLS/bin/sdkmanager --install "build-tools;34.0.0" --sdk_root=$ANDROID_SDK_HOME && \
     $CMD_TOOLS/bin/sdkmanager --install "cmake;$CMAKE_VERION" --sdk_root=$ANDROID_SDK_HOME && \
-    chmod +x $BAZEL_DIR/$BAZEL_INSTALLER && $BAZEL_DIR/$BAZEL_INSTALLER && rm $BAZEL_DIR/$BAZEL_INSTALLER
-RUN chmod +x /tmp/build_tensorflow.sh && /tmp/build_tensorflow.sh
+    ln -s $AXIE_ROOT/.build/tensorflow $TENSORFLOW_SOURCE_DIR && \
+    chmod +x $BAZEL_DIR/$BAZEL_INSTALLER && $BAZEL_DIR/$BAZEL_INSTALLER && rm -rf $BAZEL_DIR
 
 # Set up the PATH
-ENV PATH=$PATH:$ANDROID_NDK_HOME:$TENSORFLOW_SOURCE_DIR:$ANDROID_SDK_HOME/$CMD_TOOLS/bin:$ANDROID_SDK_HOME/platform-tools:$ANDROID_SDK_HOME/cmake/$CMAKE_VERION/bin
+ENV PATH=$PATH:$ANDROID_NDK_HOME:$ANDROID_SDK_HOME/$CMD_TOOLS/bin:$ANDROID_SDK_HOME/platform-tools:$ANDROID_SDK_HOME/cmake/$CMAKE_VERION/bin
 
-WORKDIR /src/AXIE
+WORKDIR $AXIE_ROOT

@@ -2,18 +2,30 @@
 # For licensing see accompanying LICENSE file.
 # Copyright © 2024 Argmax, Inc. All rights reserved.
 
+for dev in `adb devices | grep -v "List" | awk '{print $1}'`
+do 
+  DEVICE=$dev
+  break
+done
+echo "Pushing to: $DEVICE"
+
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
 
-AXIE_TFLITE_CLI="$SOURCE_DIR/build/axie_tflite"
-LOCAL_LIBS="$SOURCE_DIR/libs"
-LOCAL_MODELS="$SOURCE_DIR/models"
-LOCAL_INPUTS="$SOURCE_DIR/inputs"
+AXIE_TFLITE_CLI="$SOURCE_DIR/build_android/whisperax_cli"
+AXIE_TFLITE_LIB="$SOURCE_DIR/build_android/libwhisperax.so"
+LOCAL_LIBS="$SOURCE_DIR/libs/android"
+LOCAL_TINY_DIR="$SOURCE_DIR/openai_whisper-tiny"
+LOCAL_BASE_DIR="$SOURCE_DIR/openai_whisper-base"
+LOCAL_SMALL_DIR="$SOURCE_DIR/openai_whisper-small"
 
 REMOTE_BIN_DIR="/data/local/tmp/bin"
 REMOTE_LIB_DIR="/data/local/tmp/lib"
-REMOTE_MODELS_DIR="/sdcard/argmax/tflite/models"
-REMOTE_INPUTS_DIR="/sdcard/argmax/tflite/inputs"
+REMOTE_SDROOT_DIR="/sdcard/argmax/tflite"
+REMOTE_TINY_DIR="${REMOTE_SDROOT_DIR}/openai_whisper-tiny"
+REMOTE_BASE_DIR="${REMOTE_SDROOT_DIR}/openai_whisper-base"
+REMOTE_SMALL_DIR="${REMOTE_SDROOT_DIR}/openai_whisper-small"
+REMOTE_INPUTS_DIR="${REMOTE_SDROOT_DIR}/inputs"
 
 # Function to push files only if they do not exist
 push_if_not_exists() {
@@ -29,8 +41,8 @@ push_if_not_exists() {
         done
     else
         # If it's a file, check if it exists on the remote device
-        if adb shell "[ ! -e $remote_path ]"; then
-            adb push "$local_path" "$remote_path"
+        if adb -s $DEVICE shell "[ ! -e $remote_path ]"; then
+            adb -s $DEVICE push "$local_path" "$remote_path"
         else
             # uncomment to debug
             # echo "$remote_path already exists. Skipping push."
@@ -40,7 +52,23 @@ push_if_not_exists() {
 }
 
 # Push the files and folders to the Android device
-adb push "$AXIE_TFLITE_CLI" "$REMOTE_BIN_DIR/"
+if adb -s $DEVICE shell "[ ! -e $REMOTE_SDROOT_DIR ]"; then
+    adb -s $DEVICE shell mkdir "$REMOTE_SDROOT_DIR"
+fi
+if adb -s $DEVICE shell "[ ! -e $REMOTE_INPUTS_DIR ]"; then
+    adb -s $DEVICE shell mkdir "$REMOTE_INPUTS_DIR"
+fi
+if adb -s $DEVICE shell "[ ! -e $REMOTE_BIN_DIR ]"; then
+    adb -s $DEVICE shell mkdir "$REMOTE_BIN_DIR"
+fi
+if adb -s $DEVICE shell "[ ! -e $REMOTE_LIB_DIR ]"; then
+    adb -s $DEVICE shell mkdir "$REMOTE_LIB_DIR"
+fi
+
+adb -s $DEVICE push "$AXIE_TFLITE_CLI" "$REMOTE_BIN_DIR/."
+adb -s $DEVICE push "$AXIE_TFLITE_LIB" "$REMOTE_LIB_DIR/."
+
 push_if_not_exists "$LOCAL_LIBS" "$REMOTE_LIB_DIR"
-push_if_not_exists "$LOCAL_MODELS" "$REMOTE_MODELS_DIR"
-push_if_not_exists "$LOCAL_INPUTS" "$REMOTE_INPUTS_DIR"
+push_if_not_exists "$LOCAL_TINY_DIR" "$REMOTE_TINY_DIR"
+push_if_not_exists "$LOCAL_BASE_DIR" "$REMOTE_BASE_DIR"
+push_if_not_exists "$LOCAL_SMALL_DIR" "$REMOTE_SMALL_DIR"

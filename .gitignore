@@ -5,16 +5,22 @@ inputs/
 models/
 libs/
 cache/
+openai_whisper-*/
+external_build/
 build_android/
-build_x86/
+build_linux/
 inc/libavcodec/
 inc/libavformat/
 inc/libavutil/
 inc/libswresample/
 inc/SDL3/
+inc/flatbuffers/
 
 # MacOS specific
 .DS_Store
 
 # QNN Specific
 QnnTFLiteDelegate.h
+
+# test
+json/
