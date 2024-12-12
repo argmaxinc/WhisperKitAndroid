@@ -106,12 +106,18 @@ int tflite_init(string argstr){
         (int)args["freq"], (int)args["ch"], format
     );
 
-    string tokenizer_json = root_path + "/inputs/converted_vocab.json";
-    string audio_model = root_path + "/models/voice_activity_detection.tflite";
-    string melspectro_model = root_path + "/models/melspectrogram.tflite";
-    string encoder_model = root_path + "/models/encoder_" + model_size + ".tflite";
-    string decoder_model = root_path + "/models/decoder_" + model_size + ".tflite";
-    string postproc_model = root_path + "/models/postproc.tflite";
+    std::string tokenizer_json = root_path +
+        "/openai_whisper-" + model_size + "/converted_vocab.json";
+    std::string audio_model = root_path +
+        "/openai_whisper-" + model_size + "/voice_activity_detection.tflite";
+    std::string melspectro_model = root_path +
+        "/openai_whisper-" + model_size + "/MelSpectrogram.tflite";
+    std::string encoder_model = root_path +
+        "/openai_whisper-" + model_size + "/AudioEncoder.tflite";
+    std::string decoder_model = root_path +
+        "/openai_whisper-" + model_size + "/TextDecoder.tflite";
+    std::string postproc_model = root_path +
+        "/openai_whisper-" + model_size + "/postproc.tflite";
 
     melspectro = make_unique<MODEL_SUPER_CLASS>("mel_spectrogram");
     encoder = make_unique<MODEL_SUPER_CLASS>("whisper_encoder");
