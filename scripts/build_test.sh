@@ -16,7 +16,7 @@ case $ARG in
     "linux")
         echo "  ${0} linux   : run in Docker"
         cd $SOURCE_DIR
-        $LINUX_BUILD_DIR/whisperax_cli test/data/jfk_441khz.m4a tiny
+        $LINUX_BUILD_DIR/whisperax_cli test/jfk_441khz.m4a tiny
         exit 0 ;;
 
     "gpu" | "qnn" | "" )
@@ -39,7 +39,7 @@ case $ARG in
             ${REMOTE_INPUTS_DIR}/jfk_441khz.m4a tiny"
 
         cd $SOURCE_DIR/test
-        adb -s $DEVICE push ./data/jfk_441khz.m4a $REMOTE_INPUTS_DIR/.
+        adb -s $DEVICE push ./jfk_441khz.m4a $REMOTE_INPUTS_DIR/.
         adb -s $DEVICE shell $CMD
         exit 0 ;;
     *) 
