@@ -8,12 +8,10 @@
   <img src="https://github.com/user-attachments/assets/1be5e31c-de42-40ab-9b85-790cb911ed47" alt="WhisperKit" width="20%" />
 </a>
 
-# WhisperKit Android (Alpha)
+# WhisperKit Android (Beta)
 </div>
 
 WhisperKit Android brings Foundation Models On Device for Automatic Speech Recognition. It extends the performance and feature set of [WhisperKit](https://github.com/argmaxinc/WhisperKit) from Apple platforms to Android and (soon) Linux.
-
-[Example App (Coming with Beta)] [[Blog Post]](https://takeargmax.com/blog/android) [[Python Tools Repo]](https://github.com/argmaxinc/whisperkittools)
 
 
 ## Table of Contents
