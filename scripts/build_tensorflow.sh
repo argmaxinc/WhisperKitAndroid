@@ -17,10 +17,6 @@ if [ ! -d $SOURCE_DIR/external_build/$PLATFORM ]; then
     mkdir $SOURCE_DIR/external_build/$PLATFORM
 fi
 
-if [ ! -d $SOURCE_DIR/inc/flatbuffers ]; then
-    cp -rf $TENSORFLOW_SOURCE_DIR/bazel-tensorflow/external/flatbuffers/include/flatbuffers $SOURCE_DIR/inc/.
-fi
-
 export PYTHON_BIN_PATH=/usr/bin/python3
 export PYTHON_LIB_PATH=/usr/lib/python3/dist-packages
 export TF_NEED_ROCM=0
@@ -61,4 +57,8 @@ else
         find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ \
             -name libtensorflowlite.so -exec cp {} $SOURCE_DIR/libs/$PLATFORM/ \;
     fi
+fi
+
+if [ ! -d $SOURCE_DIR/inc/flatbuffers ]; then
+    cp -rf $TENSORFLOW_SOURCE_DIR/bazel-tensorflow/external/flatbuffers/include/flatbuffers $SOURCE_DIR/inc/.
 fi

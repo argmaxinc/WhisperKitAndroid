@@ -18,7 +18,7 @@ WhisperKit Android brings Foundation Models On Device for Automatic Speech Recog
 - [Installation](#installation)
 - [Getting Started](#getting-started)
 - [CLI Run and Test](#cli-run-and-test)
-- [Contributing \& Roadmap](#contributing--roadmap)
+- [Contributing \& Changes](#contributing--changes)
 - [License](#license)
 - [Citation](#citation)
 
