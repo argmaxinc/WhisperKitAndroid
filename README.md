@@ -8,17 +8,19 @@
   <img src="https://github.com/user-attachments/assets/1be5e31c-de42-40ab-9b85-790cb911ed47" alt="WhisperKit" width="20%" />
 </a>
 
-# WhisperKit Android (Beta)
+# WhisperKit Android (Alpha)
 </div>
 
 WhisperKit Android brings Foundation Models On Device for Automatic Speech Recognition. It extends the performance and feature set of [WhisperKit](https://github.com/argmaxinc/WhisperKit) from Apple platforms to Android and (soon) Linux.
+
+[Example App (Coming with Beta)] [[Blog Post]](https://takeargmax.com/blog/android) [[Python Tools Repo]](https://github.com/argmaxinc/whisperkittools)
 
 
 ## Table of Contents
 - [Installation](#installation)
 - [Getting Started](#getting-started)
 - [CLI Run and Test](#cli-run-and-test)
-- [Contributing \& Changes](#contributing--changes)
+- [Contributing \& Roadmap](#contributing--roadmap)
 - [License](#license)
 - [Citation](#citation)
 
@@ -149,21 +151,20 @@ Total Duration:	 3262.000 ms
 ```
 </details>
 
-## Contribution & Changes
+## Contributing & Roadmap
 
-WhisperKit Android is currently in the v0.1 Beta stage. Contributions from the community will be encouraged after the project reaches the v0.2 Beta milestone.
+WhisperKit Android is currently in the v0.1 Alpha stage. Contributions from the community will be encouraged after the project reaches the v0.1 Beta milestone.
 
-### v0.1 Beta (December 2024)
-- Input audio file format coverage for wav, flac, m4a, mp3, ogg
-- Input audio with various sample rates (16/22.5/24/32/44.1/48 Khz) and mono/stereo channels
-- Support multi-threaded and pipelined processing
-- Support QCOM QNN & TFLite GPUv2 delegates
-- Support native Linux platform
+### v0.1 Beta (November 2024)
+- [ ] Temperature fallbacks for decoding guardrails
+- [ ] Input audio file format coverage for wav, flac, mp4, m4a, mp3
+- [ ] Output file format coverage for SRT, VTT, and OpenAI-compatible JSON
+- [ ] [WhisperKit Benchmarks](https://huggingface.co/spaces/argmaxinc/whisperkit-evals) performance and quality data publication
 
-### v0.1 Alpha (October 2024)
-- First release
-- Input audio wav file with 16Khz sample rate and mono format
-- Support QualComm's QNN delegate
+### v0.2 (Q1 2025)
+- [ ] Whisper Large v3 Turbo (v20240930) support
+- [ ] Streaming real-time inference
+- [ ] Model compression
 
 ## License
 - We release WhisperKit Android under [MIT License](LICENSE).
