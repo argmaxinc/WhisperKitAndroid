@@ -10,57 +10,61 @@ SOURCE_DIR="$CURRENT_DIR/.."
 case $ARG in
     "clean")
         echo "  ${0} clean: cleaning build files"
-        if [ -d "$SOURCE_DIR/build_android" ]; then
-            rm -rf $SOURCE_DIR/build_android
-        fi
-
-        if [ -d "$SOURCE_DIR/build_linux" ]; then
-            rm -rf $SOURCE_DIR/build_linux
+        if [ -d "$SOURCE_DIR/build" ]; then
+            rm -rf $SOURCE_DIR/build
         fi
 
         if [ "$2" = "all" ]; then
-            rm -rf $SOURCE_DIR/libs
-            rm -rf external_build
+            rm -rf $SOURCE_DIR/external
         fi
 
         exit 0 ;;
 
     "linux")
-        echo "  ${0} linux   : building for linux (in build_linux)"
+        echo "  ${0} linux   : building for linux (in build/linux)"
         PLATFORM="linux" ;;
 
     "gpu" | "qnn" | "" )
-        echo "  ${0} [gpu|qnn] : building for arm64 Android (in build_android)"
+        echo "  ${0} [gpu|qnn] : building for arm64 Android (in build/android)"
         PLATFORM="android" ;;
 
     *) 
         echo "Usage: "
         echo "  ${0} clean   : clean build files"
-        echo "  ${0} linux   : build for x86 (in build_linux)"
-        echo "  ${0} qnn|gpu : build for arm64 Android (QNN | GPU delegate in build_android)"
-        echo "  ${0}         : build for arm64 Android (QNN delegate in build_android)"
+        echo "  ${0} linux   : build for x86 (in build/linux)"
+        echo "  ${0} qnn|gpu : build for arm64 Android (QNN | GPU delegate in build/android)"
+        echo "  ${0}         : build for arm64 Android (QNN delegate in build/android)"
         exit 1 ;;
 esac
 
-mkdir -p $SOURCE_DIR/libs
-mkdir -p $SOURCE_DIR/libs/$PLATFORM
-BUILD_DIR="build_${PLATFORM}"
+BUILD_DIR="build/${PLATFORM}"
+
+# check if external directories exist
+if [ ! -d $SOURCE_DIR/external/build/$PLATFORM ]; then
+    mkdir -p $SOURCE_DIR/external/build/$PLATFORM
+fi
+if [ ! -d $SOURCE_DIR/external/libs/$PLATFORM ]; then
+    mkdir -p $SOURCE_DIR/external/libs/$PLATFORM
+fi
+if [ ! -d $SOURCE_DIR/external/inc ]; then
+    mkdir -p $SOURCE_DIR/external/inc
+fi
 
 # check if libtensorflowlite.so and its headers are built and installed
-if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libtensorflowlite.so ]; then
+if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libtensorflowlite.so ]; then
     $SOURCE_DIR/scripts/build_tensorflow.sh $PLATFORM
-elif [ ! -d $SOURCE_DIR/inc/flatbuffers ]; then
+elif [ ! -d $SOURCE_DIR/external/inc/flatbuffers ]; then
     $SOURCE_DIR/scripts/build_tensorflow.sh $PLATFORM
 fi
 
 # check if libSDL3.so is built and exists
-if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libSDL3.so ]; then
+if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libSDL3.so ]; then
     echo "SDL3 libs are not found, building it now.."
     $SOURCE_DIR/scripts/build_SDL.sh $PLATFORM
 fi
 
 # check if ffmpeg libs is built and exists
-if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libavcodec.so ]; then
+if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libavcodec.so ]; then
     echo "ffmpeg libs are not found, building it now.."
     $SOURCE_DIR/scripts/build_ffmpeg.sh $PLATFORM
 fi
@@ -80,17 +84,18 @@ if [ "$ARG" = "linux" ]; then
     -GNinja \
     -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR} 
 else
-    find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ -name libtensorflowlite_gpu_delegate.so -exec cp {} $SOURCE_DIR/libs/android/ \;
+    find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ \
+        -name libtensorflowlite_gpu_delegate.so -exec cp {} $SOURCE_DIR/external/libs/android/ \;
 
     if [ "$ARG" = "gpu" ]; then # Generic TFLite GPU delegate
-        rm $SOURCE_DIR/libs/android/libQnn*.so
-        rm $SOURCE_DIR/libs/android/libqnn*.so
-        rm $SOURCE_DIR/inc/QnnTFLiteDelegate.h
+        rm $SOURCE_DIR/external/libs/android/libQnn*.so
+        rm $SOURCE_DIR/external/libs/android/libqnn*.so
+        rm $SOURCE_DIR/external/inc/QnnTFLiteDelegate.h
         QNN_DELEGATE="-DQNN_DELEGATE=OFF"
     else # QCOM QNN delegate
-        cp ${QNN_RUNTIME_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/libs/android/
-        cp ${QNN_SDK_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/libs/android/
-        cp ${QNN_SDK_ROOT}/headers/QNN/QnnTFLiteDelegate.h $SOURCE_DIR/inc/
+        cp ${QNN_RUNTIME_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/external/libs/android/
+        cp ${QNN_SDK_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/external/libs/android/
+        cp ${QNN_SDK_ROOT}/headers/QNN/QnnTFLiteDelegate.h $SOURCE_DIR/external/inc/
         QNN_DELEGATE="-DQNN_DELEGATE=ON"
     fi
 
@@ -122,7 +127,7 @@ echo "Running build now..."
 echo "*****************"
 
 if [ ! -d "${SOURCE_DIR}/${BUILD_DIR}" ]; then
-    mkdir ${SOURCE_DIR}/${BUILD_DIR}
+    mkdir ${SOURCE_DIR}/build/${PLATFORM}
 fi
 cd ${SOURCE_DIR}/${BUILD_DIR}
 ninja -j 12

@@ -43,11 +43,11 @@ ARG QNN_TFLITE_DELEGATE=qnn-tflite-delegate-2.27.0.aar
 ARG ANDROID_COMMAND_LINE_TOOLS=commandlinetools-linux-11076708_latest.zip
 
 # Copy build dependencies
-ADD .build/$ANDROID_NDK_ZIP $ANDROID_NDK_PATH/
-ADD .build/$BAZEL_INSTALLER $BAZEL_DIR/$BAZEL_INSTALLER
-ADD .build/$QNN_RUNTIME $QNN_RUNTIME_ROOT/
-ADD .build/$QNN_TFLITE_DELEGATE $QNN_SDK_ROOT/
-ADD .build/$ANDROID_COMMAND_LINE_TOOLS $ANDROID_SDK_HOME/
+ADD .source/$ANDROID_NDK_ZIP $ANDROID_NDK_PATH/
+ADD .source/$BAZEL_INSTALLER $BAZEL_DIR/$BAZEL_INSTALLER
+ADD .source/$QNN_RUNTIME $QNN_RUNTIME_ROOT/
+ADD .source/$QNN_TFLITE_DELEGATE $QNN_SDK_ROOT/
+ADD .source/$ANDROID_COMMAND_LINE_TOOLS $ANDROID_SDK_HOME/
 
 # Unzip and install dependencies
 RUN cd $QNN_RUNTIME_ROOT && unzip $QNN_RUNTIME && rm $QNN_RUNTIME && \
@@ -58,7 +58,7 @@ RUN cd $QNN_RUNTIME_ROOT && unzip $QNN_RUNTIME && rm $QNN_RUNTIME && \
     $CMD_TOOLS/bin/sdkmanager --install "platforms;android-34" --sdk_root=$ANDROID_SDK_HOME && \
     $CMD_TOOLS/bin/sdkmanager --install "build-tools;34.0.0" --sdk_root=$ANDROID_SDK_HOME && \
     $CMD_TOOLS/bin/sdkmanager --install "cmake;$CMAKE_VERION" --sdk_root=$ANDROID_SDK_HOME && \
-    ln -s $AXIE_ROOT/.build/tensorflow $TENSORFLOW_SOURCE_DIR && \
+    ln -s $AXIE_ROOT/.source/tensorflow $TENSORFLOW_SOURCE_DIR && \
     chmod +x $BAZEL_DIR/$BAZEL_INSTALLER && $BAZEL_DIR/$BAZEL_INSTALLER && rm -rf $BAZEL_DIR
 
 # Set up the PATH

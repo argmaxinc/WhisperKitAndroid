@@ -3,7 +3,7 @@
 # Copyright © 2024 Argmax, Inc. All rights reserved.
 
 # This script builds and runs `android-ndk-qnn-tensorflow-image` docker image with all dependencies
-# As part of build process, the script downloads all dependencies into the .build/ folder.
+# As part of build process, the script downloads all dependencies into the .source/ folder.
 # You will need `aria2` installed (see https://formulae.brew.sh/formula/aria2)
 
 IMAGE_NAME="android-ndk-qnn-tensorflow-image"
@@ -39,7 +39,7 @@ if ! $(docker image inspect $IMAGE_NAME > /dev/null 2>&1) || $FORCE_REBUILD; the
   # Set Aria options to download using 8 connections
   ARIA_OPTIONS="-x 8 -s 8 --continue --file-allocation=none"
 
-  BUILD_DIR="$SOURCE_DIR/.build"
+  BUILD_DIR="$SOURCE_DIR/.source"
   echo "Checking and retrieving dependencies..."
   if command -v aria2c &> /dev/null; then
     aria2c $ARIA_OPTIONS -d $BUILD_DIR https://github.com/bazelbuild/bazel/releases/download/6.5.0/bazel-6.5.0-installer-linux-x86_64.sh

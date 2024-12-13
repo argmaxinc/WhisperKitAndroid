@@ -9,7 +9,7 @@ REMOTE_LIB_DIR="/data/local/tmp/lib"
 
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
-LINUX_BUILD_DIR=./build_linux
+LINUX_BUILD_DIR=./build/linux
 ARG=$1
 
 case $ARG in
@@ -44,8 +44,8 @@ case $ARG in
         exit 0 ;;
     *) 
         echo "Usage: "
-        echo "  ${0} linux   : test for linux (in build_linux)"
-        echo "  ${0} qnn|gpu : test for arm64 Android (QNN | GPU delegate in build_android)"
-        echo "  ${0}         : test for arm64 Android (QNN delegate in build_android)"
+        echo "  ${0} linux   : test for linux (in build/linux)"
+        echo "  ${0} qnn|gpu : test for arm64 Android (QNN | GPU delegate in build/android)"
+        echo "  ${0}         : test for arm64 Android (QNN delegate in build/android)"
         exit 1 ;;
 esac

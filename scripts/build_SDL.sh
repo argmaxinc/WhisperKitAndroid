@@ -3,14 +3,15 @@
 # Copyright © 2024 Argmax, Inc. All rights reserved.
 
 # This build script runs when docker image is created.
-# The resulting `libSDL3.so` and header files are copied into /libs & /inc folder
+# The resulting `libSDL3.so` and header files are copied into 
+#   external/libs & external/inc folder
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
-SOURCE_DIR="$CURRENT_DIR/../.build/SDL"
+SOURCE_DIR="$CURRENT_DIR/../.source/SDL"
 PLATFORM=$1
 if [ "$PLATFORM" = "" ]; then
     PLATFORM="android"
 fi
-BUILD_DIR=$CURRENT_DIR/../external_build/$PLATFORM/SDL
+BUILD_DIR=$CURRENT_DIR/../external/build/$PLATFORM/SDL
 
 if [ "$PLATFORM" = "linux" ]; then
     echo "  ${0} linux   : build for linux (in ${BUILD_DIR})"
@@ -52,6 +53,6 @@ echo "*****************"
 cd ${BUILD_DIR}
 ninja -j 12
 
-cp -rf libSDL3.so* $CURRENT_DIR/../libs/$PLATFORM/
+cp -rf libSDL3.so* $CURRENT_DIR/../external/libs/$PLATFORM/
 cd $SOURCE_DIR
-cp -rf include/SDL3 $CURRENT_DIR/../inc/SDL3
+cp -rf include/SDL3 $CURRENT_DIR/../external/inc/SDL3

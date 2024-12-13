@@ -12,11 +12,6 @@ if [ "$PLATFORM" = "" ]; then
     PLATFORM="android"
 fi
 
-if [ ! -d $SOURCE_DIR/external_build/$PLATFORM ]; then
-    mkdir $SOURCE_DIR/external_build
-    mkdir $SOURCE_DIR/external_build/$PLATFORM
-fi
-
 export PYTHON_BIN_PATH=/usr/bin/python3
 export PYTHON_LIB_PATH=/usr/lib/python3/dist-packages
 export TF_NEED_ROCM=0
@@ -33,32 +28,33 @@ if [ "$PLATFORM" = "android" ]; then
 
     cd $TENSORFLOW_SOURCE_DIR && ./configure
 
-    if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libtensorflowlite_gpu_delegate.so ]; then
-        echo "$SOURCE_DIR/libs/$PLATFORM ..."
+    if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libtensorflowlite_gpu_delegate.so ]; then
+        echo "$SOURCE_DIR/external/libs/$PLATFORM ..."
         echo "Building libtensorflowlite_gpu_delegate.so ..."
         printenv
         mkdir -p tensorflow/lite/delegates/gpu
         bazel build -c opt --config android_arm64 --cxxopt=--std=c++17 tensorflow/lite/delegates/gpu:libtensorflowlite_gpu_delegate.so
         find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ \
-            -name libtensorflowlite_gpu_delegate.so -exec cp {} $SOURCE_DIR/libs/android/ \;
+            -name libtensorflowlite_gpu_delegate.so -exec cp {} $SOURCE_DIR/external/libs/android/ \;
     fi
 
-    if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libtensorflowlite.so ]; then
+    if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libtensorflowlite.so ]; then
         bazel build -c opt --config android_arm64 --cxxopt=--std=c++17 //tensorflow/lite:libtensorflowlite.so
         find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ \
-            -name libtensorflowlite.so -exec cp {} $SOURCE_DIR/libs/$PLATFORM/ \;
+            -name libtensorflowlite.so -exec cp {} $SOURCE_DIR/external/libs/$PLATFORM/ \;
     fi
 else 
     export TF_SET_ANDROID_WORKSPACE=0
-    if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libtensorflowlite.so ]; then
+    if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libtensorflowlite.so ]; then
         cd $TENSORFLOW_SOURCE_DIR && ./configure
 
         bazel build //tensorflow/lite:libtensorflowlite.so
         find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ \
-            -name libtensorflowlite.so -exec cp {} $SOURCE_DIR/libs/$PLATFORM/ \;
+            -name libtensorflowlite.so -exec cp {} $SOURCE_DIR/external/libs/$PLATFORM/ \;
     fi
 fi
 
-if [ ! -d $SOURCE_DIR/inc/flatbuffers ]; then
-    cp -rf $TENSORFLOW_SOURCE_DIR/bazel-tensorflow/external/flatbuffers/include/flatbuffers $SOURCE_DIR/inc/.
+if [ ! -d $SOURCE_DIR/external/inc/flatbuffers ]; then
+    cp -rf $TENSORFLOW_SOURCE_DIR/bazel-tensorflow/external/flatbuffers/include/flatbuffers \
+        $SOURCE_DIR/external/inc/.
 fi

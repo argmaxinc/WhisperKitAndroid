@@ -111,6 +111,8 @@ For Android, log in via adb shell:
 ```
 adb shell
 cd /sdcard/argmax/tflite
+export PATH=/data/local/tmp/bin:$PATH
+export LD_LIBRARY_PATH=/data/local/tmp/lib
 whisperax_cli ./inputs/jfk_441khz.m4a base
 ```
 
@@ -147,22 +149,21 @@ Total Duration:	 3262.000 ms
 ```
 </details>
 
-## Contributing & Changes
+## Contribution & Changes
 
 WhisperKit Android is currently in the v0.1 Beta stage. Contributions from the community will be encouraged after the project reaches the v0.2 Beta milestone.
 
-### v0.1 Alpha (October 2024)
-- [ ] First release
-- [ ] Input audio wav file with 16Khz sample rate and mono format
-- [ ] Support QualComm's QNN delegate
-
 ### v0.1 Beta (December 2024)
-- [ ] Input audio file format coverage for wav, flac, m4a, mp3, ogg
-- [ ] Input audio with various sample rates (16/22.5/24/32/44.1/48 Khz) and mono/stereo channels
-- [ ] Support multi-threaded and pipelined processing
-- [ ] Support QCOM QNN & TFLite GPUv2 delegates
-- [ ] Support native Linux platform
-- [ ] [WhisperKit Benchmarks](https://huggingface.co/spaces/argmaxinc/whisperkit-evals) performance and quality data publication
+- Input audio file format coverage for wav, flac, m4a, mp3, ogg
+- Input audio with various sample rates (16/22.5/24/32/44.1/48 Khz) and mono/stereo channels
+- Support multi-threaded and pipelined processing
+- Support QCOM QNN & TFLite GPUv2 delegates
+- Support native Linux platform
+
+### v0.1 Alpha (October 2024)
+- First release
+- Input audio wav file with 16Khz sample rate and mono format
+- Support QualComm's QNN delegate
 
 ## License
 - We release WhisperKit Android under [MIT License](LICENSE).
