@@ -2,118 +2,50 @@
 # For licensing see accompanying LICENSE file.
 # Copyright © 2024 Argmax, Inc. All rights reserved.
 
-echo "Usage: "
-echo "      ${0} clean: clean build files"
-echo "      ${0} x86  : build for x86 (in build_x86)"
-echo "      ${0} gpu  : build for arm64 Android (in build_android)"
-echo "      ${0}      : build for Android with QNN (in build_android)"
-
-arg=$1
-
-function build_clean {
-    # clean up the previous build
-    ninja clean
-    rm CMakeCache.txt
-    rm -rf CMakeFiles
-    rm -rf cmake_install.cmake
-    rm -rf Makefile
-    rm -rf compile_commands.json
-    find . -name \CMakeCache.txt -type f -delete
-    rm build.ninja
-}
+REMOTE_SDROOT_DIR="/sdcard/argmax/tflite"
+REMOTE_INPUTS_DIR="${REMOTE_SDROOT_DIR}/inputs"
+REMOTE_BIN_DIR="/data/local/tmp/bin"
+REMOTE_LIB_DIR="/data/local/tmp/lib"
 
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
+LINUX_BUILD_DIR=./build/linux
+ARG=$1
 
-if [[ "$arg" == "clean" ]]; then
-    if [ -d "$SOURCE_DIR/build_android" ]; then
-        cd $SOURCE_DIR/build_android
-        build_clean
-    fi
+case $ARG in
+    "linux")
+        echo "  ${0} linux   : run in Docker"
+        cd $SOURCE_DIR
+        $LINUX_BUILD_DIR/whisperax_cli test/jfk_441khz.m4a tiny
+        exit 0 ;;
 
-    if [ -d "$SOURCE_DIR/build_x86" ]; then
-        cd $SOURCE_DIR/build_x86
-        build_clean
-    fi
-    exit 0
-fi
+    "gpu" | "qnn" | "" )
+        echo "  ${0} [gpu|qnn] : run on Host PC"
 
-if [[ "$arg" == "x86" ]]; then
-    PLATFORM="x86"
-else
-    PLATFORM="android"
-fi
-mkdir -p $SOURCE_DIR/libs
-mkdir -p $SOURCE_DIR/libs/$PLATFORM
+        for dev in `adb devices | grep -v "List" | awk '{print $1}'`
+        do 
+            DEVICE=$dev
+            break
+        done
+        if [ "$DEVICE" = "" ]; then
+            echo "No Android device is connected via adb"
+            exit -1
+        fi
+        echo "Test on: $DEVICE"
 
-BUILD_DIR="build_${PLATFORM}"
+        CMD="cd ${REMOTE_SDROOT_DIR} && \
+            export LD_LIBRARY_PATH=${REMOTE_LIB_DIR} && \
+            ${REMOTE_BIN_DIR}/whisperax_cli \
+            ${REMOTE_INPUTS_DIR}/jfk_441khz.m4a tiny"
 
-# check if libSDL3.so is built and exists
-if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libSDL3.so ]; then
-    echo "SDL3 libs are not found, building it now.."
-    $SOURCE_DIR/scripts/build_SDL.sh $arg
-fi
-
-if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libavcodec.so ]; then
-    echo "ffmpeg libs are not found, building it now.."
-    $SOURCE_DIR/scripts/build_ffmpeg.sh $arg
-fi
-
-if [ -d "$SOURCE_DIR/$BUILD_DIR" ]; then
-    cd $SOURCE_DIR/$BUILD_DIR
-    build_clean
-fi
-
-if [[ "$arg" == "x86" ]]; then
-    cmake \
-    -H$SOURCE_DIR \
-    -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=$SOURCE_DIR/$BUILD_DIR \
-    -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$SOURCE_DIR/$BUILD_DIR \
-    -DCMAKE_BUILD_TYPE=release \
-    -B$SOURCE_DIR/$BUILD_DIR \
-    -GNinja \
-    -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR}
-else
-    find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ -name libtensorflowlite_gpu_delegate.so -exec cp {} $SOURCE_DIR/libs/android/ \;
-
-    if [[ "$arg" == "gpu" ]]; then # Generic TFLite GPU delegate
-        QNN_OR_GPU="-DGPU_DELEGATE=True"
-    else # QCOM QNN delegate
-        cp ${QNN_RUNTIME_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/libs/android/
-        cp ${QNN_SDK_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/libs/android/
-        cp ${QNN_SDK_ROOT}/headers/QNN/QnnTFLiteDelegate.h $SOURCE_DIR/inc/
-        QNN_OR_GPU="-DQNN_DELEGATE=True"       
-    fi
-
-    cmake \
-    -H$SOURCE_DIR \
-    -DCMAKE_SYSTEM_NAME=Android \
-    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-    -DCMAKE_SYSTEM_VERSION=33 \
-    -DANDROID_PLATFORM=android-33 \
-    -DANDROID_ABI=arm64-v8a \
-    -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a \
-    -DANDROID_NDK=${ANDROID_NDK_ROOT} \
-    -DCMAKE_ANDROID_NDK=${ANDROID_NDK_ROOT} \
-    -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_ROOT}/build/cmake/android.toolchain.cmake \
-    -DCMAKE_MAKE_PROGRAM=${ANDROID_HOME}/cmake/3.22.1/bin/ninja \
-    -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=$SOURCE_DIR/$BUILD_DIR \
-    -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$SOURCE_DIR/$BUILD_DIR \
-    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -B$SOURCE_DIR/$BUILD_DIR \
-    -GNinja \
-    -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR} \
-    ${QNN_OR_GPU}
-fi
-
-echo "*****************"
-echo "cmake is done.. "
-echo "To build: cd ${SOURCE_DIR}/${BUILD_DIR}; ninja -j 12"
-echo "Running build now..."
-echo "*****************"
-
-if [ ! -d "${SOURCE_DIR}/${BUILD_DIR}" ]; then
-    mkdir ${SOURCE_DIR}/${BUILD_DIR}
-fi
-cd ${SOURCE_DIR}/${BUILD_DIR}
-ninja -j 12
+        cd $SOURCE_DIR/test
+        adb -s $DEVICE push jfk_441khz.m4a $REMOTE_INPUTS_DIR/.
+        adb -s $DEVICE shell $CMD
+        exit 0 ;;
+    *) 
+        echo "Usage: "
+        echo "  ${0} linux   : test for linux (in build/linux)"
+        echo "  ${0} qnn|gpu : test for arm64 Android (QNN | GPU delegate in build/android)"
+        echo "  ${0}         : test for arm64 Android (QNN delegate in build/android)"
+        exit 1 ;;
+esac
