@@ -3,31 +3,27 @@
 # Copyright © 2024 Argmax, Inc. All rights reserved.
 
 # This build script runs when docker image is created.
-# The resulting `libSDL3.so` and header files are copied into /libs & /inc folder
-echo "Usage: "
-echo "      ${0} x86  : build for x86 (in build_x86)"
-echo "      ${0}      : build for arm64 Android (in build_android)"
-
+# The resulting `libSDL3.so` and header files are copied into 
+#   external/libs & external/inc folder
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
-SOURCE_DIR="$CURRENT_DIR/../.build/SDL"
-BUILD_DIR=build
-
-arg=$1
-if [ -d "${SOURCE_DIR}/${BUILD_DIR}" ]; then
-    rm -rf $SOURCE_DIR/$BUILD_DIR
+SOURCE_DIR="$CURRENT_DIR/../.source/SDL"
+PLATFORM=$1
+if [ "$PLATFORM" = "" ]; then
+    PLATFORM="android"
 fi
+BUILD_DIR=$CURRENT_DIR/../external/build/$PLATFORM/SDL
 
-if [[ "$arg" == "x86" ]]; then
-    PLATFORM="x86"
+if [ "$PLATFORM" = "linux" ]; then
+    echo "  ${0} linux   : build for linux (in ${BUILD_DIR})"
     cmake \
     -H$SOURCE_DIR \
-    -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=$SOURCE_DIR/$BUILD_DIR \
-    -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$SOURCE_DIR/$BUILD_DIR \
+    -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=$BUILD_DIR \
+    -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$BUILD_DIR \
     -DCMAKE_BUILD_TYPE=release \
-    -B$SOURCE_DIR/$BUILD_DIR \
+    -B$BUILD_DIR \
     -GNinja 
 else
-    PLATFORM="android"
+    echo "  ${0} android : build for arm64 Android (in ${BUILD_DIR})"
     cmake \
     -H$SOURCE_DIR \
     -DCMAKE_SYSTEM_NAME=Android \
@@ -40,22 +36,23 @@ else
     -DCMAKE_ANDROID_NDK=${ANDROID_NDK_ROOT} \
     -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_ROOT}/build/cmake/android.toolchain.cmake \
     -DCMAKE_MAKE_PROGRAM=${ANDROID_HOME}/cmake/3.22.1/bin/ninja \
-    -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=$SOURCE_DIR/$BUILD_DIR \
-    -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$SOURCE_DIR/$BUILD_DIR \
+    -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=$BUILD_DIR \
+    -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$BUILD_DIR \
     -DCMAKE_BUILD_TYPE=release \
-    -B$SOURCE_DIR/$BUILD_DIR \
+    -B$BUILD_DIR \
     -GNinja 
 fi
 
 echo "*****************"
 echo "cmake is done.. "
-echo "To build: cd ${SOURCE_DIR}/${BUILD_DIR}; ninja -j 12"
+echo "To build: cd ${BUILD_DIR}; ninja -j 12"
 echo "Running build now..."
 echo "*****************"
 
 
-cd ${SOURCE_DIR}/${BUILD_DIR}
+cd ${BUILD_DIR}
 ninja -j 12
 
-cp -rf libSDL3.so* $SOURCE_DIR/../../libs/$PLATFORM/
-cp -rf ../include/SDL3 $SOURCE_DIR/../../inc/SDL3
+cp -rf libSDL3.so* $CURRENT_DIR/../external/libs/$PLATFORM/
+cd $SOURCE_DIR
+cp -rf include/SDL3 $CURRENT_DIR/../external/inc/SDL3
