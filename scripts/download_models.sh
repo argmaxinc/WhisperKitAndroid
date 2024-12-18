@@ -15,16 +15,16 @@ TINY_MODELS_DIR="$SOURCE_DIR/openai_whisper-tiny"
 BASE_MODELS_DIR="$SOURCE_DIR/openai_whisper-base"
 SMALL_MODELS_DIR="$SOURCE_DIR/openai_whisper-small"
 
-# Make sure folders exist
-if [ -d "$TINY_MODELS_DIR" ]; then
-    mkdir -p "$TINY_MODELS_DIR"
-fi
-if [ -d "$BASE_MODELS_DIR" ]; then
-    mkdir -p "$BASE_MODELS_DIR"
-fi
-if [ -d "$SMALL_MODELS_DIR" ]; then
-    mkdir -p "$SMALL_MODELS_DIR"
-fi
+function SAFE_MODEL_DIRECTORY(){
+    if [ ! -d "${1}" ]; then
+        echo "mkdir ${1} .."
+        mkdir -p "${1}"
+    fi
+}
+
+SAFE_MODEL_DIRECTORY $TINY_MODELS_DIR
+SAFE_MODEL_DIRECTORY $BASE_MODELS_DIR
+SAFE_MODEL_DIRECTORY $SMALL_MODELS_DIR
 
 # Download Whisper auxiliary models
 HF_ARGMAX_URL="https://huggingface.co/argmaxinc/whisperkit-android/resolve/main"
