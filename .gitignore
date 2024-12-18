@@ -1,20 +1,11 @@
 # Ignore build folders
-.build/
+.source/
 build/
 inputs/
 models/
-libs/
 cache/
-build_android/
-build_x86/
-inc/libavcodec/
-inc/libavformat/
-inc/libavutil/
-inc/libswresample/
-inc/SDL3/
+openai_whisper-*/
+external/
 
 # MacOS specific
 .DS_Store
-
-# QNN Specific
-QnnTFLiteDelegate.h
