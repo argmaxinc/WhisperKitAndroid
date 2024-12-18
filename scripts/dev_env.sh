@@ -3,22 +3,24 @@
 # Copyright © 2024 Argmax, Inc. All rights reserved.
 
 # This script builds and runs `android-ndk-qnn-tensorflow-image` docker image with all dependencies
-# As part of build process, the script downloads all dependencies into the .build/ folder.
+# As part of build process, the script downloads all dependencies into the .source/ folder.
 # You will need `aria2` installed (see https://formulae.brew.sh/formula/aria2)
 
 IMAGE_NAME="android-ndk-qnn-tensorflow-image"
 CONTAINER_NAME="axie_tflite"
 FORCE_REBUILD=false
 FORCE_REMOVE=false
+CI_MODE=false
 
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
 
-while getopts "rf" opt; do
+while getopts "rfc" opt; do
   case ${opt} in
     r ) FORCE_REBUILD=true ;;
     f ) FORCE_REMOVE=true ;;
-    \? ) echo "Usage: cmd [-r] [-f]"
+    c ) CI_MODE=true ;;
+    \? ) echo "Usage: cmd [-r] [-f] [-c]"
          exit 1 ;;
   esac
 done
@@ -37,7 +39,7 @@ if ! $(docker image inspect $IMAGE_NAME > /dev/null 2>&1) || $FORCE_REBUILD; the
   # Set Aria options to download using 8 connections
   ARIA_OPTIONS="-x 8 -s 8 --continue --file-allocation=none"
 
-  BUILD_DIR="$SOURCE_DIR/.build"
+  BUILD_DIR="$SOURCE_DIR/.source"
   echo "Checking and retrieving dependencies..."
   if command -v aria2c &> /dev/null; then
     aria2c $ARIA_OPTIONS -d $BUILD_DIR https://github.com/bazelbuild/bazel/releases/download/6.5.0/bazel-6.5.0-installer-linux-x86_64.sh
@@ -68,6 +70,14 @@ else
   echo "Docker image $IMAGE_NAME already exists."
 fi
 
+BASH_CMD="echo 'Environment Variables:' && printenv && /bin/bash"
+if $CI_MODE; then
+  # in CI mode, keep running /bin/bash but in the background
+  RUN_OPTS="-d -i"
+else
+  RUN_OPTS="-it"
+fi
+
 # Check if the container exists
 if [ "$(docker ps -aq -f name=$CONTAINER_NAME)" ]; then
   if $FORCE_REMOVE; then
@@ -75,17 +85,17 @@ if [ "$(docker ps -aq -f name=$CONTAINER_NAME)" ]; then
     docker rm -f $CONTAINER_NAME
   else
     if [ ! "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
-    echo "Starting existing container: $CONTAINER_NAME"
-    docker start $CONTAINER_NAME
+      echo "Starting existing container: $CONTAINER_NAME"
+      docker start $CONTAINER_NAME
     fi
     echo "SSHing into existing container: $CONTAINER_NAME"
-    docker exec -it $CONTAINER_NAME /bin/bash -c "echo 'Environment Variables:' && printenv && exec /bin/bash"
+    docker exec $RUN_OPTS $CONTAINER_NAME /bin/bash -c "${BASH_CMD}"
     exit 0
   fi
 fi
 
 # Run a new container
 echo "Starting new container: $CONTAINER_NAME"
-docker run -it --name $CONTAINER_NAME \
+docker run --platform linux/amd64 $RUN_OPTS --name $CONTAINER_NAME \
   --mount type=bind,source=$SOURCE_DIR,target=/src/AXIE \
-  $IMAGE_NAME /bin/bash -c "echo 'Environment Variables:' && printenv && exec /bin/bash"
+  $IMAGE_NAME /bin/bash -c "${BASH_CMD}"
