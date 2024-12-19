@@ -20,7 +20,6 @@
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/interpreter_builder.h"
 #include "tensorflow/lite/kernels/register.h"
-#include "tensorflow/lite/core/c/common.h"
 
 #define TFLITE_FUNCTION_CHECK(x)                          \
     if ((x) != kTfLiteOk) {                               \
