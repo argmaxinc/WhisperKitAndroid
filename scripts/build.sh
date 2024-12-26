@@ -2,69 +2,79 @@
 # For licensing see accompanying LICENSE file.
 # Copyright © 2024 Argmax, Inc. All rights reserved.
 
-echo "Usage: "
-echo "      ${0} clean: clean build files"
-echo "      ${0} x86  : build for x86 (in build_x86)"
-echo "      ${0} gpu  : build for arm64 Android (in build_android)"
-echo "      ${0}      : build for Android with QNN (in build_android)"
 
-arg=$1
-
-function build_clean {
-    # clean up the previous build
-    ninja clean
-    rm CMakeCache.txt
-    rm -rf CMakeFiles
-    rm -rf cmake_install.cmake
-    rm -rf Makefile
-    rm -rf compile_commands.json
-    find . -name \CMakeCache.txt -type f -delete
-    rm build.ninja
-}
-
+ARG=$1
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
 
-if [[ "$arg" == "clean" ]]; then
-    if [ -d "$SOURCE_DIR/build_android" ]; then
-        cd $SOURCE_DIR/build_android
-        build_clean
-    fi
+case $ARG in
+    "clean")
+        echo "  ${0} clean: cleaning build files"
+        if [ -d "$SOURCE_DIR/build" ]; then
+            rm -rf $SOURCE_DIR/build
+        fi
 
-    if [ -d "$SOURCE_DIR/build_x86" ]; then
-        cd $SOURCE_DIR/build_x86
-        build_clean
-    fi
-    exit 0
+        if [ "$2" = "all" ]; then
+            rm -rf $SOURCE_DIR/external
+        fi
+
+        exit 0 ;;
+
+    "linux")
+        echo "  ${0} linux   : building for linux (in build/linux)"
+        PLATFORM="linux" ;;
+
+    "gpu" | "qnn" | "" )
+        echo "  ${0} [gpu|qnn] : building for arm64 Android (in build/android)"
+        PLATFORM="android" ;;
+
+    *) 
+        echo "Usage: "
+        echo "  ${0} clean   : clean build files"
+        echo "  ${0} linux   : build for x86 (in build/linux)"
+        echo "  ${0} qnn|gpu : build for arm64 Android (QNN | GPU delegate in build/android)"
+        echo "  ${0}         : build for arm64 Android (QNN delegate in build/android)"
+        exit 1 ;;
+esac
+
+BUILD_DIR="build/${PLATFORM}"
+
+# check if external directories exist
+if [ ! -d $SOURCE_DIR/external/build/$PLATFORM ]; then
+    mkdir -p $SOURCE_DIR/external/build/$PLATFORM
+fi
+if [ ! -d $SOURCE_DIR/external/libs/$PLATFORM ]; then
+    mkdir -p $SOURCE_DIR/external/libs/$PLATFORM
+fi
+if [ ! -d $SOURCE_DIR/external/inc ]; then
+    mkdir -p $SOURCE_DIR/external/inc
 fi
 
-if [[ "$arg" == "x86" ]]; then
-    PLATFORM="x86"
-else
-    PLATFORM="android"
+# check if libtensorflowlite.so and its headers are built and installed
+if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libtensorflowlite.so ]; then
+    $SOURCE_DIR/scripts/build_tensorflow.sh $PLATFORM
+elif [ ! -d $SOURCE_DIR/external/inc/flatbuffers ]; then
+    $SOURCE_DIR/scripts/build_tensorflow.sh $PLATFORM
 fi
-mkdir -p $SOURCE_DIR/libs
-mkdir -p $SOURCE_DIR/libs/$PLATFORM
-
-BUILD_DIR="build_${PLATFORM}"
 
 # check if libSDL3.so is built and exists
-if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libSDL3.so ]; then
+if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libSDL3.so ]; then
     echo "SDL3 libs are not found, building it now.."
-    $SOURCE_DIR/scripts/build_SDL.sh $arg
+    $SOURCE_DIR/scripts/build_SDL.sh $PLATFORM
 fi
 
-if [ ! -f $SOURCE_DIR/libs/$PLATFORM/libavcodec.so ]; then
+# check if ffmpeg libs is built and exists
+if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libavcodec.so ]; then
     echo "ffmpeg libs are not found, building it now.."
-    $SOURCE_DIR/scripts/build_ffmpeg.sh $arg
+    $SOURCE_DIR/scripts/build_ffmpeg.sh $PLATFORM
 fi
 
 if [ -d "$SOURCE_DIR/$BUILD_DIR" ]; then
     cd $SOURCE_DIR/$BUILD_DIR
-    build_clean
+    ninja clean
 fi
 
-if [[ "$arg" == "x86" ]]; then
+if [ "$ARG" = "linux" ]; then
     cmake \
     -H$SOURCE_DIR \
     -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=$SOURCE_DIR/$BUILD_DIR \
@@ -72,17 +82,21 @@ if [[ "$arg" == "x86" ]]; then
     -DCMAKE_BUILD_TYPE=release \
     -B$SOURCE_DIR/$BUILD_DIR \
     -GNinja \
-    -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR}
+    -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR} 
 else
-    find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ -name libtensorflowlite_gpu_delegate.so -exec cp {} $SOURCE_DIR/libs/android/ \;
+    find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ \
+        -name libtensorflowlite_gpu_delegate.so -exec cp {} $SOURCE_DIR/external/libs/android/ \;
 
-    if [[ "$arg" == "gpu" ]]; then # Generic TFLite GPU delegate
-        QNN_OR_GPU="-DGPU_DELEGATE=True"
+    if [ "$ARG" = "gpu" ]; then # Generic TFLite GPU delegate
+        rm $SOURCE_DIR/external/libs/android/libQnn*.so
+        rm $SOURCE_DIR/external/libs/android/libqnn*.so
+        rm $SOURCE_DIR/external/inc/QnnTFLiteDelegate.h
+        QNN_DELEGATE="-DQNN_DELEGATE=OFF"
     else # QCOM QNN delegate
-        cp ${QNN_RUNTIME_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/libs/android/
-        cp ${QNN_SDK_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/libs/android/
-        cp ${QNN_SDK_ROOT}/headers/QNN/QnnTFLiteDelegate.h $SOURCE_DIR/inc/
-        QNN_OR_GPU="-DQNN_DELEGATE=True"       
+        cp ${QNN_RUNTIME_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/external/libs/android/
+        cp ${QNN_SDK_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/external/libs/android/
+        cp ${QNN_SDK_ROOT}/headers/QNN/QnnTFLiteDelegate.h $SOURCE_DIR/external/inc/
+        QNN_DELEGATE="-DQNN_DELEGATE=ON"
     fi
 
     cmake \
@@ -99,11 +113,11 @@ else
     -DCMAKE_MAKE_PROGRAM=${ANDROID_HOME}/cmake/3.22.1/bin/ninja \
     -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=$SOURCE_DIR/$BUILD_DIR \
     -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$SOURCE_DIR/$BUILD_DIR \
-    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DCMAKE_BUILD_TYPE=release \
     -B$SOURCE_DIR/$BUILD_DIR \
     -GNinja \
     -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR} \
-    ${QNN_OR_GPU}
+    ${QNN_DELEGATE}
 fi
 
 echo "*****************"
@@ -113,7 +127,7 @@ echo "Running build now..."
 echo "*****************"
 
 if [ ! -d "${SOURCE_DIR}/${BUILD_DIR}" ]; then
-    mkdir ${SOURCE_DIR}/${BUILD_DIR}
+    mkdir ${SOURCE_DIR}/build/${PLATFORM}
 fi
 cd ${SOURCE_DIR}/${BUILD_DIR}
 ninja -j 12
