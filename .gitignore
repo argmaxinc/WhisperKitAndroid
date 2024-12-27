@@ -5,7 +5,7 @@ inputs/
 models/
 cache/
 openai_whisper-*/
-external/
+./external/
 
 # MacOS specific
 .DS_Store
