@@ -45,7 +45,7 @@ if(${ANDROID})
       ${AXIE_SRC_DIR}/post_proc.cpp
       ${AXIE_SRC_DIR}/audio_input.cpp
       ${AXIE_SRC_DIR}/whisperax.cpp
-    )  
+    )
   else() # generic TFLite GPU delegate
     message(NOTICE  " Delegate via Generic TFLite GPU..")
     add_library(whisperax   SHARED
@@ -76,24 +76,24 @@ target_include_directories(whisperax PRIVATE
 
 if(${ANDROID})
 
-  if(${QNN_DELEGATE}) 
+  if(${QNN_DELEGATE})
     ADD_DEFINITIONS(-DQNN_DELEGATE)
     add_library(qnn_delegate SHARED IMPORTED)
-    set_property(TARGET qnn_delegate PROPERTY IMPORTED_LOCATION 
+    set_property(TARGET qnn_delegate PROPERTY IMPORTED_LOCATION
       ${EXT_LIB_DIR}/libQnnTFLiteDelegate.so
     )
-    target_link_libraries(whisperax PRIVATE 
-      qnn_delegate 
-      tensorflowlite 
+    target_link_libraries(whisperax PRIVATE
+      qnn_delegate
+      tensorflowlite
       tensorflowlite_gpu_delegate
       ${android_log}
       SDL3
     )
 
-  else() 
+  else()
     ADD_DEFINITIONS(-DGPU_DELEGATE)
-    target_link_libraries(whisperax PRIVATE 
-      tensorflowlite 
+    target_link_libraries(whisperax PRIVATE
+      tensorflowlite
       tensorflowlite_gpu_delegate
       ${android_log}
       SDL3
@@ -101,8 +101,8 @@ if(${ANDROID})
   endif()
 
 else()
-  target_link_libraries(whisperax PRIVATE 
-    tensorflowlite 
+  target_link_libraries(whisperax PRIVATE
+    tensorflowlite
     SDL3
   )
 endif()
@@ -120,13 +120,33 @@ add_executable(whisperax_cli
   ${AXIE_CLI_DIR}/audio_codec.cpp
 )
 
+add_executable(whisperkit-cli
+    ${AXIE_CLI_DIR}/whisperkit_cli.cpp
+    ${AXIE_CLI_DIR}/audio_codec.cpp
+)
+
 target_include_directories(whisperax_cli PRIVATE
   ${AXIE_INC_DIR}
   ${AXIE_CLI_DIR}
   ${EXT_INC_DIR}
 )
 
-target_link_libraries(whisperax_cli PRIVATE 
+target_include_directories(whisperkit-cli PRIVATE
+  ${AXIE_INC_DIR}
+  ${AXIE_CLI_DIR}
+  ${AXIE_SRC_DIR}/external/
+  ${EXT_INC_DIR}
+)
+
+target_link_libraries(whisperax_cli PRIVATE
+  whisperax
+  avformat
+  avcodec
+  avutil
+  swresample
+)
+
+target_link_libraries(whisperkit-cli PRIVATE
   whisperax
   avformat
   avcodec
@@ -135,5 +155,9 @@ target_link_libraries(whisperax_cli PRIVATE
 )
 
 target_compile_definitions(whisperax_cli PRIVATE
+  "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\""
+)
+
+target_compile_definitions(whisperkit-cli PRIVATE
   "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\""
 )
