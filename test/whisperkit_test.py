@@ -159,8 +159,15 @@ def download_hg_dataset():
     return prefix
 
 
+class ArgParser(argparse.ArgumentParser):
+    def print_help(self, file = None):
+        super().print_help(file)
+        print("example: ")
+        print("  python3.10 test/whisperkit_test.py -m ./openai_whisper-tiny")
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = ArgParser()
     parser.add_argument("-m", "--model-path", 
             default="openai_whisper-tiny", type=str,
             help='path to the models, e.g., openai_whisper-tiny')
