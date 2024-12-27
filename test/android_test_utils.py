@@ -24,7 +24,7 @@ class TestRunADB:
     ):
         """
         Args:
-            bin_path, lib_path:     
+            bin_path, lib_path:
                 Path under /data/local/tmp for executorch binary & library files
             root_path:   Path under /sdcard/argmax, for other audio/model files
             serial:      device serial no.
@@ -230,6 +230,14 @@ class AndroidTestsMixin(unittest.TestCase):
 
     def run_test(self, device):
         self.test_no += 1
+
+        if self.args.model_path.find("openai_whisper-tiny") != -1:
+            model_size = "tiny"
+        elif self.args.model_path.find("openai_whisper-base") != -1:
+            model_size = "base"
+        elif self.args.model_path.find("openai_whisper-small") != -1:
+            model_size = "small"
+
         adb = TestRunADB(self.root_path, self.tokenizer, device)
     
         outputs_json = []
@@ -243,7 +251,7 @@ class AndroidTestsMixin(unittest.TestCase):
             output = adb.run_test(
                 self.test_bin, 
                 file, self.data_set, 
-                self.metadata, self.model_size)
+                self.metadata, model_size)
             
             print(f'======== Completed test #{test_no} (audio: {file}) on {device} ========')
 

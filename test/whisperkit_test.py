@@ -13,11 +13,10 @@ import concurrent.futures as futures
 from pathlib import Path
 from huggingface_hub import hf_hub_download
 from whisper.tokenizer import get_tokenizer
-from android_test_utils import AndroidTestsMixin, TestRunADB
+from android_test_utils import AndroidTestsMixin
 
 class TestWhisperKitAndroid(AndroidTestsMixin):
-    OUTPUT_FOLDER = './json/'   
-    TEST_DATASET = "librispeech-10mins" 
+    TEST_DATASET = "librispeech-10mins"
 
     @classmethod
     def setUpClass(self):
@@ -30,13 +29,6 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
         self.root_path = "/sdcard/argmax/tflite"
         self.devices = []
         self.tokenizer = get_tokenizer(multilingual=False, language="en")
-
-        if self.args.model_path.find("openai_whisper-tiny") != -1:
-            self.model_size = "tiny"
-        elif self.args.model_path.find("openai_whisper-base") != -1:
-            self.model_size = "base"
-        elif self.args.model_path.find("openai_whisper-small") != -1:
-            self.model_size = "small"
 
         output = subprocess.run(["adb", "devices"], stdout=subprocess.PIPE)
         if output.stdout is None:
@@ -91,8 +83,7 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
                 self.files.append(file)
 
     def test_audio_transcription(self):
-        if os.path.exists(TestWhisperKitAndroid.OUTPUT_FOLDER) is False:
-            os.mkdir(TestWhisperKitAndroid.OUTPUT_FOLDER)
+        os.makedirs(self.args.output, exist_ok=True)
             
         with futures.ThreadPoolExecutor(max_workers=len(self.devices)) as executor:
             future_test = { 
@@ -110,7 +101,7 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
                     if output_json is None:
                         print('device %r test has failed..')
                         self.assertTrue(False)
-                    with open(TestWhisperKitAndroid.OUTPUT_FOLDER + device + "_" + TestRunADB.output_file, "w")\
+                    with open(f"{self.args.output}/{device}_report.json", "w")\
                         as json_file:
                         json.dump(output_json, json_file)
 
@@ -174,6 +165,9 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--input",
             default=None, type=str,
             help='input file, folder, or (default) download from HuggingFace')
+    parser.add_argument("-o", "--output",
+            default="./output", type=str,
+            help='output json folder')    
     args = parser.parse_args()
 
     if args.input is None:
