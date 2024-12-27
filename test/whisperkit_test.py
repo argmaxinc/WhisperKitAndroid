@@ -15,55 +15,28 @@ from huggingface_hub import hf_hub_download
 from whisper.tokenizer import get_tokenizer
 from android_test_utils import AndroidTestsMixin, TestRunADB
 
-OUTPUT_FOLDER = './json/'
-TEST_DATASET = "librispeech-10mins" 
-TEST_FILES = [
-    "121-121726-0000.mp3", "121-121726-0001.mp3", "121-121726-0002.mp3", 
-    "121-121726-0003.mp3", "121-121726-0004.mp3", "121-121726-0005.mp3", 
-    "121-121726-0006.mp3", "121-121726-0007.mp3", "121-121726-0010.mp3", 
-    "121-121726-0011.mp3", "121-121726-0012.mp3", "121-121726-0013.mp3", 
-    "121-121726-0014.mp3", "121-123852-0000.mp3", "121-123852-0001.mp3", 
-    "121-123852-0002.mp3", "121-123852-0003.mp3", "121-123852-0004.mp3", 
-    "121-123859-0000.mp3", "121-123859-0001.mp3", "121-123859-0002.mp3", 
-    "121-123859-0003.mp3", "121-123859-0004.mp3", "4507-16021-0000.mp3", 
-    "4507-16021-0001.mp3", "4507-16021-0002.mp3", "4507-16021-0003.mp3", 
-    "61-70968-0000.mp3", "61-70968-0001.mp3", "61-70968-0002.mp3", 
-    "61-70968-0003.mp3", "61-70968-0004.mp3", "61-70968-0005.mp3", 
-    "61-70968-0006.mp3", "61-70968-0007.mp3", "61-70968-0008.mp3", 
-    "61-70968-0009.mp3", "61-70968-0010.mp3", "61-70968-0011.mp3", 
-    "61-70968-0012.mp3", "61-70968-0013.mp3", "61-70968-0014.mp3", 
-    "61-70968-0015.mp3", "61-70968-0016.mp3", "61-70968-0017.mp3", 
-    "61-70968-0018.mp3", "61-70968-0019.mp3", "61-70968-0020.mp3", 
-    "61-70968-0021.mp3", "61-70968-0022.mp3", "61-70968-0023.mp3", 
-    "61-70968-0024.mp3", "61-70968-0025.mp3", "61-70968-0026.mp3", 
-    "61-70968-0027.mp3", "61-70968-0028.mp3", "61-70968-0029.mp3", 
-    "61-70968-0030.mp3", "61-70968-0031.mp3", "61-70968-0032.mp3", 
-    "61-70968-0033.mp3", "61-70968-0034.mp3", "61-70968-0035.mp3", 
-    "61-70968-0036.mp3", "61-70968-0037.mp3", "61-70968-0038.mp3", 
-    "61-70968-0039.mp3", "61-70968-0040.mp3", "61-70968-0041.mp3", 
-    "61-70968-0042.mp3", "61-70968-0043.mp3", "61-70968-0044.mp3", 
-    "61-70968-0045.mp3", "61-70968-0046.mp3", "61-70968-0047.mp3", 
-    "61-70968-0048.mp3", "61-70968-0049.mp3", "61-70968-0050.mp3", 
-    "61-70968-0051.mp3", "61-70968-0052.mp3", "61-70968-0053.mp3", 
-    "61-70968-0054.mp3", "61-70968-0055.mp3", "61-70968-0056.mp3", 
-    "61-70968-0057.mp3", "61-70968-0061.mp3", "61-70968-0062.mp3", 
-    "61-70970-0000.mp3", "61-70970-0001.mp3", "61-70970-0002.mp3", 
-    "61-70970-0003.mp3", "61-70970-0004.mp3", "61-70970-0005.mp3", 
-    "61-70970-0006.mp3", "61-70970-0007.mp3", "61-70970-0008.mp3", 
-    "61-70970-0009.mp3", "61-70970-0010.mp3", "61-70970-0011.mp3", 
-    "61-70970-0012.mp3", "61-70970-0013.mp3"
-]
-args = None
-
 class TestWhisperKitAndroid(AndroidTestsMixin):
+    OUTPUT_FOLDER = './json/'   
+    TEST_DATASET = "librispeech-10mins" 
+
     @classmethod
     def setUpClass(self):
         super().setUpClass()
+
+    def __init__(self, methodName='runTest', args=None):
+        super().__init__(methodName)
         self.args = args
         self.test_bin = "whisperax_cli"
         self.root_path = "/sdcard/argmax/tflite"
         self.devices = []
         self.tokenizer = get_tokenizer(multilingual=False, language="en")
+
+        if self.args.model_path.find("openai_whisper-tiny") != -1:
+            self.model_size = "tiny"
+        elif self.args.model_path.find("openai_whisper-base") != -1:
+            self.model_size = "base"
+        elif self.args.model_path.find("openai_whisper-small") != -1:
+            self.model_size = "small"
 
         output = subprocess.run(["adb", "devices"], stdout=subprocess.PIPE)
         if output.stdout is None:
@@ -118,8 +91,8 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
                 self.files.append(file)
 
     def test_audio_transcription(self):
-        if os.path.exists(OUTPUT_FOLDER) is False:
-            os.mkdir(OUTPUT_FOLDER)
+        if os.path.exists(TestWhisperKitAndroid.OUTPUT_FOLDER) is False:
+            os.mkdir(TestWhisperKitAndroid.OUTPUT_FOLDER)
             
         with futures.ThreadPoolExecutor(max_workers=len(self.devices)) as executor:
             future_test = { 
@@ -137,55 +110,74 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
                     if output_json is None:
                         print('device %r test has failed..')
                         self.assertTrue(False)
-                    with open(OUTPUT_FOLDER + device + "_" + TestRunADB.output_file, "w")\
+                    with open(TestWhisperKitAndroid.OUTPUT_FOLDER + device + "_" + TestRunADB.output_file, "w")\
                         as json_file:
                         json.dump(output_json, json_file)
 
 
 def download_hg_dataset():
-    test_path = os.path.dirname(os.path.abspath(__file__)) + "/../test/"
+    test_path = f"{os.path.dirname(os.path.abspath(__file__))}/../test/"
+    prefix = f"{test_path}/{TestWhisperKitAndroid.TEST_DATASET}"
+    if os.path.exists(f"{prefix}/metadata.json"):
+        return prefix
+    
     hf_hub_download(
                 "argmaxinc/whisperkit-test-data",
                 filename="metadata.json",
-                subfolder=TEST_DATASET,
+                subfolder=TestWhisperKitAndroid.TEST_DATASET,
                 local_dir=test_path,
                 repo_type="dataset",
                 revision="main",
     )
+    metadata_file = open(os.path.join(prefix, "metadata.json"))
+    metadata = json.load(metadata_file)
+    metadata_file.close()
+    
+    file_name_filter = ["61-", "121-", "4507-"]
+    for item in metadata:
+        if "audio" not in item:
+            continue
+        if not any([item["audio"].startswith(f) for f in file_name_filter]):
+            continue
 
-    for file in TEST_FILES:
-        if os.path.exists(test_path + "/" + TEST_DATASET + "/" + file):
+        file = item["audio"].split(".")[0] + ".mp3"
+        if os.path.exists(f"{prefix}/{file}"):
             continue
         try:
             hf_hub_download(
                 "argmaxinc/whisperkit-test-data",
                 filename=file,
-                subfolder=TEST_DATASET,
+                subfolder=TestWhisperKitAndroid.TEST_DATASET,
                 local_dir=test_path,
                 repo_type="dataset",
                 revision="main",
             )
             print(f'downloaded {file}')
         except:
-            print(f'can not find {file} from Huggingface')
+            print(' ') # this is not an issue, do nothing
         
-    return test_path + "/" + TEST_DATASET
+    return prefix
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-m", "--model_size", 
-            default="tiny", type=str, 
-            choices=("tiny", "base", "small"))
-    parser.add_argument("-i", "--input", 
-            default=None, type=str, 
+    parser.add_argument("-m", "--model-path", 
+            default="openai_whisper-tiny", type=str,
+            help='path to the models, e.g., openai_whisper-tiny')
+    parser.add_argument("-i", "--input",
+            default=None, type=str,
             help='input file, folder, or (default) download from HuggingFace')
     args = parser.parse_args()
 
     if args.input is None:
         args.input = download_hg_dataset()
 
-    suite = unittest.TestLoader().loadTestsFromTestCase(TestWhisperKitAndroid)
-    allsuites = unittest.TestSuite([suite])
+    test_loader = unittest.TestLoader()
+    suite = unittest.TestSuite()
     runner = unittest.TextTestRunner()
+
+    test_names = test_loader.getTestCaseNames(TestWhisperKitAndroid)
+    for test_name in test_names:
+        suite.addTest(TestWhisperKitAndroid(test_name, args=args))
+    allsuites = unittest.TestSuite([suite])
     runner.run(allsuites)

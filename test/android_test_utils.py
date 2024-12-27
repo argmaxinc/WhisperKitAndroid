@@ -10,7 +10,7 @@ import time
 import json
 import evaluate
 from threading import Thread, Condition
-from whisperkit.evaluate.normalize_en import EnglishTextNormalizer
+from whisper.normalizers import EnglishTextNormalizer
 
 
 class TestRunADB:
@@ -64,7 +64,7 @@ class TestRunADB:
         return False
 
     def push_file(self, file, subfolder='.'):
-        dest_folder = self.root_path + "/" + subfolder + "/"
+        dest_folder = f"{self.root_path}/{subfolder}/"
         _ = self._adb(["push", file, dest_folder])
 
     def device_test(self, test_bin, input_audio, model_size):
@@ -73,7 +73,7 @@ class TestRunADB:
         if test_bin is None: 
             return 
 
-        input_audio = self.root_path + "/inputs/" + input_audio
+        input_audio = f"{self.root_path}/inputs/{input_audio}"
         self.curr_cmd = test_bin
         test_cmds = " ".join(
             [
@@ -92,8 +92,8 @@ class TestRunADB:
         self.executing = False
 
     def pull(self, file, callback=None):
-        device_path = self.root_path + "/" + file
-        host_path = self.serial + "_" + file
+        device_path = f"{self.root_path}/{file}"
+        host_path = f"{self.serial}_{file}"
         _ = self._adb(["pull", device_path, host_path])
         if callback:
             callback()
@@ -243,7 +243,7 @@ class AndroidTestsMixin(unittest.TestCase):
             output = adb.run_test(
                 self.test_bin, 
                 file, self.data_set, 
-                self.metadata, self.args.model_size)
+                self.metadata, self.model_size)
             
             print(f'======== Completed test #{test_no} (audio: {file}) on {device} ========')
 
