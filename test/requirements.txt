@@ -1,0 +1,5 @@
+evaluate==0.4.3
+huggingface_hub==0.26.2
+openai_whisper==20240930
+jiwer==3.0.5
+
