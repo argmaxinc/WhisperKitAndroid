@@ -1,5 +1,5 @@
-#include "WhisperKitPipeline.h"    
-
+#include "WhisperKitPipeline.h" 
+#include "TranscribeTask.h"
 whisperkit_pipeline_t::whisperkit_pipeline_t() {
     status = WHISPERKIT_PIPELINE_STATUS_INITIALIZED;
 }
@@ -20,11 +20,17 @@ void whisperkit_pipeline_t::set_configuration(const whisperkit_configuration_t* 
     status = WHISPERKIT_PIPELINE_STATUS_CONFIGURED;
 }
 
+whisperkit_pipeline_t::~whisperkit_pipeline_t() {
+    transcribe_task.reset();
+}
+
 void whisperkit_pipeline_t::build() {
 
+    transcribe_task = std::make_unique<TranscribeTask>(this->configuration);
 
 }
 void whisperkit_pipeline_t::transcribe(const char* audio_file, char** transcription) {
 
+    transcribe_task->transcribe(audio_file, transcription);
 
 }

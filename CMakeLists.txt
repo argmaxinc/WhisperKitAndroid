@@ -48,6 +48,7 @@ if(${ANDROID})
       ${AXIE_SRC_DIR}/WhisperKit.cpp
       ${AXIE_SRC_DIR}/WhisperKitConfiguration.cpp
       ${AXIE_SRC_DIR}/WhisperKitPipeline.cpp
+      ${AXIE_SRC_DIR}/TranscribeTask.cpp
     )
   else() # generic TFLite GPU delegate
     message(NOTICE  " Delegate via Generic TFLite GPU..")
@@ -60,6 +61,7 @@ if(${ANDROID})
       ${AXIE_SRC_DIR}/WhisperKit.cpp
       ${AXIE_SRC_DIR}/WhisperKitConfiguration.cpp
       ${AXIE_SRC_DIR}/WhisperKitPipeline.cpp
+      ${AXIE_SRC_DIR}/TranscribeTask.cpp
     )
 
   endif()
@@ -74,6 +76,7 @@ else() # other generic arch, CPU only
     ${AXIE_SRC_DIR}/WhisperKit.cpp
     ${AXIE_SRC_DIR}/WhisperKitConfiguration.cpp
     ${AXIE_SRC_DIR}/WhisperKitPipeline.cpp
+    ${AXIE_SRC_DIR}/TranscribeTask.cpp
   )
 endif()
 
@@ -97,6 +100,10 @@ if(${ANDROID})
       tensorflowlite_gpu_delegate
       ${android_log}
       SDL3
+      avformat
+      avcodec
+      avutil
+      swresample
     )
 
   else()
@@ -106,6 +113,10 @@ if(${ANDROID})
       tensorflowlite_gpu_delegate
       ${android_log}
       SDL3
+      avformat
+      avcodec
+      avutil
+      swresample
     )
   endif()
 
@@ -113,6 +124,10 @@ else()
   target_link_libraries(whisperax PRIVATE
     tensorflowlite
     SDL3
+    avformat
+    avcodec
+    avutil
+    swresample
   )
 endif()
 
