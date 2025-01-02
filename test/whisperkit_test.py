@@ -166,8 +166,8 @@ class TestWhisperKitLinux(LinuxTestsMixin):
 
 
 def download_hg_dataset():
-    test_path = f"{os.path.dirname(os.path.abspath(__file__))}/../test/"
-    prefix = f"{test_path}/{TestWhisperKitAndroid.TEST_DATASET}"
+    dataset_path = f"{os.path.dirname(os.path.abspath(__file__))}/dataset"
+    prefix = f"{dataset_path}/{TestWhisperKitAndroid.TEST_DATASET}"
     if os.path.exists(f"{prefix}/metadata.json"):
         return prefix
     
@@ -175,7 +175,7 @@ def download_hg_dataset():
                 "argmaxinc/whisperkit-test-data",
                 filename="metadata.json",
                 subfolder=TestWhisperKitAndroid.TEST_DATASET,
-                local_dir=test_path,
+                local_dir=dataset_path,
                 repo_type="dataset",
                 revision="main",
     )
@@ -198,7 +198,7 @@ def download_hg_dataset():
                 "argmaxinc/whisperkit-test-data",
                 filename=file,
                 subfolder=TestWhisperKitAndroid.TEST_DATASET,
-                local_dir=test_path,
+                local_dir=dataset_path,
                 repo_type="dataset",
                 revision="main",
             )

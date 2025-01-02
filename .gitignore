@@ -5,12 +5,7 @@ inputs/
 models/
 cache/
 openai_whisper-*/
-external/
-json/
-librispeech*/
+./external/
 
 # MacOS specific
 .DS_Store
-
-# QNN Specific
-QnnTFLiteDelegate.h

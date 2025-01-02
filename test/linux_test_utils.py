@@ -14,6 +14,10 @@ from whisper.normalizers import EnglishTextNormalizer
 
 
 class TestRunLinux:
+    """
+    A class for running tests on Linux host.
+    Any commands on docker is to be run via _run_docker_cmd()
+    """
     output_file = "output.json"
     container_name = "axie_tflite"
     docker_root = "/src/AXIE"
@@ -36,8 +40,9 @@ class TestRunLinux:
         try:
             _, result = self.container.exec_run(cmds, stream=True)
         except Exception as e:
-            print(f"Error running a command on Docker..")
-            print(f"Is {self.container_name} running? Run 'make env' to start Docker container")
+            print(f"** Error from running a command on Docker container:")
+            print(f"  Is {self.config['docker']['container']} running?")
+            print(f"  If not, run 'make env' to start Docker container")
             os._exit(-1)
         
         for log in result:

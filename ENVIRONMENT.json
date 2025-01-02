@@ -1,0 +1,20 @@
+{
+    "description": "Environment variables for WhisperKitAndroid project",
+    "test": {
+        "hf_repo": "argmaxinc/whisperkit-test-data",
+        "dataset": "librispeech-10mins", 
+        "output_file": "output.json",
+        "android_dir": "/sdcard/argmax/tflite",
+        "executable": "whisperax_cli",
+        "metadata": "metadata.json"
+    },
+    "docker": {
+        "image": "android-ndk-qnn-tensorflow-image",
+        "rootdir": "/src/AXIE",
+        "container": "axie_tflite"
+    },
+    "audio": {
+        "extensions": [".mp3", ".m4a", ".ogg", ".flac", ".aac", ".wav"],
+        "local_dir": "inputs"
+    }
+}
