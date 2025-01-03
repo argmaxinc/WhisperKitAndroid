@@ -34,6 +34,7 @@ vector<pair<char*, int>> decoder_outputs;
 
 chrono::time_point<chrono::high_resolution_clock> start_exec;
 
+
 unique_ptr<string> cmdexec(const char* cmd) {
     array<char, 128> buffer;
     auto result = make_unique<string>();
