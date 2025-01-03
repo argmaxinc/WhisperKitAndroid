@@ -40,28 +40,28 @@ if(${ANDROID})
   if(${QNN_DELEGATE}) # QCOM QNN delegate
     message(NOTICE  " Delegate via QCOM QNN..")
     add_library(whisperax   SHARED
-      ${AXIE_SRC_DIR}/tflite_model.cpp
-      ${AXIE_SRC_DIR}/tflite_qnn_model.cpp
-      ${AXIE_SRC_DIR}/post_proc.cpp
-      ${AXIE_SRC_DIR}/audio_input.cpp
-      ${AXIE_SRC_DIR}/whisperax.cpp
-      ${AXIE_SRC_DIR}/WhisperKit.cpp
-      ${AXIE_SRC_DIR}/WhisperKitConfiguration.cpp
-      ${AXIE_SRC_DIR}/WhisperKitPipeline.cpp
-      ${AXIE_SRC_DIR}/TranscribeTask.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/Models/tflite_model.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/Models/tflite_qnn_model.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/Text/post_proc.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/Audio/audio_input.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/whisperax.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/WhisperKit.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/WhisperKitConfiguration.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/WhisperKitPipeline.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/TranscribeTask.cpp
     )
   else() # generic TFLite GPU delegate
     message(NOTICE  " Delegate via Generic TFLite GPU..")
     add_library(whisperax   SHARED
-      ${AXIE_SRC_DIR}/tflite_model.cpp
-      ${AXIE_SRC_DIR}/tflite_gpu_model.cpp
-      ${AXIE_SRC_DIR}/post_proc.cpp
-      ${AXIE_SRC_DIR}/audio_input.cpp
-      ${AXIE_SRC_DIR}/whisperax.cpp
-      ${AXIE_SRC_DIR}/WhisperKit.cpp
-      ${AXIE_SRC_DIR}/WhisperKitConfiguration.cpp
-      ${AXIE_SRC_DIR}/WhisperKitPipeline.cpp
-      ${AXIE_SRC_DIR}/TranscribeTask.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/Models/tflite_model.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/Models/tflite_gpu_model.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/Text/post_proc.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/Audio/audio_input.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/whisperax.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/WhisperKit.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/WhisperKitConfiguration.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/WhisperKitPipeline.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/TranscribeTask.cpp
     )
 
   endif()
@@ -69,14 +69,14 @@ if(${ANDROID})
 else() # other generic arch, CPU only
   message(NOTICE  " Generic CPU only..")
   add_library(whisperax   SHARED
-    ${AXIE_SRC_DIR}/tflite_model.cpp
-    ${AXIE_SRC_DIR}/post_proc.cpp
-    ${AXIE_SRC_DIR}/audio_input.cpp
-    ${AXIE_SRC_DIR}/whisperax.cpp
-    ${AXIE_SRC_DIR}/WhisperKit.cpp
-    ${AXIE_SRC_DIR}/WhisperKitConfiguration.cpp
-    ${AXIE_SRC_DIR}/WhisperKitPipeline.cpp
-    ${AXIE_SRC_DIR}/TranscribeTask.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/Models/tflite_model.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/Text/post_proc.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/Audio/audio_input.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/whisperax.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/WhisperKit.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/WhisperKitConfiguration.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/WhisperKitPipeline.cpp
+        ${AXIE_SRC_DIR}/WhisperKit/TranscribeTask.cpp
   )
 endif()
 
@@ -146,7 +146,6 @@ add_executable(whisperax_cli
 
 add_executable(whisperkit-cli
     ${AXIE_CLI_DIR}/whisperkit_cli.cpp
-    ${AXIE_CLI_DIR}/audio_codec.cpp
 )
 
 target_include_directories(whisperax_cli PRIVATE
@@ -172,10 +171,6 @@ target_link_libraries(whisperax_cli PRIVATE
 
 target_link_libraries(whisperkit-cli PRIVATE
   whisperax
-  avformat
-  avcodec
-  avutil
-  swresample
 )
 
 target_compile_definitions(whisperax_cli PRIVATE

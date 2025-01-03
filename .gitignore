@@ -1,3 +1,4 @@
+
 # Ignore build folders
 .source/
 build/
@@ -5,7 +6,10 @@ inputs/
 models/
 cache/
 openai_whisper-*/
-./external/
+external/
+
+# Never exclude src files
+!src/**
 
 # MacOS specific
 .DS_Store
