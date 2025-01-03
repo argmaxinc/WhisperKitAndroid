@@ -5,7 +5,7 @@
 #include <memory>
 
 struct TranscribeTask;
-
+struct whisperkit_transcription_result_t;
 struct whisperkit_pipeline_t {
 
     public:
@@ -17,7 +17,7 @@ struct whisperkit_pipeline_t {
         void set_state(whisperkit_pipeline_status_t status);
         void set_configuration(const whisperkit_configuration_t* configuration);
         void build();
-        void transcribe(const char* audio_file, char** transcription);
+        void transcribe(const char* audio_file, whisperkit_transcription_result_t* transcription_result);
         private:
             whisperkit_configuration_t configuration;
             whisperkit_pipeline_status_t status;

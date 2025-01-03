@@ -3,7 +3,7 @@
 #include "whisperax.hpp"
 #include <memory>
 
-// TODO : move these to a separate, non header file.
+// TODO : move these and all audio related code to a separate, non header file.
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/time.h>
@@ -16,8 +16,54 @@ extern "C" {
 #include <libavutil/samplefmt.h>
 }
 
+#include "tflite_msg.hpp"
+#include "backend_class.hpp"
+#include "audio_input.hpp"
+#include "post_proc.hpp"
 
 namespace WhisperKit::TranscribeTask {
+
+
+// private class to encapsulate tflite related code
+// so we can delete it imminently from whisperax_cli and whisperax.cpp
+class Runtime {
+    public:
+        Runtime(const whisperkit_configuration_t& config);
+        ~Runtime();
+
+        void tflite_init_priv();
+        void tflite_close_priv();
+        void tflite_loop_priv();
+        void tflite_perfjson_priv();
+        void text_output_proc_priv();
+        void encode_decode_postproc_priv(float timestamp);
+        int tflite_write_data_priv(int size, char* pcm_buffer);
+        void tflite_init_audioinput(const AudioCodec* audio_codec, const char* audio_file);
+        std::shared_ptr<TFLiteMessenger> messenger;
+        std::mutex gmutex;
+
+    private:
+        whisperkit_configuration_t config;
+        std::unique_ptr<std::thread> encode_decode_thread;
+        std::string lib_dir;
+        std::string cache_dir;
+        bool debug;
+        int backend;
+        std::unique_ptr<MODEL_SUPER_CLASS> melspectro;
+        std::unique_ptr<MODEL_SUPER_CLASS> encoder;
+        std::unique_ptr<MODEL_SUPER_CLASS> decoder;
+        std::unique_ptr<AudioInputModel> audioinput;
+        std::unique_ptr<PostProcModel> postproc;
+
+        std::vector<int> all_tokens;
+        std::vector<std::pair<char*, int>> melspectro_inputs;
+        std::vector<std::pair<char*, int>> melspectro_outputs;
+        std::vector<std::pair<char*, int>> encoder_inputs;
+        std::vector<std::pair<char*, int>> encoder_outputs;
+        std::vector<std::pair<char*, int>> decoder_outputs;
+
+        std::chrono::time_point<std::chrono::high_resolution_clock> start_exec;
+};
 
 // copy pasted from audio_codec.hpp, which will be deleted
 // Modifications: some forward declarations, and associated includes moved to TranscribeTask.cpp
@@ -32,13 +78,13 @@ public:
     bool    open(string filename);
     void    close();
 
-    int             get_samplerate()    { return _freq; }
-    int             get_channel()       { return _channel; }
-    int             get_format();
-    AVFrame*        get_frame()         { return _dst_frame; }
-    int64_t         get_duration_ms()   { return _duration; }
-    bool            is_running()        { return _is_running; }
-    int             get_datasize()      { return _single_ch_datasize; }
+    int             get_samplerate() const { return _freq; }
+    int             get_channel() const { return _channel; }
+    int             get_format() const;
+    AVFrame*        get_frame() const { return _dst_frame; }
+    int64_t         get_duration_ms() const { return _duration; }
+    bool            is_running() const { return _is_running; }
+    int             get_datasize() const { return _single_ch_datasize; }
     int             decode_pcm();
 
 private:
@@ -71,6 +117,233 @@ private:
 // from [cli + library] -> [library and hidden behind some interface]
 namespace WhisperKit::TranscribeTask {
 
+
+#ifndef QCOM_SOC
+#define QCOM_SOC    "qcom"
+#endif
+
+#ifndef TFLITE_INIT_CHECK
+#define TFLITE_INIT_CHECK(x)                          \
+    if (!(x)) {                               \
+        LOGE("Error at %s:%d\n", __FUNCTION__, __LINE__); \
+        exit(0);                                         \
+    }
+#endif
+
+
+
+Runtime::Runtime(const whisperkit_configuration_t& config) {
+    this->config = config;
+}
+
+Runtime::~Runtime() {
+    tflite_close_priv();
+}
+
+void Runtime::text_output_proc_priv() {
+
+}
+
+void Runtime::tflite_init_priv() {
+
+    lock_guard<mutex> lock(gmutex);
+
+    LOGI("tflite_init input: %s\n", config.get_model_path().c_str());
+
+    int format = 0;
+
+    backend = kUndefinedBackend;
+#if (defined(QNN_DELEGATE) || defined(GPU_DELEGATE)) 
+    if (check_qcom_soc()) // selecting runtime delegation for the model
+        backend = kHtpBackend; 
+#else
+    LOGI("SoC: \tgeneric CPU (x86, arm64, etc) \n");
+#endif
+
+    // TODO: this should be using std::filesystem..
+    std::string tokenizer_json = config.get_model_path() + "/converted_vocab.json";
+    std::string melspectro_model =  config.get_model_path() +  "/MelSpectrogram.tflite";
+    std::string encoder_model =  config.get_model_path() + "/AudioEncoder.tflite";
+    std::string decoder_model =  config.get_model_path() +  "/TextDecoder.tflite";
+    std::string postproc_model =  config.get_model_path() +  "/postproc.tflite";
+
+    melspectro = make_unique<MODEL_SUPER_CLASS>("mel_spectrogram");
+    encoder = make_unique<MODEL_SUPER_CLASS>("whisper_encoder");
+    decoder = make_unique<MODEL_SUPER_CLASS>("whisper_decoder");
+    postproc = make_unique<PostProcModel>(tokenizer_json);
+
+    lib_dir = std::string(DEFAULT_LIB_DIR); 
+    cache_dir = std::string(DEFAULT_CACHE_DIR); 
+    debug = config.get_verbose();
+    if (!config.get_lib_dir().empty()) {
+        lib_dir = config.get_lib_dir();
+    }
+
+    if (!config.get_cache_dir().empty()) {
+        cache_dir = config.get_cache_dir();
+    }
+
+    LOGI("root dir:\t%s\nlib dir:\t%s\ncache dir:\t%s\n", 
+        config.get_model_path().c_str(), lib_dir.c_str(), cache_dir.c_str()
+    );
+
+    TFLITE_INIT_CHECK(melspectro->initialize(
+        melspectro_model, lib_dir, cache_dir, backend, debug
+    ));
+    TFLITE_INIT_CHECK(encoder->initialize(
+        encoder_model, lib_dir, cache_dir, backend, debug
+    ));
+    TFLITE_INIT_CHECK(decoder->initialize(
+        decoder_model, lib_dir, cache_dir, backend, debug
+    ));
+
+
+    TFLITE_INIT_CHECK(postproc->initialize(
+        postproc_model, lib_dir, cache_dir, kUndefinedBackend, debug
+    ));
+
+    melspectro_inputs = melspectro->get_input_ptrs();
+    melspectro_outputs = melspectro->get_output_ptrs();
+    // outputs: melspectrogram
+    assert(melspectro_outputs.size() == 1);
+
+    encoder_inputs = encoder->get_input_ptrs();
+    // retrieve encoder output tensor pointers
+    encoder_outputs = encoder->get_output_ptrs();
+    // outputs: k_cache, v_cache
+    assert(encoder_outputs.size() == 2);
+
+    decoder_outputs = decoder->get_output_ptrs();
+    // outputs: logits, k_cache, v_cache
+    assert(decoder_outputs.size() == 3);
+
+    all_tokens.clear();
+    all_tokens.reserve(1 << 18); // max 256K tokens
+
+    start_exec = chrono::high_resolution_clock::now();
+
+    messenger = make_shared<TFLiteMessenger>();
+    messenger->_running = true;
+}
+
+void Runtime::tflite_init_audioinput(const AudioCodec* audio_codec, const char* audio_file) {
+
+    const int freq = audio_codec->get_samplerate();
+    const int channels = audio_codec->get_channel(); 
+    const int fmt = audio_codec->get_format(); 
+    audioinput = make_unique<AudioInputModel>(freq, channels, fmt);
+
+    std::string audio_model =  config.get_model_path() +  "/voice_activity_detection.tflite";
+
+    TFLITE_INIT_CHECK(audioinput->initialize(
+        audio_model, lib_dir, cache_dir, backend, debug
+    ));
+
+}
+
+void Runtime::tflite_close_priv() {
+    lock_guard<mutex> lock(gmutex);
+
+    messenger->_running = false;
+    if (encode_decode_thread.get() != nullptr && 
+        encode_decode_thread->joinable()) {
+        encode_decode_thread->join();
+    }
+    
+    postproc->uninitialize();
+    decoder->uninitialize();
+    encoder->uninitialize();
+    melspectro->uninitialize();
+    audioinput->uninitialize();
+    LOGI("tflite_close done..\n");
+}
+void Runtime::tflite_loop_priv() {
+    lock_guard<mutex> lock(gmutex);
+
+    // parallel execution of 2 threads for a pipeline of
+    // 1) audio input & melspectrogram,
+    // 2) encoder & decoder & postproc
+    float timestamp = audioinput->get_next_chunk(
+        melspectro_inputs[0].first
+    );
+    if (timestamp < 0) {
+        throw std::runtime_error("Error getting next chunk");
+    }
+    encoder->get_mutex()->lock();
+    melspectro->invoke(true);
+    encoder->get_mutex()->unlock();
+
+    if (encode_decode_thread.get() != nullptr && 
+        encode_decode_thread->joinable()) {
+        encode_decode_thread->join();
+    }
+
+
+    encode_decode_thread = std::make_unique<std::thread>(
+        std::bind(&WhisperKit::TranscribeTask::Runtime::encode_decode_postproc_priv, this, timestamp)
+    );
+}
+
+
+void Runtime::encode_decode_postproc_priv(float timestamp)
+{
+    auto x = TOKEN_SOT; 
+    int index = 0;
+    vector<int> tokens;
+    tokens.push_back(TOKEN_SOT);
+
+    encoder->read_input_data(melspectro_outputs[0].first, 0);
+    // Perform encoder inference
+    encoder->invoke(true);
+    
+    // k_cache_cross
+    decoder->read_input_data(encoder_outputs[0].first, 2);
+    // v_cache_cross
+    decoder->read_input_data(encoder_outputs[1].first, 3);
+    // first k_cache_self is all zeros
+    memset(decoder_outputs[1].first, 0, decoder_outputs[1].second);
+    // first v_cache_self is all zeros
+    memset(decoder_outputs[2].first, 0, decoder_outputs[2].second);
+
+    for(; index < 224; index++){
+        // x
+        decoder->read_input_data((char*)&x, 0);
+        // index
+        decoder->read_input_data((char*)&index, 1);
+        // k_cache_self
+        decoder->read_input_data(decoder_outputs[1].first, 4);
+        // v_cache_self
+        decoder->read_input_data(decoder_outputs[2].first, 5);
+
+        decoder->invoke(true);
+
+        x = postproc->process(
+            index, 
+            reinterpret_cast<float*>(decoder_outputs[0].first), 
+            (decoder_outputs[0].second / sizeof(float)),
+            tokens, 
+            timestamp
+        );
+
+        tokens.push_back(x);
+        all_tokens.push_back(x);
+        if( x == TOKEN_EOT || x == -1){
+            break;
+        }
+    }
+    messenger->_msg = postproc->get_sentence();
+    messenger->_timestamp = timestamp;
+    messenger->_cond_var.notify_all();
+}
+
+int Runtime::tflite_write_data_priv(int size, char* pcm_buffer) {
+    audioinput->fill_pcmdata(size, pcm_buffer);
+
+    return audioinput->get_curr_buf_time();
+}
+void Runtime::tflite_perfjson_priv() {
+
+}
 
 constexpr const uint64_t INPUT_BUFFER_SIZE = (8<<20);
 constexpr const uint64_t STREAM_READ_SIZE = (512<<10);  // has to be larger than 128KB
@@ -321,7 +594,7 @@ int AudioCodec::decode_pcm()
     return 0;
 }
 
-int AudioCodec::get_format() { 
+int AudioCodec::get_format() const { 
     return _dst_frame->format; 
 }
 
@@ -336,39 +609,46 @@ using namespace WhisperKit::TranscribeTask;
 TranscribeTask::TranscribeTask(const whisperkit_configuration_t& config) {
     this->config = config;
 
+    audio_codec = make_unique<AudioCodec>();
     argsjson = make_unique<nlohmann::json>();
-    (*argsjson)["lib"] = DEFAULT_LIB_DIR;
-    (*argsjson)["cache"] = DEFAULT_CACHE_DIR;
-    (*argsjson)["size"] = "default"; // TODO: delete
-    (*argsjson)["freq"] = audio_codec->get_samplerate();
-    (*argsjson)["dur"] = audio_codec->get_duration_ms();
-    (*argsjson)["ch"] = audio_codec->get_channel(); 
-    (*argsjson)["fmt"] = audio_codec->get_format(); 
-    (*argsjson)["root_path"] = config.get_lib_dir();
-    (*argsjson)["debug"] = config.get_verbose();
 
-    tflite_init(argsjson->dump());
+    runtime = std::make_unique<Runtime>(config);
+    runtime->tflite_init_priv();
+    printf("tflite initialized\n");
 }
 
 TranscribeTask::~TranscribeTask() {
-    tflite_close();
+    runtime->tflite_close_priv();
 }
 
 void TranscribeTask::textOutputProc() {
-    text_out_thread = make_unique<thread>([](){
-    unique_lock<mutex> ulock(messenger->_mutex);
 
-    messenger->_cond_var.wait(ulock, []
+    text_out_thread = make_unique<thread>([this](){
+    unique_lock<mutex> ulock(runtime->messenger->_mutex);
+
+    runtime->messenger->_cond_var.wait(ulock, [this]
     {
-        messenger->print();
-        return !messenger->_running;
+        runtime->messenger->print();
+        return !runtime->messenger->_running;
     });
     });
+
 }
 
-void TranscribeTask::transcribe(const char* audio_file, char** transcription) {
+void TranscribeTask::transcribe(const char* audio_file, whisperkit_transcription_result_t* transcription_result) {
 
+
+    if( !audio_codec->open(audio_file) ){ 
+        LOGE("Error opening audio file: %s\n", audio_file);
+        throw std::runtime_error("Error opening audio file");
+    }
+
+    runtime->tflite_init_audioinput(audio_codec.get(), audio_file);
+
+
+    printf("TranscribeTask::transcribe: __LINE__: %d\n", __LINE__);
     textOutputProc();
+    printf("TranscribeTask::transcribe: __LINE__: %d\n", __LINE__);
 
     int pcm_secs = 0, ret = 0;
     while(true) {
@@ -392,11 +672,15 @@ void TranscribeTask::transcribe(const char* audio_file, char** transcription) {
             break;
         }
     } 
+        printf("TranscribeTask::transcribe: __LINE__: %d\n", __LINE__);
+
     tflite_close();
     text_out_thread->join();
     text_out_thread.reset();
+    printf("TranscribeTask::transcribe: __LINE__: %d\n", __LINE__);
 
     auto perfjson = tflite_perfjson();
+    printf("TranscribeTask::transcribe: __LINE__: %d\n", __LINE__);
 
     LOGI("\nModel latencies:\n"
         "  Audio Input: %d inferences,\t median:%.2f ms\n"
@@ -419,6 +703,9 @@ void TranscribeTask::transcribe(const char* audio_file, char** transcription) {
         (float)(*perfjson)["duration"]
     );
 
+    printf("TranscribeTask::transcribe: __LINE__: %d\n", __LINE__);
+
+    /*
     std::string modelPath = config.get_audio_encoder();
     std::string modelSize = "default"; // delete..
     if (config.get_verbose()) {
@@ -438,5 +725,7 @@ void TranscribeTask::transcribe(const char* audio_file, char** transcription) {
         out_file << testjson->dump() << endl;
         out_file.close();
     }
+    */
+
 }
 

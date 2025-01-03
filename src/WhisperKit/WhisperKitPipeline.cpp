@@ -25,12 +25,13 @@ whisperkit_pipeline_t::~whisperkit_pipeline_t() {
 }
 
 void whisperkit_pipeline_t::build() {
+    printf("creating transcribe task\n");    
 
     transcribe_task = std::make_unique<TranscribeTask>(this->configuration);
-
+    printf("transcribe task created\n");
 }
-void whisperkit_pipeline_t::transcribe(const char* audio_file, char** transcription) {
+void whisperkit_pipeline_t::transcribe(const char* audio_file, whisperkit_transcription_result_t* transcription_result) {
 
-    transcribe_task->transcribe(audio_file, transcription);
+    transcribe_task->transcribe(audio_file, transcription_result);
 
 }
