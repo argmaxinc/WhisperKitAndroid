@@ -16,15 +16,6 @@ extern "C" {
 #include <libavutil/samplefmt.h>
 }
 
-/*
-
-class AVIOContext;
-class AVFormatContext;
-class AVCodecContext;
-class AVCodec;
-class AVFrame;
-class SwrContext;
-*/
 
 namespace WhisperKit::TranscribeTask {
 
