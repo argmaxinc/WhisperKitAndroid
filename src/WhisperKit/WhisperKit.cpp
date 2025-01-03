@@ -157,7 +157,7 @@ whisperkit_status_t whisperkit_pipeline_build(whisperkit_pipeline_t *pipeline) {
 };
 
 #pragma mark - transcription
-whisperkit_status_t whisperkit_transcribe(whisperkit_pipeline_t *pipeline, const char* audio_file, char **transcription) {
+whisperkit_status_t whisperkit_pipeline_transcribe(whisperkit_pipeline_t *pipeline, const char* audio_file, char **transcription) {
 
     if(pipeline == nullptr || audio_file == nullptr || transcription == nullptr) {
         return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
@@ -176,7 +176,7 @@ whisperkit_status_t whisperkit_transcribe(whisperkit_pipeline_t *pipeline, const
 };
 
 #pragma mark - teardown
-whisperkit_status_t whisperkit_destroy_config(whisperkit_configuration_t *config) {
+whisperkit_status_t whisperkit_configuration_destroy(whisperkit_configuration_t *config) {
     if(config == nullptr) {
         return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
     }
@@ -184,7 +184,7 @@ whisperkit_status_t whisperkit_destroy_config(whisperkit_configuration_t *config
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
-whisperkit_status_t whisperkit_destroy_pipeline(whisperkit_pipeline_t *pipeline) {
+whisperkit_status_t whisperkit_pipeline_destroy(whisperkit_pipeline_t *pipeline) {
     if(pipeline == nullptr) {
         return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
     }
