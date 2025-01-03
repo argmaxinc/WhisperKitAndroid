@@ -29,6 +29,10 @@ void whisperkit_configuration_t::set_postproc(const char* postproc) noexcept  {
         this->postproc = postproc;
 }
 
+void whisperkit_configuration_t::set_model_path(const char* model_path) noexcept  {
+        this->model_path = model_path;
+}
+
 void whisperkit_configuration_t::set_lib_dir(const char* lib_dir) noexcept  {
         this->lib_dir = lib_dir;
 }
@@ -71,6 +75,10 @@ const std::string whisperkit_configuration_t::get_melspectrogram_model() const n
 
 const std::string whisperkit_configuration_t::get_postproc() const noexcept  {
         return this->postproc;
+}
+
+const std::string whisperkit_configuration_t::get_model_path() const noexcept  {
+        return this->model_path;
 }
 
 const std::string whisperkit_configuration_t::get_lib_dir() const noexcept  {

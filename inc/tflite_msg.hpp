@@ -34,6 +34,14 @@ public:
     float _timestamp = 0;
     std::unique_ptr<std::string> _msg;
 
+    ~TFLiteMessenger() {
+        _msg.reset();
+    }
+
+    std::string get_message() {
+        return std::string(*(_msg.get()));
+    }
+
     void print(){
         if (_msg->empty()) {
             return;
