@@ -67,6 +67,10 @@ struct WhisperKitRunner {
         if (configuration) {
             whisperkit_configuration_destroy(configuration);
         }
+
+        if (transcriptionResult) {
+            whisperkit_transcription_result_destroy(transcriptionResult);
+        }
     }
 
     void buildPipeline() {
@@ -95,18 +99,29 @@ struct WhisperKitRunner {
 
     void transcribe() {
         whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
-        char* transcription = nullptr;
-        status = whisperkit_pipeline_transcribe(pipeline, config.audioPath.c_str(), &transcription);
-        CHECK_WHISPERKIT_STATUS(status);
-        std::cout << "Transcription: " << transcription << std::endl;
 
-        free(transcription);
+        if (transcriptionResult == nullptr) {
+            status = whisperkit_transcription_result_create(&transcriptionResult);
+            CHECK_WHISPERKIT_STATUS(status);
+        }
+
+        status = whisperkit_pipeline_transcribe(pipeline, config.audioPath.c_str(), transcriptionResult);
+        CHECK_WHISPERKIT_STATUS(status);
+
+        const char* transcription;
+        status = whisperkit_transcription_result_get_transcription(transcriptionResult, &transcription);
+        CHECK_WHISPERKIT_STATUS(status);
+
+        std::string transcriptionString(transcription);
+        std::cout << "Transcription: " << transcriptionString << std::endl;
+
     }
 
     private: 
         WhisperKitConfig config;
         whisperkit_pipeline_t* pipeline;
         whisperkit_configuration_t* configuration;
+        whisperkit_transcription_result_t* transcriptionResult;
 };
 
 

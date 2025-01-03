@@ -65,6 +65,14 @@ typedef struct whisperkit_configuration_t whisperkit_configuration_t;
  */
 typedef struct whisperkit_pipeline_t whisperkit_pipeline_t;
 
+/** \brief WhisperKit transcription result object 
+ * 
+ *  An opaque object that holds the result of a transcription.  
+ *  The object is owned by the client, and should be destroyed using 
+ *  whisperkit_transcription_result_destroy().
+ */
+typedef struct whisperkit_transcription_result_t whisperkit_transcription_result_t;
+
 #pragma mark - initializers
 
 /** \brief WhisperKit configuration initializer
@@ -85,6 +93,14 @@ whisperkit_status_t whisperkit_configuration_create(whisperkit_configuration_t *
  *  The pipeline object is in state INITIALIZED after creation.
  */
 whisperkit_status_t whisperkit_pipeline_create(whisperkit_pipeline_t **pipeline);
+
+/** \brief WhisperKit transcription result initializer
+ * 
+ *  Allocates and initializes a new WhisperKit transcription result object.
+ *  The returned object is owned by the client, and should be destroyed using
+ *  whisperkit_transcription_result_destroy().  
+ */
+whisperkit_status_t whisperkit_transcription_result_create(whisperkit_transcription_result_t **transcription_result);
 
 #pragma mark - configuration setters
 
@@ -218,7 +234,14 @@ whisperkit_status_t whisperkit_pipeline_build(whisperkit_pipeline_t *pipeline);
  *  The pipeline must be in the BUILT state before whisperkit_pipeline_transcribe can be 
  *  called.
  */
-whisperkit_status_t whisperkit_pipeline_transcribe(whisperkit_pipeline_t *pipeline, const char* audio_file, char **transcription);
+whisperkit_status_t whisperkit_pipeline_transcribe(whisperkit_pipeline_t *pipeline, const char* audio_file, whisperkit_transcription_result_t *transcription_result);
+
+/** \brief WhisperKit transcription result getter   
+ * 
+ *  Retrieves the transcription from the transcription result object.
+ *  The returned string has the lifetime of the transcription result object.
+ */
+whisperkit_status_t whisperkit_transcription_result_get_transcription(whisperkit_transcription_result_t *transcription_result, const char **transcription);
 
 #pragma mark - teardown
 
@@ -233,6 +256,12 @@ whisperkit_status_t whisperkit_configuration_destroy(whisperkit_configuration_t 
  *  Releases the created pipeline object and frees the memory.
  */
 whisperkit_status_t whisperkit_pipeline_destroy(whisperkit_pipeline_t *pipeline);
+
+/** \brief WhisperKit transcription result destroyer
+ * 
+ *  Releases the created transcription result object and frees the memory.
+ */
+whisperkit_status_t whisperkit_transcription_result_destroy(whisperkit_transcription_result_t *transcription_result);
 
 #ifdef __cplusplus
 }

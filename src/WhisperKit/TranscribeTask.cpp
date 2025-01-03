@@ -366,7 +366,7 @@ void TranscribeTask::textOutputProc() {
     });
 }
 
-void TranscribeTask::transcribe(const char* audio_file, char** transcription) {
+void TranscribeTask::transcribe(const char* audio_file, whisperkit_transcription_result_t* transcription_result) {
 
     textOutputProc();
 

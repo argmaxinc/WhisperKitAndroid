@@ -1,6 +1,7 @@
 #pragma once
 
 #include "WhisperKitConfiguration.h"
+#include "WhisperKitTranscriptionResult.h"
 #include "nlohmann/json.hpp"
 #include <thread>
 #include <string>
@@ -18,7 +19,7 @@ struct TranscribeTask {
     std::string model_size;
     float duration;
 
-    void transcribe(const char* audio_file, char** transcription);
+    void transcribe(const char* audio_file, whisperkit_transcription_result_t* transcription_result);
     TranscribeTask(const whisperkit_configuration_t& config);
     ~TranscribeTask();
     private: 
