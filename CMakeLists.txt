@@ -156,9 +156,7 @@ target_include_directories(whisperax_cli PRIVATE
 
 target_include_directories(whisperkit-cli PRIVATE
   ${AXIE_INC_DIR}
-  ${AXIE_CLI_DIR}
   ${AXIE_SRC_DIR}/external/
-  ${EXT_INC_DIR}
 )
 
 target_link_libraries(whisperax_cli PRIVATE
