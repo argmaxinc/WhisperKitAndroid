@@ -41,7 +41,7 @@ class TestRunLinux:
             _, result = self.container.exec_run(cmds, stream=True)
         except Exception as e:
             print(f"** Error from running a command on Docker container:")
-            print(f"  Is {self.config['docker']['container']} running?")
+            print(f"  Is {self.container_name} running?")
             print(f"  If not, run 'make env' to start Docker container")
             os._exit(-1)
         
