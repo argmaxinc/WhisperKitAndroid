@@ -1,7 +1,7 @@
 #include "WhisperKit.h"
 #include "WhisperKitConfiguration.h"
 #include "WhisperKitPipeline.h"
-
+#include "WhisperKitTranscriptionResult.h"
 #pragma mark - initializers
 whisperkit_status_t whisperkit_configuration_create(whisperkit_configuration_t **configuration) {
     if(configuration == nullptr) {
@@ -19,6 +19,15 @@ whisperkit_status_t whisperkit_pipeline_create(whisperkit_pipeline_t **pipeline)
     (*pipeline)->set_state(WHISPERKIT_PIPELINE_STATUS_INITIALIZED);
     return WHISPERKIT_STATUS_SUCCESS;
 };
+
+whisperkit_status_t whisperkit_transcription_result_create(whisperkit_transcription_result_t **transcription_result) {
+    if(transcription_result == nullptr) {
+        return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
+    }
+    *transcription_result = new whisperkit_transcription_result_t();
+    return WHISPERKIT_STATUS_SUCCESS;
+};
+
 
 
 whisperkit_status_t whisperkit_configuration_set_audio_encoder(whisperkit_configuration_t *config, const char* audio_encoder) {
@@ -117,6 +126,15 @@ whisperkit_status_t whisperkit_configuration_set_load(whisperkit_configuration_t
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
+whisperkit_status_t whisperkit_configuration_set_model_path(whisperkit_configuration_t *config, const char* model_path) {
+    if(config == nullptr || model_path == nullptr) {
+        return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
+    }
+    config->set_model_path(model_path);
+    return WHISPERKIT_STATUS_SUCCESS;
+};
+
+
 #pragma mark - pipeline state
 whisperkit_status_t whisperkit_pipeline_get_status(whisperkit_pipeline_t *pipeline, whisperkit_pipeline_status_t* status) {
     if(pipeline == nullptr || status == nullptr) {
@@ -130,7 +148,7 @@ whisperkit_status_t whisperkit_pipeline_set_configuration(whisperkit_pipeline_t 
     if(pipeline == nullptr || config == nullptr) {
         return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
     }
-    if(pipeline->get_state() != WHISPERKIT_PIPELINE_STATUS_INITIALIZED || 
+    if(pipeline->get_state() != WHISPERKIT_PIPELINE_STATUS_INITIALIZED && 
        pipeline->get_state() != WHISPERKIT_PIPELINE_STATUS_CONFIGURED) {
         return WHISPERKIT_STATUS_ERROR_INVALID_STATE;
     }
@@ -157,9 +175,9 @@ whisperkit_status_t whisperkit_pipeline_build(whisperkit_pipeline_t *pipeline) {
 };
 
 #pragma mark - transcription
-whisperkit_status_t whisperkit_pipeline_transcribe(whisperkit_pipeline_t *pipeline, const char* audio_file, char **transcription) {
+whisperkit_status_t whisperkit_pipeline_transcribe(whisperkit_pipeline_t *pipeline, const char* audio_file, whisperkit_transcription_result_t *transcription_result) {
 
-    if(pipeline == nullptr || audio_file == nullptr || transcription == nullptr) {
+    if(pipeline == nullptr || audio_file == nullptr || transcription_result == nullptr) {
         return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
     }
 
@@ -168,26 +186,49 @@ whisperkit_status_t whisperkit_pipeline_transcribe(whisperkit_pipeline_t *pipeli
     }
 
     try {
-        pipeline->transcribe(audio_file, transcription);
+        pipeline->transcribe(audio_file, transcription_result);
     } catch (const std::exception& e) {
         return WHISPERKIT_STATUS_ERROR_TRANSCRIPTION_FAILED;
     }
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
-#pragma mark - teardown
-whisperkit_status_t whisperkit_configuration_destroy(whisperkit_configuration_t *config) {
-    if(config == nullptr) {
+whisperkit_status_t whisperkit_transcription_result_get_transcription(whisperkit_transcription_result_t *transcription_result, char **transcription) {
+
+    if(transcription_result == nullptr) {
         return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
     }
-    delete config;
+
+    const auto& transcription_result_string = transcription_result->get_transcription();
+
+    size_t size = transcription_result_string.size() + 1;
+    *transcription = new char[size];
+
+    std::snprintf(*transcription, size, "%s", transcription_result_string.c_str());
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
-whisperkit_status_t whisperkit_pipeline_destroy(whisperkit_pipeline_t *pipeline) {
+#pragma mark - teardown
+whisperkit_status_t whisperkit_configuration_destroy(whisperkit_configuration_t **config) {
+    if(config == nullptr) {
+        return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
+    }
+    delete *config;
+    return WHISPERKIT_STATUS_SUCCESS;
+};
+
+whisperkit_status_t whisperkit_pipeline_destroy(whisperkit_pipeline_t **pipeline) {
     if(pipeline == nullptr) {
         return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
     }
-    delete pipeline;
+    delete *pipeline;
+    return WHISPERKIT_STATUS_SUCCESS;
+};
+
+whisperkit_status_t whisperkit_transcription_result_destroy(whisperkit_transcription_result_t **transcription_result) {
+    if(transcription_result == nullptr) {
+        return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
+    }
+    delete *transcription_result;
     return WHISPERKIT_STATUS_SUCCESS;
 };

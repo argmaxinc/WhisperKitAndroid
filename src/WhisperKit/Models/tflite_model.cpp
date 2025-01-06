@@ -38,7 +38,7 @@ bool TFLiteModel::initialize(
 
 void TFLiteModel::uninitialize() {
     if (_interpreter.get() != nullptr) {
-        LOGI("Deleted interpreter & delegate for %s\n", _model_name.c_str());
+        //LOGI("Deleted interpreter & delegate for %s\n", _model_name.c_str());
         _interpreter->Cancel();
         _interpreter.reset(nullptr);
     }

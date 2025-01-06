@@ -49,6 +49,7 @@ if(${ANDROID})
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKitConfiguration.cpp
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKitPipeline.cpp
         ${AXIE_SRC_DIR}/WhisperKit/TranscribeTask.cpp
+	${AXIE_SRC_DIR}/WhisperKit/WhisperKitTranscriptionResult.cpp
     )
   else() # generic TFLite GPU delegate
     message(NOTICE  " Delegate via Generic TFLite GPU..")
@@ -62,6 +63,7 @@ if(${ANDROID})
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKitConfiguration.cpp
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKitPipeline.cpp
         ${AXIE_SRC_DIR}/WhisperKit/TranscribeTask.cpp
+	${AXIE_SRC_DIR}/WhisperKit/WhisperKitTranscriptionResult.cpp
     )
 
   endif()
@@ -77,6 +79,7 @@ else() # other generic arch, CPU only
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKitConfiguration.cpp
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKitPipeline.cpp
         ${AXIE_SRC_DIR}/WhisperKit/TranscribeTask.cpp
+	${AXIE_SRC_DIR}/WhisperKit/WhisperKitTranscriptionResult.cpp
   )
 endif()
 

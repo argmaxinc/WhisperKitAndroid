@@ -1,9 +1,9 @@
 #include "TranscribeTask.h"
 
-#include "whisperax.hpp"
+
 #include <memory>
 
-// TODO : move these to a separate, non header file.
+// TODO : move these and all audio related code to a separate, non header file.
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/time.h>
@@ -16,8 +16,73 @@ extern "C" {
 #include <libavutil/samplefmt.h>
 }
 
+#include "tflite_msg.hpp"
+#include "backend_class.hpp"
+#include "audio_input.hpp"
+#include "post_proc.hpp"
+
+
+// to be deleted
+
+
+#if (defined(QNN_DELEGATE) || defined(GPU_DELEGATE)) 
+// for Android QNN or GPU delegatea
+#define TRANSCRIBE_TASK_TFLITE_ROOT_PATH    "/sdcard/argmax/tflite"
+#define TRANSCRIBE_TASK_DEFAULT_LIB_DIR     "/data/local/tmp/lib"
+#define TRANSCRIBE_TASK_DEFAULT_CACHE_DIR   "/data/local/tmp/cache"
+#else
+#define TRANSCRIBE_TASK_TFLITE_ROOT_PATH    "."
+#define TRANSCRIBE_TASK_DEFAULT_LIB_DIR     "./lib"
+#define TRANSCRIBE_TASK_DEFAULT_CACHE_DIR   "./cache"
+#endif
 
 namespace WhisperKit::TranscribeTask {
+
+
+// private class to encapsulate tflite related code
+// so we can delete it imminently from whisperax_cli and whisperax.cpp
+class Runtime {
+    public:
+        Runtime(const whisperkit_configuration_t& config);
+        ~Runtime();
+
+        void tflite_init_priv();
+        void tflite_close_priv();
+        int tflite_loop_priv();
+        void tflite_perfjson_priv();
+        void text_output_proc_priv();
+        bool check_qcom_soc();
+        void encode_decode_postproc_priv(float timestamp);
+        std::unique_ptr<std::string> cmdexec(const char* cmd);
+        int tflite_write_data_priv(char* pcm_buffer, int size);
+        void tflite_conclude_transcription();
+    
+        void tflite_init_audioinput(const AudioCodec* audio_codec, const char* audio_file);
+        std::unique_ptr<TFLiteMessenger> messenger;
+        std::mutex gmutex;
+
+    private:
+        whisperkit_configuration_t config;
+        std::unique_ptr<std::thread> encode_decode_thread;
+        std::string lib_dir;
+        std::string cache_dir;
+        bool debug;
+        int backend;
+        std::unique_ptr<MODEL_SUPER_CLASS> melspectro;
+        std::unique_ptr<MODEL_SUPER_CLASS> encoder;
+        std::unique_ptr<MODEL_SUPER_CLASS> decoder;
+        std::unique_ptr<AudioInputModel> audioinput;
+        std::unique_ptr<PostProcModel> postproc;
+
+        std::vector<int> all_tokens;
+        std::vector<std::pair<char*, int>> melspectro_inputs;
+        std::vector<std::pair<char*, int>> melspectro_outputs;
+        std::vector<std::pair<char*, int>> encoder_inputs;
+        std::vector<std::pair<char*, int>> encoder_outputs;
+        std::vector<std::pair<char*, int>> decoder_outputs;
+
+        std::chrono::time_point<std::chrono::high_resolution_clock> start_exec;
+};
 
 // copy pasted from audio_codec.hpp, which will be deleted
 // Modifications: some forward declarations, and associated includes moved to TranscribeTask.cpp
@@ -32,13 +97,13 @@ public:
     bool    open(string filename);
     void    close();
 
-    int             get_samplerate()    { return _freq; }
-    int             get_channel()       { return _channel; }
-    int             get_format();
-    AVFrame*        get_frame()         { return _dst_frame; }
-    int64_t         get_duration_ms()   { return _duration; }
-    bool            is_running()        { return _is_running; }
-    int             get_datasize()      { return _single_ch_datasize; }
+    int             get_samplerate() const { return _freq; }
+    int             get_channel() const { return _channel; }
+    int             get_format() const;
+    AVFrame*        get_frame() const { return _dst_frame; }
+    int64_t         get_duration_ms() const { return _duration; }
+    bool            is_running() const { return _is_running; }
+    int             get_datasize() const { return _single_ch_datasize; }
     int             decode_pcm();
 
 private:
@@ -72,8 +137,17 @@ private:
 namespace WhisperKit::TranscribeTask {
 
 
-constexpr const uint64_t INPUT_BUFFER_SIZE = (8<<20);
-constexpr const uint64_t STREAM_READ_SIZE = (512<<10);  // has to be larger than 128KB
+#ifndef QCOM_SOC
+#define QCOM_SOC    "qcom"
+#endif
+
+#ifndef TFLITE_INIT_CHECK
+#define TFLITE_INIT_CHECK(x)                          \
+    if (!(x)) {                               \
+        LOGE("Error at %s:%d\n", __FUNCTION__, __LINE__); \
+        exit(0);                                         \
+    }
+#endif
 
 #ifndef av_err2string
 #define av_err2string(errnum) \
@@ -82,6 +156,272 @@ constexpr const uint64_t STREAM_READ_SIZE = (512<<10);  // has to be larger than
         AV_ERROR_MAX_STRING_SIZE, errnum \
     )
 #endif
+
+Runtime::Runtime(const whisperkit_configuration_t& config) {
+    this->config = config;
+}
+
+Runtime::~Runtime() {
+    tflite_close_priv();
+}
+
+void Runtime::text_output_proc_priv() {
+}
+
+
+std::unique_ptr<std::string> Runtime::cmdexec(const char* cmd) {
+    array<char, 128> buffer;
+    auto result = make_unique<std::string>();
+    unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+    if (!pipe) {
+        throw runtime_error("popen() failed!");
+    }
+    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get()) != nullptr) {
+        (*result) += buffer.data();
+    }
+    while (result->find('\n') != string::npos){
+        auto pos = result->find('\n');
+        result->erase(result->begin() + pos, result->begin()+pos+1);
+    }
+    
+    return result;
+}
+
+
+bool Runtime::check_qcom_soc() {
+    vector<string> supported_socs{
+        "SM8650", "SM8550", "SM8450","SM8350"
+    };
+
+    auto soc = *cmdexec("getprop ro.soc.model");
+    LOGI("SoC: \t%s", soc.c_str());
+    if (find(begin(supported_socs), end(supported_socs), soc) 
+        != end(supported_socs)){
+        LOGI(" -> QNN HTP\n");
+        return true; 
+    } else { // all other SoCs
+        LOGI(" -> TFLite GPU\n");
+        return false; 
+    }
+}
+
+void Runtime::tflite_init_priv() {
+    lock_guard<mutex> lock(gmutex);
+
+    //LOGI("tflite_init input: %s\n", config.get_model_path().c_str());
+
+    int format = 0;
+
+    backend = kUndefinedBackend;
+#if (defined(QNN_DELEGATE) || defined(GPU_DELEGATE)) 
+    if (check_qcom_soc()) // selecting runtime delegation for the model
+        backend = kHtpBackend; 
+#else
+    LOGI("SoC: \tgeneric CPU (x86, arm64, etc) \n");
+#endif
+
+    // TODO: this should be using std::filesystem..
+    std::string tokenizer_json = config.get_model_path() + "/converted_vocab.json";
+    std::string melspectro_model =  config.get_model_path() +  "/MelSpectrogram.tflite";
+    std::string encoder_model =  config.get_model_path() + "/AudioEncoder.tflite";
+    std::string decoder_model =  config.get_model_path() +  "/TextDecoder.tflite";
+    std::string postproc_model =  config.get_model_path() +  "/postproc.tflite";
+
+    melspectro = make_unique<MODEL_SUPER_CLASS>("mel_spectrogram");
+    encoder = make_unique<MODEL_SUPER_CLASS>("whisper_encoder");
+    decoder = make_unique<MODEL_SUPER_CLASS>("whisper_decoder");
+    postproc = make_unique<PostProcModel>(tokenizer_json);
+
+    lib_dir = std::string(TRANSCRIBE_TASK_DEFAULT_LIB_DIR); 
+    cache_dir = std::string(TRANSCRIBE_TASK_DEFAULT_CACHE_DIR); 
+    debug = config.get_verbose();
+    if (!config.get_lib_dir().empty()) {
+        lib_dir = config.get_lib_dir();
+    }
+
+    if (!config.get_cache_dir().empty()) {
+        cache_dir = config.get_cache_dir();
+    }
+
+    //LOGI("root dir:\t%s\nlib dir:\t%s\ncache dir:\t%s\n", 
+    //    config.get_model_path().c_str(), lib_dir.c_str(), cache_dir.c_str()
+    //);
+
+    TFLITE_INIT_CHECK(melspectro->initialize(
+        melspectro_model, lib_dir, cache_dir, backend, debug
+    ));
+    TFLITE_INIT_CHECK(encoder->initialize(
+        encoder_model, lib_dir, cache_dir, backend, debug
+    ));
+    TFLITE_INIT_CHECK(decoder->initialize(
+        decoder_model, lib_dir, cache_dir, backend, debug
+    ));
+
+
+    TFLITE_INIT_CHECK(postproc->initialize(
+        postproc_model, lib_dir, cache_dir, kUndefinedBackend, debug
+    ));
+
+
+    melspectro_inputs = melspectro->get_input_ptrs();
+    melspectro_outputs = melspectro->get_output_ptrs();
+    // outputs: melspectrogram
+    assert(melspectro_outputs.size() == 1);
+
+    encoder_inputs = encoder->get_input_ptrs();
+    // retrieve encoder output tensor pointers
+    encoder_outputs = encoder->get_output_ptrs();
+    // outputs: k_cache, v_cache
+    assert(encoder_outputs.size() == 2);
+
+    decoder_outputs = decoder->get_output_ptrs();
+    // outputs: logits, k_cache, v_cache
+    assert(decoder_outputs.size() == 3);
+
+    all_tokens.clear();
+    all_tokens.reserve(1 << 18); // max 256K tokens
+
+    start_exec = chrono::high_resolution_clock::now();
+
+    messenger = std::make_unique<TFLiteMessenger>();
+    messenger->_running = true;
+
+}
+
+void Runtime::tflite_init_audioinput(const AudioCodec* audio_codec, const char* audio_file) {
+
+    const int freq = audio_codec->get_samplerate();
+    const int channels = audio_codec->get_channel(); 
+    const int fmt = audio_codec->get_format(); 
+    audioinput = make_unique<AudioInputModel>(freq, channels, fmt);
+
+    std::string audio_model =  config.get_model_path() +  "/voice_activity_detection.tflite";
+
+    TFLITE_INIT_CHECK(audioinput->initialize(
+        audio_model, lib_dir, cache_dir, backend, debug
+    ));
+
+}
+
+
+void Runtime::tflite_conclude_transcription() {
+    lock_guard<mutex> lock(gmutex);
+
+    messenger->_running = false;
+    if (encode_decode_thread.get() != nullptr && 
+        encode_decode_thread->joinable()) {
+        encode_decode_thread->join();
+    }
+ 
+}
+
+
+void Runtime::tflite_close_priv() {
+    postproc->uninitialize();
+    decoder->uninitialize();
+    encoder->uninitialize();
+    melspectro->uninitialize();
+    audioinput->uninitialize();
+}
+
+
+int Runtime::tflite_loop_priv() {
+    lock_guard<mutex> lock(gmutex);
+
+    // parallel execution of 2 threads for a pipeline of
+    // 1) audio input & melspectrogram,
+    // 2) encoder & decoder & postproc
+    float timestamp = audioinput->get_next_chunk(
+        melspectro_inputs[0].first
+    );
+
+    if (timestamp < 0) {
+        return -1; 
+    }
+
+    encoder->get_mutex()->lock();
+    melspectro->invoke(true);
+    encoder->get_mutex()->unlock();
+    if (encode_decode_thread.get() != nullptr && 
+        encode_decode_thread->joinable()) {
+        encode_decode_thread->join();
+    }
+
+    encode_decode_thread = std::make_unique<std::thread>(
+        std::bind(&WhisperKit::TranscribeTask::Runtime::encode_decode_postproc_priv, this, timestamp)
+    );
+    return 0;
+}
+
+
+void Runtime::encode_decode_postproc_priv(float timestamp)
+{
+    auto x = TOKEN_SOT; 
+    int index = 0;
+    vector<int> tokens;
+    tokens.push_back(TOKEN_SOT);
+
+    encoder->read_input_data(melspectro_outputs[0].first, 0);
+
+    // Perform encoder inference
+    encoder->invoke(true);
+ 
+    // k_cache_cross
+    decoder->read_input_data(encoder_outputs[0].first, 2);
+    // v_cache_cross
+    decoder->read_input_data(encoder_outputs[1].first, 3);
+
+    // first k_cache_self is all zeros
+    memset(decoder_outputs[1].first, 0, decoder_outputs[1].second);
+    // first v_cache_self is all zeros
+    memset(decoder_outputs[2].first, 0, decoder_outputs[2].second);
+
+    for(; index < 224; index++){
+        // x
+        decoder->read_input_data((char*)&x, 0);
+        // index
+        decoder->read_input_data((char*)&index, 1);
+        // k_cache_self
+        decoder->read_input_data(decoder_outputs[1].first, 4);
+        // v_cache_self
+        decoder->read_input_data(decoder_outputs[2].first, 5);
+        
+        decoder->invoke(true);
+
+        x = postproc->process(
+            index, 
+            reinterpret_cast<float*>(decoder_outputs[0].first), 
+            (decoder_outputs[0].second / sizeof(float)),
+            tokens, 
+            timestamp
+        );
+
+        tokens.push_back(x);
+        all_tokens.push_back(x);
+        if( x == TOKEN_EOT || x == -1){
+            break;
+        }
+    }
+    messenger->_msg = postproc->get_sentence();
+    messenger->_timestamp = timestamp;
+    messenger->_cond_var.notify_all();
+}
+
+int Runtime::tflite_write_data_priv(char* pcm_buffer, int size) {
+    if(!pcm_buffer || size <= 0){
+        return -1;
+    }
+    audioinput->fill_pcmdata(size, pcm_buffer);
+    return audioinput->get_curr_buf_time();
+}
+void Runtime::tflite_perfjson_priv() {
+
+}
+
+constexpr const uint64_t INPUT_BUFFER_SIZE = (8<<20);
+constexpr const uint64_t STREAM_READ_SIZE = (512<<10);  // has to be larger than 128KB
+
+
 static int cbDecodeInterrupt(void *ctx)
 {
     // return whether to stop the input stream or not
@@ -127,7 +467,7 @@ bool AudioCodec::open(string filename)
 
     if (!_format_context)
     {
-        LOGI("alloc format context failed\n");
+        LOGE("alloc format context failed\n");
         return false;
     }
 
@@ -179,7 +519,7 @@ bool AudioCodec::open(string filename)
         }
         _codec_name = string(avcodec_get_name(codec_par->codec_id));
         
-        LOGI("Audio Codec: %s\n", _codec_name.c_str());
+        //LOGI("Audio Codec: %s\n", _codec_name.c_str());
         if(_codec_context != nullptr){
             avcodec_free_context(&_codec_context);
         }
@@ -268,7 +608,6 @@ int AudioCodec::decode_pcm()
 {
     int retry = 0;
     AVPacket packet;
-
     int ret = av_read_frame(_format_context, &packet);
     if( ret < 0)
     {
@@ -280,7 +619,6 @@ int AudioCodec::decode_pcm()
         _single_ch_datasize = packet.size;
         return 0;          
     }
-
     if(packet.size > 0) {
         ret = avcodec_send_packet(_codec_context, &packet);
         if (ret < 0) {
@@ -288,7 +626,6 @@ int AudioCodec::decode_pcm()
             return ret;
         }
     }
-
     av_frame_unref(_src_frame);
     ret = avcodec_receive_frame(_codec_context, _src_frame);
     if (ret == AVERROR(EAGAIN)) {
@@ -299,7 +636,6 @@ int AudioCodec::decode_pcm()
         LOGE("Error during decoding: %s\n", av_err2string(ret));
         return ret;
     }
-
     if(_sample_format != AV_SAMPLE_FMT_S16P){
         av_frame_unref(_dst_frame);
 
@@ -321,122 +657,110 @@ int AudioCodec::decode_pcm()
     return 0;
 }
 
-int AudioCodec::get_format() { 
+int AudioCodec::get_format() const { 
     return _dst_frame->format; 
 }
 
-}
+
+#ifdef QCOM_SOC
+#undef QCOM_SOC
+#endif
+
+#ifdef TFLITE_INIT_CHECK
+#undef TFLITE_INIT_CHECK
+#endif
 
 #ifdef av_err2string
 #undef av_err2string
 #endif
+
+}
+
 
 using namespace WhisperKit::TranscribeTask;
 
 TranscribeTask::TranscribeTask(const whisperkit_configuration_t& config) {
     this->config = config;
 
+    audio_codec = make_unique<AudioCodec>();
     argsjson = make_unique<nlohmann::json>();
-    (*argsjson)["lib"] = DEFAULT_LIB_DIR;
-    (*argsjson)["cache"] = DEFAULT_CACHE_DIR;
-    (*argsjson)["size"] = "default"; // TODO: delete
-    (*argsjson)["freq"] = audio_codec->get_samplerate();
-    (*argsjson)["dur"] = audio_codec->get_duration_ms();
-    (*argsjson)["ch"] = audio_codec->get_channel(); 
-    (*argsjson)["fmt"] = audio_codec->get_format(); 
-    (*argsjson)["root_path"] = config.get_lib_dir();
-    (*argsjson)["debug"] = config.get_verbose();
 
-    tflite_init(argsjson->dump());
+    runtime = std::make_unique<Runtime>(config);
+    runtime->tflite_init_priv();
 }
 
 TranscribeTask::~TranscribeTask() {
-    tflite_close();
+    runtime->tflite_close_priv();
 }
 
 void TranscribeTask::textOutputProc() {
-    text_out_thread = make_unique<thread>([](){
-    unique_lock<mutex> ulock(messenger->_mutex);
 
-    messenger->_cond_var.wait(ulock, []
+    text_out_thread = make_unique<thread>([this](){
+    unique_lock<mutex> ulock(runtime->messenger->_mutex);
+
+    runtime->messenger->_cond_var.wait(ulock, [this]
     {
-        messenger->print();
-        return !messenger->_running;
+        //runtime->messenger->print();
+        return !runtime->messenger->_running;
     });
     });
+
 }
 
-void TranscribeTask::transcribe(const char* audio_file, char** transcription) {
+void TranscribeTask::transcribe(const char* audio_file, whisperkit_transcription_result_t* transcription_result) {
+
+
+    if( !audio_codec->open(audio_file) ){ 
+        LOGE("Error opening audio file: %s\n", audio_file);
+        throw std::runtime_error("Error opening audio file");
+    }
+
+    runtime->tflite_init_audioinput(audio_codec.get(), audio_file);
+
 
     textOutputProc();
 
     int pcm_secs = 0, ret = 0;
     while(true) {
         if (ret != AVERROR_EOF) {
+
             ret = audio_codec->decode_pcm();
+
             if(ret < 0 || audio_codec->get_datasize() == 0) {
                 usleep(100000); // 100ms
                 continue;
             }
 
-            pcm_secs = tflite_write_data(
+            pcm_secs = runtime->tflite_write_data_priv(
                 (char*)audio_codec->get_frame()->extended_data[0], 
                 audio_codec->get_datasize()
             );
-            
+
             if (pcm_secs < 30) {
                 continue;
             }
         }
-        if(tflite_loop() < 0) {
+
+        if(runtime->tflite_loop_priv() < 0) {
             break;
         }
     } 
-    tflite_close();
+
+    const std::string transcription1 = std::string(runtime->messenger->get_message());
+
+    runtime->tflite_conclude_transcription();
+
+
     text_out_thread->join();
     text_out_thread.reset();
 
-    auto perfjson = tflite_perfjson();
+    const std::string transcription2 = std::string(runtime->messenger->get_message());
 
-    LOGI("\nModel latencies:\n"
-        "  Audio Input: %d inferences,\t median:%.2f ms\n"
-        "  Melspectro: %d inferences,\t median:%.2f ms\n"
-        "  Encoder: %d inferences,\t median:%.2f ms\n"
-        "  Decoder: %d inferences,\t median:%.2f ms\n"
-        "  Postproc: %d inferences,\t median:%.2f ms\n"
-        "=========================\n"
-        "Total Duration:\t %.3f ms\n\n",
-        (int)(*perfjson)["audioinput"]["inf"], 
-        (float)(*perfjson)["audioinput"]["med"], 
-        (int)(*perfjson)["melspectro"]["inf"], 
-        (float)(*perfjson)["melspectro"]["med"], 
-        (int)(*perfjson)["encoder"]["inf"], 
-        (float)(*perfjson)["encoder"]["med"], 
-        (int)(*perfjson)["decoder"]["inf"], 
-        (float)(*perfjson)["decoder"]["med"],
-        (int)(*perfjson)["postproc"]["inf"], 
-        (float)(*perfjson)["postproc"]["med"],
-        (float)(*perfjson)["duration"]
-    );
-
-    std::string modelPath = config.get_audio_encoder();
-    std::string modelSize = "default"; // delete..
-    if (config.get_verbose()) {
-        auto testjson = get_test_json(
-            modelPath.c_str(), 
-            modelSize.c_str(), 
-            (float)(*perfjson)["duration"]/1000
-        ); 
-
-        ofstream out_file;
-        struct stat sb;
-
-        if (stat(config.get_lib_dir().c_str(), &sb) != 0){
-            mkdir(config.get_lib_dir().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        }
-        out_file.open(config.get_lib_dir() + "/output.json");
-        out_file << testjson->dump() << endl;
-        out_file.close();
+    const std::string final_transcription = transcription1 + transcription2;
+    if(transcription_result != nullptr) {
+        transcription_result->set_transcription(std::string(final_transcription));
     }
+
+
 }
 

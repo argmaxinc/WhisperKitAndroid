@@ -52,7 +52,7 @@ bool AudioCodec::open(string filename)
 
     if (!_format_context)
     {
-        LOGI("alloc format context failed\n");
+        LOGE("alloc format context failed\n");
         return false;
     }
 

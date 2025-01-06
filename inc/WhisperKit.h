@@ -11,6 +11,7 @@ extern "C" {
 // Versioning
 #define WHISPERKIT_VERSION_MAJOR 0
 #define WHISPERKIT_VERSION_MINOR 1
+#define WHISPERKIT_VERSION_PATCH 0
 
 /** \brief WhisperKit status codes.
  *
@@ -65,6 +66,14 @@ typedef struct whisperkit_configuration_t whisperkit_configuration_t;
  */
 typedef struct whisperkit_pipeline_t whisperkit_pipeline_t;
 
+/** \brief WhisperKit transcription result object 
+ * 
+ *  An opaque object that holds the result of a transcription.  
+ *  The object is owned by the client, and should be destroyed using 
+ *  whisperkit_transcription_result_destroy().
+ */
+typedef struct whisperkit_transcription_result_t whisperkit_transcription_result_t;
+
 #pragma mark - initializers
 
 /** \brief WhisperKit configuration initializer
@@ -86,50 +95,23 @@ whisperkit_status_t whisperkit_configuration_create(whisperkit_configuration_t *
  */
 whisperkit_status_t whisperkit_pipeline_create(whisperkit_pipeline_t **pipeline);
 
+/** \brief WhisperKit transcription result initializer
+ * 
+ *  Allocates and initializes a new WhisperKit transcription result object.
+ *  The returned object is owned by the client, and should be destroyed using
+ *  whisperkit_transcription_result_destroy().  
+ */
+whisperkit_status_t whisperkit_transcription_result_create(whisperkit_transcription_result_t **transcription_result);
+
 #pragma mark - configuration setters
 
-/** \brief Set the audio encoder model for the WhisperKit pipeline.
+/** \brief Set the path to the model directory for the WhisperKit pipeline.
  * 
- *  Sets the path to the audio encoder model file for use in transcription.
- *  The audio encoder model must be a TFLite model file.
+ *  Sets the path to the model directory for use in the WhisperKit pipeline.
+ *  The model directory must contain the audio encoder, text decoder, voice activity detector,
+ *  tokenizer, MelSpectrogram, and post-processing models.
  */
-whisperkit_status_t whisperkit_configuration_set_audio_encoder(whisperkit_configuration_t *config, const char* audio_encoder);
-
-
-/** \brief Set the text decoder model for the WhisperKit pipeline.
- * 
- *  Sets the path to the text decoder model file for use in transcription.
- *  The audio encoder model must be a TFLite model file.
- */
-whisperkit_status_t whisperkit_configuration_set_text_decoder(whisperkit_configuration_t *config, const char* text_decoder);
-
-/** \brief Set the voice activity detector model for the WhisperKit pipeline.
- * 
- *  Sets the path to the text decoder model file for use in transcription.
- *  The audio encoder model must be a TFLite model file.
- */
-whisperkit_status_t whisperkit_configuration_set_voice_activity_detector(whisperkit_configuration_t *config, const char* voice_activity_detector);
-
-/** \brief Set the path to the tokenizer configuration file for the WhisperKit pipeline.
- * 
- *  Sets the path to the tokenizer for use in the WhisperKit pipeline.
- *  The tokenizer configuration file must be a JSON file.
- */
-whisperkit_status_t whisperkit_configuration_set_tokenizer(whisperkit_configuration_t *config, const char* tokenizer);
-
-/** \brief Set the path to the MelSpectrogram model for the WhisperKit pipeline.
- * 
- *  Sets the path to the MelSpectrogram model for use in the WhisperKit pipeline.
- *  The MelSpectrogram model must be a TFLite model file.
- */
-whisperkit_status_t whisperkit_configuration_set_melspectrogram_model(whisperkit_configuration_t *config, const char* melspectrogram_model);
-
-/** \brief Set the path to the post-processing model for the WhisperKit pipeline.
- * 
- *  Sets the path to the post-processing model for use in the WhisperKit pipeline.
- *  The post-processing model must be a TFLite model file.
- */
-whisperkit_status_t whisperkit_configuration_set_postproc(whisperkit_configuration_t *config, const char* postproc);
+whisperkit_status_t whisperkit_configuration_set_model_path(whisperkit_configuration_t *config, const char* model_dir);
 
 /** \brief Set the path to QNN Skel library directory for the WhisperKit pipeline.
  * 
@@ -218,7 +200,14 @@ whisperkit_status_t whisperkit_pipeline_build(whisperkit_pipeline_t *pipeline);
  *  The pipeline must be in the BUILT state before whisperkit_pipeline_transcribe can be 
  *  called.
  */
-whisperkit_status_t whisperkit_pipeline_transcribe(whisperkit_pipeline_t *pipeline, const char* audio_file, char **transcription);
+whisperkit_status_t whisperkit_pipeline_transcribe(whisperkit_pipeline_t *pipeline, const char* audio_file, whisperkit_transcription_result_t *transcription_result);
+
+/** \brief WhisperKit transcription result getter   
+ * 
+ *  Retrieves the transcription from the transcription result object.
+ *  The returned string has the lifetime of the transcription result object.
+ */
+whisperkit_status_t whisperkit_transcription_result_get_transcription(whisperkit_transcription_result_t *transcription_result, char **transcription);
 
 #pragma mark - teardown
 
@@ -226,13 +215,19 @@ whisperkit_status_t whisperkit_pipeline_transcribe(whisperkit_pipeline_t *pipeli
  * 
  *  Releases the created configuration object and frees the memory.
  */
-whisperkit_status_t whisperkit_configuration_destroy(whisperkit_configuration_t *config);
+whisperkit_status_t whisperkit_configuration_destroy(whisperkit_configuration_t **config);
 
 /** \brief WhisperKit pipeline destroyer
  * 
  *  Releases the created pipeline object and frees the memory.
  */
-whisperkit_status_t whisperkit_pipeline_destroy(whisperkit_pipeline_t *pipeline);
+whisperkit_status_t whisperkit_pipeline_destroy(whisperkit_pipeline_t **pipeline);
+
+/** \brief WhisperKit transcription result destroyer
+ * 
+ *  Releases the created transcription result object and frees the memory.
+ */
+whisperkit_status_t whisperkit_transcription_result_destroy(whisperkit_transcription_result_t **transcription_result);
 
 #ifdef __cplusplus
 }
