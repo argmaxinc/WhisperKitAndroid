@@ -44,7 +44,6 @@ if(${ANDROID})
         ${AXIE_SRC_DIR}/WhisperKit/Models/tflite_qnn_model.cpp
         ${AXIE_SRC_DIR}/WhisperKit/Text/post_proc.cpp
         ${AXIE_SRC_DIR}/WhisperKit/Audio/audio_input.cpp
-        ${AXIE_SRC_DIR}/WhisperKit/whisperax.cpp
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKit.cpp
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKitConfiguration.cpp
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKitPipeline.cpp
@@ -58,7 +57,6 @@ if(${ANDROID})
         ${AXIE_SRC_DIR}/WhisperKit/Models/tflite_gpu_model.cpp
         ${AXIE_SRC_DIR}/WhisperKit/Text/post_proc.cpp
         ${AXIE_SRC_DIR}/WhisperKit/Audio/audio_input.cpp
-        ${AXIE_SRC_DIR}/WhisperKit/whisperax.cpp
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKit.cpp
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKitConfiguration.cpp
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKitPipeline.cpp
@@ -74,7 +72,6 @@ else() # other generic arch, CPU only
         ${AXIE_SRC_DIR}/WhisperKit/Models/tflite_model.cpp
         ${AXIE_SRC_DIR}/WhisperKit/Text/post_proc.cpp
         ${AXIE_SRC_DIR}/WhisperKit/Audio/audio_input.cpp
-        ${AXIE_SRC_DIR}/WhisperKit/whisperax.cpp
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKit.cpp
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKitConfiguration.cpp
         ${AXIE_SRC_DIR}/WhisperKit/WhisperKitPipeline.cpp
@@ -141,20 +138,8 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-# build CLI: whisperax_cli
-add_executable(whisperax_cli
-  ${AXIE_CLI_DIR}/whisperax_cli.cpp
-  ${AXIE_CLI_DIR}/audio_codec.cpp
-)
-
 add_executable(whisperkit-cli
     ${AXIE_CLI_DIR}/whisperkit_cli.cpp
-)
-
-target_include_directories(whisperax_cli PRIVATE
-  ${AXIE_INC_DIR}
-  ${AXIE_CLI_DIR}
-  ${EXT_INC_DIR}
 )
 
 target_include_directories(whisperkit-cli PRIVATE
@@ -162,20 +147,8 @@ target_include_directories(whisperkit-cli PRIVATE
   ${AXIE_SRC_DIR}/external/
 )
 
-target_link_libraries(whisperax_cli PRIVATE
-  whisperax
-  avformat
-  avcodec
-  avutil
-  swresample
-)
-
 target_link_libraries(whisperkit-cli PRIVATE
   whisperax
-)
-
-target_compile_definitions(whisperax_cli PRIVATE
-  "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\""
 )
 
 target_compile_definitions(whisperkit-cli PRIVATE
