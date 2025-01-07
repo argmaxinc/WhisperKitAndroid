@@ -18,7 +18,6 @@ from linux_test_utils import LinuxTestsMixin
 
 
 class TestWhisperKitAndroid(AndroidTestsMixin):
-    TEST_DATASET = "librispeech-10mins"
 
     @classmethod
     def setUpClass(self):
@@ -27,8 +26,8 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
     def __init__(self, methodName='runTest', args=None):
         super().__init__(methodName)
         self.args = args
-        self.test_bin = "whisperax_cli"
-        self.root_path = "/sdcard/argmax/tflite"
+        self.test_bin = self.config['test']['executable']
+        self.root_path = self.config['test']['android_dir']
         self.devices = []
         self.tokenizer = get_tokenizer(multilingual=False, language="en")
 
@@ -53,16 +52,16 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
         splitted = os.path.split(os.path.abspath(self.args.input))
         path_parts = Path(self.args.input).parts
         if os.path.isfile(self.args.input):
-            self.path = splitted[0]
+            self.test_path = splitted[0]
             self.files = [splitted[1]]
             self.data_set = path_parts[-2]
         
         elif os.path.isdir(self.args.input):
-            self.path = self.args.input
+            self.test_path = self.args.input
             self.data_set = path_parts[-1]
             self.files = []
 
-        metadata_path = os.path.join(self.path, "metadata.json")
+        metadata_path = os.path.join(self.test_path, self.config['test']['metadata'])
         metadata_file = open(metadata_path)
         self.metadata = json.load(metadata_file)
         metadata_text = json.dumps(self.metadata)
@@ -116,22 +115,22 @@ class TestWhisperKitLinux(LinuxTestsMixin):
     def __init__(self, methodName='runTest', args=None):
         super().__init__(methodName)
         self.args = args
-        self.test_bin = "whisperax_cli"
+        self.test_bin = self.config['test']['executable']
         self.tokenizer = get_tokenizer(multilingual=False, language="en")
 
         splitted = os.path.split(os.path.abspath(self.args.input))
         path_parts = Path(self.args.input).parts
         if os.path.isfile(self.args.input):
-            self.path = splitted[0]
+            self.test_path = splitted[0]
             self.files = [splitted[1]]
             self.data_set = path_parts[-2]
         
         elif os.path.isdir(self.args.input):
-            self.path = self.args.input
+            self.test_path = self.args.input
             self.data_set = path_parts[-1]
             self.files = []
 
-        metadata_path = os.path.join(self.path, "metadata.json")
+        metadata_path = os.path.join(self.test_path, self.config['test']['metadata'])
         metadata_file = open(metadata_path)
         self.metadata = json.load(metadata_file)
         metadata_text = json.dumps(self.metadata)
@@ -166,47 +165,56 @@ class TestWhisperKitLinux(LinuxTestsMixin):
 
 
 def download_hg_dataset():
-    dataset_path = f"{os.path.dirname(os.path.abspath(__file__))}/dataset"
-    prefix = f"{dataset_path}/{TestWhisperKitAndroid.TEST_DATASET}"
-    if os.path.exists(f"{prefix}/metadata.json"):
-        return prefix
-    
-    hf_hub_download(
-                "argmaxinc/whisperkit-test-data",
-                filename="metadata.json",
-                subfolder=TestWhisperKitAndroid.TEST_DATASET,
-                local_dir=dataset_path,
-                repo_type="dataset",
-                revision="main",
-    )
-    metadata_file = open(os.path.join(prefix, "metadata.json"))
-    metadata = json.load(metadata_file)
-    metadata_file.close()
-    
-    file_name_filter = ["61-", "121-", "4507-"]
-    for item in metadata:
-        if "audio" not in item:
-            continue
-        if not any([item["audio"].startswith(f) for f in file_name_filter]):
-            continue
+    test_path = f"{os.path.dirname(os.path.abspath(__file__))}"
+    config_file = open(os.path.join(test_path, "ENVIRONMENT.json"))
+    config = json.load(config_file)
+    config_file.close()
+    librispeech_10mins_filter = ["61-", "121-", "4507-"]
 
-        file = item["audio"].split(".")[0] + ".mp3"
-        if os.path.exists(f"{prefix}/{file}"):
+    datasets = config['test']['datasets']
+    for dataset in datasets:
+        metadata_file = config['test']['metadata']
+        prefix = f"{os.path.dirname(os.path.abspath(__file__))}/dataset/{dataset}"
+        if os.path.exists(f"{prefix}/{metadata_file}"):
             continue
-        try:
-            hf_hub_download(
-                "argmaxinc/whisperkit-test-data",
-                filename=file,
-                subfolder=TestWhisperKitAndroid.TEST_DATASET,
-                local_dir=dataset_path,
-                repo_type="dataset",
-                revision="main",
-            )
-            print(f'downloaded {file}')
-        except:
-            print(' ') # this is not an issue, do nothing
-        
-    return prefix
+    
+        hf_hub_download(
+                    config['test']['hf_repo'],
+                    filename=metadata_file,
+                    subfolder=dataset,
+                    local_dir=f'{test_path}/dataset',
+                    repo_type="dataset",
+                    revision="main",
+        )
+        metadata_file = open(os.path.join(prefix, metadata_file))
+        metadata = json.load(metadata_file)
+        metadata_file.close()
+    
+        for item in metadata:
+            if "audio" not in item:
+                continue
+            if "librispeech-10mins" in dataset:
+                if not any([item["audio"].startswith(f) for f in librispeech_10mins_filter]):
+                    continue
+
+            file = item["audio"].split(".")[0] + ".mp3"
+            if os.path.exists(os.path.join(prefix,file)):
+                continue
+
+            try:
+                hf_hub_download(
+                    config['test']['hf_repo'],
+                    filename=file,
+                    subfolder=dataset,
+                    local_dir=f'{test_path}/dataset',
+                    repo_type="dataset",
+                    revision="main",
+                )
+                print(f'downloaded {file}')
+            except:
+                print(f'skipped {file}') # this is not an issue, do nothing
+            
+    return f"{test_path}/dataset/{datasets[0]}" # default test dataset is librispeech-10mins
 
 
 class ArgParser(argparse.ArgumentParser):

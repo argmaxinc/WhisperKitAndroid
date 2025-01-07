@@ -9,15 +9,15 @@ import os
 import time
 import json
 import evaluate
-from threading import Thread, Condition
+from threading import Thread, Condition, Lock
 from whisper.normalizers import EnglishTextNormalizer
 
 
 class TestRunADB:
-    output_file = "output.json"
 
     def __init__(
         self,
+        config,
         root_path,
         tokenizer,
         serial
@@ -32,6 +32,7 @@ class TestRunADB:
         self.bin_path = "/data/local/tmp/bin"
         self.lib_path = "/data/local/tmp/lib"
         self.root_path = root_path
+        self.config = config
         self.executing = False
         self.condition = Condition()
         self.batts = []
@@ -47,7 +48,6 @@ class TestRunADB:
     def _adb(self, cmd):
         cmds = ["adb", "-s", self.serial]
         cmds.extend(cmd)
-        # subprocess.run(cmds, stdout=sys.stdout)
         output = subprocess.run(cmds, stdout=subprocess.PIPE)
         if output.stdout is None:
             return None
@@ -205,7 +205,7 @@ class TestRunADB:
         if result is False:
             return None
         
-        output_file = self.pull(file=TestRunADB.output_file)
+        output_file = self.pull(file=self.config['test']['output_file'])
 
         if os.path.exists(output_file) is False:
             return None
@@ -222,14 +222,21 @@ class TestRunADB:
 class AndroidTestsMixin(unittest.TestCase):
     """ Mixin class for Android device test with audio input file
     """
-    audio_file_ext = [".mp3", ".m4a", ".ogg", ".flac", ".aac", ".wav"]
-
     @classmethod
     def setUpClass(self):
         self.test_no = 0
+        self.lock = Lock()
+
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+        test_path = f"{os.path.dirname(os.path.abspath(__file__))}"
+        config_file = open(os.path.join(test_path, "ENVIRONMENT.json"))
+        self.config = json.load(config_file)
+        config_file.close()
+        self.audio_file_ext = self.config['audio']['extensions']
+        self.test_path = f"{test_path}/dataset/{self.config['test']['datasets'][0]}"
 
     def run_test(self, device):
-        self.test_no += 1
 
         if self.args.model_path.find("openai_whisper-tiny") != -1:
             model_size = "tiny"
@@ -238,13 +245,17 @@ class AndroidTestsMixin(unittest.TestCase):
         elif self.args.model_path.find("openai_whisper-small") != -1:
             model_size = "small"
 
-        adb = TestRunADB(self.root_path, self.tokenizer, device)
+        adb = TestRunADB(self.config, self.root_path, 
+                         self.tokenizer, device)
     
         outputs_json = []
         for file in self.files:
-            test_no = self.test_no
-            full_path = os.path.join(self.path, file)
-            adb.push_file(full_path, "inputs")
+            with self.lock:
+                test_no = self.test_no
+                self.test_no += 1
+
+            full_path = os.path.join(self.test_path, file)
+            adb.push_file(full_path, self.config['audio']['local_dir'])
 
             print(f'======== Running test #{test_no} (audio: {file}) on {device} ========')
             
@@ -255,7 +266,6 @@ class AndroidTestsMixin(unittest.TestCase):
             
             print(f'======== Completed test #{test_no} (audio: {file}) on {device} ========')
 
-            self.test_no += 1
             outputs_json.append(output)
             time.sleep(1)
 
