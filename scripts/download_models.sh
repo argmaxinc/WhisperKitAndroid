@@ -5,15 +5,15 @@
 command -v aria2c &> /dev/null || { echo >&2 ""Missing aria2c. Install using 'brew install aria2'. See https://formulae.brew.sh/formula/aria2""; exit 1; }
 
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
-SOURCE_DIR="$CURRENT_DIR/.."
-
+SOURCE_DIR="$CURRENT_DIR/../"
+MODELS_DIR="$SOURCE_DIR/models/"
 # Set Aria options to download using 8 connections
 ARIA_OPTIONS="-x 8 -s 8 --continue --file-allocation=none"
 
 # Set directories
-TINY_MODELS_DIR="$SOURCE_DIR/openai_whisper-tiny"
-BASE_MODELS_DIR="$SOURCE_DIR/openai_whisper-base"
-SMALL_MODELS_DIR="$SOURCE_DIR/openai_whisper-small"
+TINY_MODELS_DIR="$MODELS_DIR/openai_whisper-tiny"
+BASE_MODELS_DIR="$MODELS_DIR/openai_whisper-base"
+SMALL_MODELS_DIR="$MODELS_DIR/openai_whisper-small"
 
 function SAFE_MODEL_DIRECTORY(){
     if [ ! -d "${1}" ]; then
