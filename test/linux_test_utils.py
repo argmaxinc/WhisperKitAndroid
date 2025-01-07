@@ -10,30 +10,28 @@ import time
 import json
 import evaluate
 import docker
+import threading
 from whisper.normalizers import EnglishTextNormalizer
 
 
+# A class for running tests on Linux host.
+# Any commands on docker is to be run via _run_docker_cmd()
 class TestRunLinux:
-    """
-    A class for running tests on Linux host.
-    Any commands on docker is to be run via _run_docker_cmd()
-    """
-    output_file = "output.json"
-    container_name = "axie_tflite"
-    docker_root = "/src/AXIE"
-    
+
     def __init__(
         self,
+        config,
         tokenizer
     ):
+        self.config = config
         self.root = os.path.dirname(os.path.abspath(__file__)) + "/.."
-        self.bin_path = self.docker_root + "/build/linux"
-        self.lib_path = self.docker_root + "/external/libs/linux"
+        self.bin_path = self.config['docker']['rootdir'] + "/build/linux"
+        self.lib_path = self.config['docker']['rootdir'] + "/external/libs/linux"
         self.output_json = None
         self.tokenizer = tokenizer
         self.text_normalizer = EnglishTextNormalizer()
-        self.docker = docker.from_env()
-        self.container = self.docker.containers.get(self.container_name)
+        self.container = docker.from_env()\
+                            .containers.get(self.config['docker']['container'])
 
     def _run_docker_cmd(self, cmd):
         cmds = f"/bin/bash -c '{cmd}'"
@@ -41,7 +39,7 @@ class TestRunLinux:
             _, result = self.container.exec_run(cmds, stream=True)
         except Exception as e:
             print(f"** Error from running a command on Docker container:")
-            print(f"  Is {self.container_name} running?")
+            print(f"  Is {self.config['docker']['container']} running?")
             print(f"  If not, run 'make env' to start Docker container")
             os._exit(-1)
         
@@ -109,12 +107,14 @@ class TestRunLinux:
             self, test_binary, 
             file, data_set, 
             metadata, model_size):
-        full_path = f"{self.docker_root}/inputs/{file}"
+        rootdir = self.config['docker']['rootdir']
+        localdir = self.config['audio']['local_dir']
+        full_path = f"{rootdir}/{localdir}/{file}"
         result = self.device_test(test_binary, full_path, model_size)
         if result is False:
             return None
         
-        output_file = f"{self.root}/{TestRunLinux.output_file}"
+        output_file = f"{self.root}/{self.config['test']['output_file']}"
         if os.path.exists(output_file) is False:
             return None
 
@@ -130,15 +130,21 @@ class TestRunLinux:
 class LinuxTestsMixin(unittest.TestCase):
     """ Mixin class for Linux test with audio input file
     """
-    audio_file_ext = [".mp3", ".m4a", ".ogg", ".flac", ".aac", ".wav"]
 
     @classmethod
     def setUpClass(self):
         self.test_no = 0
+        self.lock = threading.Lock()
+
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+        root_path = f"{os.path.dirname(os.path.abspath(__file__))}/../"
+        config_file = open(os.path.join(root_path, "ENVIRONMENT.json"))
+        self.config = json.load(config_file)
+        config_file.close()
+        self.audio_file_ext = self.config['audio']['extensions']
 
     def run_test(self):
-        self.test_no += 1
-
         if self.args.model_path.find("openai_whisper-tiny") != -1:
             model_size = "tiny"
         elif self.args.model_path.find("openai_whisper-base") != -1:
@@ -146,13 +152,16 @@ class LinuxTestsMixin(unittest.TestCase):
         elif self.args.model_path.find("openai_whisper-small") != -1:
             model_size = "small"
 
-        host = TestRunLinux(self.tokenizer)
+        host = TestRunLinux(self.config, self.tokenizer)
     
         outputs_json = []
         for file in self.files:
-            test_no = self.test_no
-            full_path = os.path.join(self.path, file)
-            host.copy_file(full_path, "inputs")
+            with self.lock:
+                test_no = self.test_no
+                self.test_no += 1
+
+            full_path = os.path.join(self.test_path, file)
+            host.copy_file(full_path, self.config['audio']['local_dir'])
 
             print(f'======== Running test #{test_no} (audio: {file}) on linux host ========')
             
@@ -163,7 +172,6 @@ class LinuxTestsMixin(unittest.TestCase):
             
             print(f'======== Completed test #{test_no} (audio: {file}) on linux host ========')
 
-            self.test_no += 1
             outputs_json.append(output)
             time.sleep(1)
 
