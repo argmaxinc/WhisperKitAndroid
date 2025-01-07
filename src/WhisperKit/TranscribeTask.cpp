@@ -56,6 +56,7 @@ class Runtime {
         std::unique_ptr<std::string> cmdexec(const char* cmd);
         int tflite_write_data_priv(char* pcm_buffer, int size);
         void tflite_conclude_transcription();
+        std::unique_ptr<std::string> get_result_text();
     
         void tflite_init_audioinput(const AudioCodec* audio_codec, const char* audio_file);
         std::unique_ptr<TFLiteMessenger> messenger;
@@ -75,6 +76,7 @@ class Runtime {
         std::unique_ptr<PostProcModel> postproc;
 
         std::vector<int> all_tokens;
+        std::vector<std::string> all_msgs;
         std::vector<std::pair<char*, int>> melspectro_inputs;
         std::vector<std::pair<char*, int>> melspectro_outputs;
         std::vector<std::pair<char*, int>> encoder_inputs;
@@ -280,6 +282,8 @@ void Runtime::tflite_init_priv() {
 
     all_tokens.clear();
     all_tokens.reserve(1 << 18); // max 256K tokens
+    all_msgs.clear();
+    all_msgs.reserve(1 << 14); // max 4096 sentences
 
     start_exec = chrono::high_resolution_clock::now();
 
@@ -315,6 +319,15 @@ void Runtime::tflite_conclude_transcription() {
  
 }
 
+std::unique_ptr<std::string> Runtime::get_result_text(){
+    auto output = make_unique<std::string>(); 
+    for (std::vector<std::string>::const_iterator iter 
+        = all_msgs.begin(); iter != all_msgs.end(); ++iter)
+        {
+            *output += (*iter + '\n');
+        }
+    return output;
+}
 
 void Runtime::tflite_close_priv() {
     postproc->uninitialize();
@@ -405,6 +418,7 @@ void Runtime::encode_decode_postproc_priv(float timestamp)
     messenger->_msg = postproc->get_sentence();
     messenger->_timestamp = timestamp;
     messenger->_cond_var.notify_all();
+    all_msgs.push_back(messenger->get_message());
 }
 
 int Runtime::tflite_write_data_priv(char* pcm_buffer, int size) {
@@ -746,21 +760,16 @@ void TranscribeTask::transcribe(const char* audio_file, whisperkit_transcription
         }
     } 
 
-    const std::string transcription1 = std::string(runtime->messenger->get_message());
-
     runtime->tflite_conclude_transcription();
-
 
     text_out_thread->join();
     text_out_thread.reset();
 
-    const std::string transcription2 = std::string(runtime->messenger->get_message());
+    auto transcription = runtime->get_result_text();
 
-    const std::string final_transcription = transcription1 + transcription2;
     if(transcription_result != nullptr) {
-        transcription_result->set_transcription(std::string(final_transcription));
+        transcription_result->set_transcription(*transcription);
     }
-
 
 }
 
