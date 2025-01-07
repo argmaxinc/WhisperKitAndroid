@@ -1,6 +1,10 @@
 //  For licensing see accompanying LICENSE file.
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
-#include <tflite_model.hpp>
+#pragma once
+
+#if defined(GPU_DELEGATE)
+#if GPU_DELEGATE
+#include "tflite_model.hpp"
 #include "tensorflow/lite/delegates/gpu/delegate.h"
 
 class TFLiteGPU: public TFLiteModel {
@@ -20,3 +24,5 @@ public:
 protected: 
     virtual bool create_interpreter_delegate(std::string model_path);
 };
+#endif
+#endif

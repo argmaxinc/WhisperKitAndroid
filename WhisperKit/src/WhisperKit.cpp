@@ -1,7 +1,7 @@
 #include "WhisperKit.h"
-#include "WhisperKitConfiguration.h"
-#include "WhisperKitPipeline.h"
-#include "WhisperKitTranscriptionResult.h"
+#include "WhisperKitConfiguration.hpp"
+#include "WhisperKitPipeline.hpp"
+#include "WhisperKitTranscriptionResult.hpp"
 #pragma mark - initializers
 whisperkit_status_t whisperkit_configuration_create(whisperkit_configuration_t **configuration) {
     if(configuration == nullptr) {

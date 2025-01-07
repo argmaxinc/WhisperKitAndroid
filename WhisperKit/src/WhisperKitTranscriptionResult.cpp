@@ -1,5 +1,5 @@
 
-#include "WhisperKitTranscriptionResult.h"
+#include "WhisperKitTranscriptionResult.hpp"
 
 whisperkit_transcription_result_t::whisperkit_transcription_result_t() {
 

@@ -1,5 +1,5 @@
-#include "WhisperKitPipeline.h" 
-#include "TranscribeTask.h"
+#include "WhisperKitPipeline.hpp" 
+#include "TranscribeTask.hpp"
 whisperkit_pipeline_t::whisperkit_pipeline_t() {
     status = WHISPERKIT_PIPELINE_STATUS_INITIALIZED;
 }

@@ -9,7 +9,8 @@ external/
 test/dataset/
 
 # Never exclude src files
-!src/**
+!WhisperKit/**
+!cli/**
 
 # MacOS specific
 .DS_Store

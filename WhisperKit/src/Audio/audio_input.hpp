@@ -12,7 +12,7 @@
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL_audio.h>
 
-#include <backend_class.hpp>
+#include "backend_class.hpp"
 
 constexpr const int SAMPLE_FREQ = 16000;
 constexpr const int SAMPLE_FMT_DEF = 0;     // AV_SAMPLE_FMT_NONE in ffmpeg

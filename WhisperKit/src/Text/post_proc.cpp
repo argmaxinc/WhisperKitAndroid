@@ -1,6 +1,6 @@
 //  For licensing see accompanying LICENSE file.
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
-#include <post_proc.hpp>
+#include "post_proc.hpp"
 
 #define LOGITS_TO_NEG_INF(start, end) \
         for(auto iter = (start); iter != (end); iter++) \

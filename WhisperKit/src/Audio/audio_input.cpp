@@ -1,6 +1,6 @@
 //  For licensing see accompanying LICENSE file.
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
-#include <audio_input.hpp>
+#include "audio_input.hpp"
 
 #define MAX_CHUNK_LENGTH    (16000 * 30) // 30 seconds of PCM audio samples
 

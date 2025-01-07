@@ -1,6 +1,8 @@
 //  For licensing see accompanying LICENSE file.
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
-#include <tflite_qnn_model.hpp>
+#if defined(QNN_DELEGATE)
+#if QNN_DELEGATE
+#include "tflite_qnn_model.hpp"
 #include <filesystem>   // C++ 17 or later
 #include "tensorflow/lite/optional_debug_tools.h"
 
@@ -111,3 +113,5 @@ bool TFLiteQNN::create_interpreter_delegate(string model_path)
 
     return true;
 }
+#endif
+#endif
