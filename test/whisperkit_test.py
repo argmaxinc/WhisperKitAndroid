@@ -165,9 +165,8 @@ class TestWhisperKitLinux(LinuxTestsMixin):
 
 
 def download_hg_dataset():
-    root_path = f"{os.path.dirname(os.path.abspath(__file__))}/.."
-    test_path = f"{root_path}/test"
-    config_file = open(os.path.join(root_path, "ENVIRONMENT.json"))
+    test_path = f"{os.path.dirname(os.path.abspath(__file__))}"
+    config_file = open(os.path.join(test_path, "ENVIRONMENT.json"))
     config = json.load(config_file)
     config_file.close()
     librispeech_10mins_filter = ["61-", "121-", "4507-"]

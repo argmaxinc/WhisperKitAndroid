@@ -138,11 +138,12 @@ class LinuxTestsMixin(unittest.TestCase):
 
     def __init__(self, methodName='runTest'):
         super().__init__(methodName)
-        root_path = f"{os.path.dirname(os.path.abspath(__file__))}/../"
-        config_file = open(os.path.join(root_path, "ENVIRONMENT.json"))
+        test_path = f"{os.path.dirname(os.path.abspath(__file__))}"
+        config_file = open(os.path.join(test_path, "ENVIRONMENT.json"))
         self.config = json.load(config_file)
         config_file.close()
         self.audio_file_ext = self.config['audio']['extensions']
+        self.test_path = f"{test_path}/dataset/{self.config['test']['datasets'][0]}"
 
     def run_test(self):
         if self.args.model_path.find("openai_whisper-tiny") != -1:
