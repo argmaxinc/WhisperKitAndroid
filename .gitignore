@@ -5,8 +5,8 @@ build/
 inputs/
 models/
 cache/
-openai_whisper-*/
 external/
+test/dataset/
 
 # Never exclude src files
 !src/**
