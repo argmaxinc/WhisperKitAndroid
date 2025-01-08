@@ -6,6 +6,7 @@ inputs/
 models/
 cache/
 external/
+test/dataset/
 
 # Never exclude src files
 !src/**
