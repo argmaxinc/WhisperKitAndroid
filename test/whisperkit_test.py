@@ -8,6 +8,7 @@ import json
 import unittest
 import argparse
 import subprocess
+import datetime
 import concurrent.futures as futures
 
 from pathlib import Path
@@ -84,8 +85,25 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
                 self.files.append(file)
 
     def test_audio_transcription(self):
+        if self.args.output is None:
+            path_parts = Path(self.args.model_path).parts
+            model_dir = path_parts[-1]
+            for dataset in self.config['test']['datasets']:
+                if dataset in self.args.input:
+                    print(f"dataset: {dataset}")
+                    self.args.output = f'./outputs/{model_dir}/{dataset}'
+                    model_output_str = f'{model_dir}_{dataset}'
+
+            if self.args.output is None:
+                self.args.output = f'./outputs/{model_dir}'
+                model_output_str = f'{model_dir}_none'
+
         os.makedirs(self.args.output, exist_ok=True)
-            
+
+        # Get the current date and time
+        now = datetime.datetime.now()
+        date_time_str = now.strftime("%Y-%m-%d-%H-%M-%S-%p")
+
         with futures.ThreadPoolExecutor(max_workers=len(self.devices)) as executor:
             future_test = { 
                 executor.submit(self.run_test, device):
@@ -102,7 +120,7 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
                     if output_json is None:
                         print('device %r test has failed..')
                         self.assertTrue(False)
-                    with open(f"{self.args.output}/{device}_report.json", "w")\
+                    with open(f"{self.args.output}/{device}_{model_output_str}_{date_time_str}.json", "w")\
                         as json_file:
                         json.dump(output_json, json_file)
 
@@ -153,13 +171,29 @@ class TestWhisperKitLinux(LinuxTestsMixin):
                 self.files.append(file)
 
     def test_audio_transcription(self):
+        if self.args.output is None:
+            path_parts = Path(self.args.model_path).parts
+            model_dir = path_parts[-1]
+            for dataset in self.config['test']['datasets']:
+                if dataset in self.args.input:
+                    self.args.output = f'./outputs/{model_dir}/{dataset}'
+                    model_output_str = f'{model_dir}_{dataset}'
+
+            if self.args.output is None:
+                self.args.output = f'./outputs/{model_dir}'
+                model_output_str = f'{model_dir}_none'
+
         os.makedirs(self.args.output, exist_ok=True)
+
+        # Get the current date and time
+        now = datetime.datetime.now()
+        date_time_str = now.strftime("%Y-%m-%d-%H-%M-%S-%p")
 
         output_json = self.run_test()
         if output_json is None:
             print('test on host has failed..')
             self.assertTrue(False)
-        with open(f"{self.args.output}/linux_report.json", "w")\
+        with open(f"{self.args.output}/linux_{model_output_str}_{date_time_str}.json", "w")\
             as json_file:
             json.dump(output_json, json_file)
 
@@ -233,7 +267,7 @@ if __name__ == "__main__":
             default=None, type=str,
             help='input file, folder, or (default) download from HuggingFace')
     parser.add_argument("-o", "--output",
-            default="./output", type=str,
+            default=None, type=str,
             help='output json folder')
     parser.add_argument("-l", "--linux", 
             action='store_true', 

@@ -5,7 +5,7 @@
         "datasets": ["librispeech-10mins", "earnings22-10mins"],
         "output_file": "output.json",
         "android_dir": "/sdcard/argmax/tflite",
-        "executable": "whisperax_cli",
+        "executable": "whisperkit-cli",
         "metadata": "metadata.json"
     },
     "docker": {

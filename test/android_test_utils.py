@@ -67,7 +67,7 @@ class TestRunADB:
         dest_folder = f"{self.root_path}/{subfolder}/"
         _ = self._adb(["push", file, dest_folder])
 
-    def device_test(self, test_bin, input_audio, model_size):
+    def device_test(self, test_bin, input_audio, model_path):
         if self._check_device() is False:
             return 
         if test_bin is None: 
@@ -80,7 +80,9 @@ class TestRunADB:
                 f"cd {self.root_path} &&",
                 f"export LD_LIBRARY_PATH={self.lib_path} &&",
                 f"{self.bin_path}/{self.curr_cmd} ",
-                f"{input_audio} {model_size} debug",
+                f"--audio-path {input_audio} ",
+                f"--model-path {model_path} ",
+                f"--report --report-path ."
             ]
         )
         print(f"Running: {test_cmds}")
@@ -237,14 +239,6 @@ class AndroidTestsMixin(unittest.TestCase):
         self.test_path = f"{test_path}/dataset/{self.config['test']['datasets'][0]}"
 
     def run_test(self, device):
-
-        if self.args.model_path.find("openai_whisper-tiny") != -1:
-            model_size = "tiny"
-        elif self.args.model_path.find("openai_whisper-base") != -1:
-            model_size = "base"
-        elif self.args.model_path.find("openai_whisper-small") != -1:
-            model_size = "small"
-
         adb = TestRunADB(self.config, self.root_path, 
                          self.tokenizer, device)
     
@@ -260,9 +254,8 @@ class AndroidTestsMixin(unittest.TestCase):
             print(f'======== Running test #{test_no} (audio: {file}) on {device} ========')
             
             output = adb.run_test(
-                self.test_bin, 
-                file, self.data_set, 
-                self.metadata, model_size)
+                self.test_bin, file, self.data_set, 
+                self.metadata, self.args.model_path)
             
             print(f'======== Completed test #{test_no} (audio: {file}) on {device} ========')
 

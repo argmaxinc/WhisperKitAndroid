@@ -5,7 +5,6 @@
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
 
-AXIE_TFLITE_CLI="$SOURCE_DIR/build/android/whisperax_cli"
 WHISPERKIT_CLI="$SOURCE_DIR/build/android/whisperkit-cli"
 AXIE_TFLITE_LIB="$SOURCE_DIR/build/android/libwhisperax.so"
 LOCAL_LIBS="$SOURCE_DIR/external/libs/android"
@@ -70,9 +69,9 @@ do
         adb -s $DEVICE shell mkdir "$DEVICE_LIB_DIR"
     fi
 
-    adb -s $DEVICE push "$AXIE_TFLITE_CLI" "$DEVICE_BIN_DIR/."
     adb -s $DEVICE push "$AXIE_TFLITE_LIB" "$DEVICE_LIB_DIR/."
     adb -s $DEVICE push "$WHISPERKIT_CLI" "$DEVICE_BIN_DIR/."
+    adb -s $DEVICE shell "chmod 777 $DEVICE_BIN_DIR/whisperkit-cli"
     
     push_if_not_exists "$LOCAL_LIBS" "$DEVICE_LIB_DIR"
     push_if_not_exists "$LOCAL_TINY_DIR" "$DEVICE_TINY_DIR"
