@@ -39,9 +39,9 @@ case $ARG in
         CMD="cd ${REMOTE_SDROOT_DIR} && \
             export LD_LIBRARY_PATH=${REMOTE_LIB_DIR} && \
             ${REMOTE_BIN_DIR}/whisperkit-cli \
-            --audio-path inputs/jfk_441khz.m4a \
-            --model-path models/openai_whisper-base/ \
-            --report --report-path ."
+            --audio-path ${REMOTE_SDROOT_DIR}/inputs/jfk_441khz.m4a \
+            --model-path ${REMOTE_SDROOT_DIR}/models/openai_whisper-base/ \
+            --report --report-path ${REMOTE_SDROOT_DIR}"
 
         cd $SOURCE_DIR/test
         adb -s $DEVICE push jfk_441khz.m4a $REMOTE_INPUTS_DIR/.
