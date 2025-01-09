@@ -2,6 +2,7 @@
 
 
 #include <memory>
+#include <ctime>
 
 // TODO : move these and all audio related code to a separate, non header file.
 extern "C" {
@@ -57,6 +58,7 @@ class Runtime {
         int tflite_write_data_priv(char* pcm_buffer, int size);
         void tflite_conclude_transcription();
         std::unique_ptr<std::string> get_result_text();
+        void write_report(const char* audio_file);
     
         void tflite_init_audioinput(const AudioCodec* audio_codec, const char* audio_file);
         std::unique_ptr<TFLiteMessenger> messenger;
@@ -67,6 +69,7 @@ class Runtime {
         std::unique_ptr<std::thread> encode_decode_thread;
         std::string lib_dir;
         std::string cache_dir;
+        std::string report_dir;
         bool debug;
         int backend;
         std::unique_ptr<MODEL_SUPER_CLASS> melspectro;
@@ -84,6 +87,7 @@ class Runtime {
         std::vector<std::pair<char*, int>> decoder_outputs;
 
         std::chrono::time_point<std::chrono::high_resolution_clock> start_exec;
+        std::chrono::time_point<std::chrono::high_resolution_clock> end_exec;
 };
 
 // copy pasted from audio_codec.hpp, which will be deleted
@@ -245,6 +249,10 @@ void Runtime::tflite_init_priv() {
         cache_dir = config.get_cache_dir();
     }
 
+    if (!config.get_report_path().empty()){
+        report_dir = config.get_report_path();
+    }
+
     //LOGI("root dir:\t%s\nlib dir:\t%s\ncache dir:\t%s\n", 
     //    config.get_model_path().c_str(), lib_dir.c_str(), cache_dir.c_str()
     //);
@@ -316,7 +324,7 @@ void Runtime::tflite_conclude_transcription() {
         encode_decode_thread->joinable()) {
         encode_decode_thread->join();
     }
- 
+    end_exec = chrono::high_resolution_clock::now();
 }
 
 std::unique_ptr<std::string> Runtime::get_result_text(){
@@ -430,6 +438,80 @@ int Runtime::tflite_write_data_priv(char* pcm_buffer, int size) {
 }
 void Runtime::tflite_perfjson_priv() {
 
+}
+
+void Runtime::write_report(const char* audio_file) {
+    if (report_dir.empty())
+        return; 
+
+    auto testjson = make_unique<json>();
+    auto testinfo = json(); 
+    auto staticattr = json();
+    auto latstats = json();
+    auto measure = json();
+    auto timings = json();
+
+    testinfo["model"] = config.get_model_path();
+#if (defined(QNN_DELEGATE) || defined(GPU_DELEGATE)) 
+    testinfo["device"] = *cmdexec("getprop ro.product.brand") + " " 
+                        + *cmdexec("getprop ro.soc.model");
+#else
+    testinfo["device"] = *cmdexec("lscpu | grep Architecture");
+#endif
+
+    time_t now;
+    char buf[32];
+    time(&now);
+    strftime(buf, sizeof buf, "%FT%TZ", gmtime(&now));
+    testinfo["date"] = buf;
+
+    float duration =
+        chrono::duration_cast<std::chrono::milliseconds>(end_exec - start_exec).count();
+
+    filesystem::path audio_path(audio_file); 
+    testinfo["audioFile"] = audio_path.filename().string();
+    testinfo["prediction"] = all_tokens; 
+    testinfo["timeElapsedInSeconds"] = duration;
+
+    timings["inputAudioSeconds"] = audioinput->get_total_input_time();
+    timings["totalEncodingRuns"] = encoder->get_inference_num();
+    // TODO: get the right number once temp fallback is implemented
+    timings["totalDecodingFallbacks"] = 0;
+    timings["totalDecodingLoops"] = decoder->get_inference_num();
+    timings["fullPipeline"] = (audioinput->get_latency_sum()
+                                + melspectro->get_latency_sum()
+                                + encoder->get_latency_sum()
+                                + decoder->get_latency_sum()
+                                + postproc->get_latency_sum());
+    testinfo["timings"] = timings;
+
+#if (defined(QNN_DELEGATE) || defined(GPU_DELEGATE)) 
+    staticattr["os"] = "Android " + *cmdexec("getprop ro.build.version.release");
+#else
+    staticattr["os"] = *cmdexec("uname -r");
+#endif
+
+    measure["cumulativeTokens"] = all_tokens.size();
+    measure["numberOfMeasurements"] = all_tokens.size();
+    measure["timeElapsed"] = decoder->get_latency_sum();
+    
+    latstats["measurements"] = measure; 
+    latstats["totalNumberOfMeasurements"] = all_tokens.size();
+    latstats["units"] = "Tokens/Sec";
+
+    (*testjson)["latencyStats"] = latstats;
+    (*testjson)["testInfo"] = testinfo;
+    (*testjson)["staticAttributes"] = staticattr;
+    
+    ofstream out_file;
+    struct stat sb;
+
+    if (stat(report_dir.c_str(), &sb) != 0){
+        mkdir(report_dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    }
+    out_file.open(report_dir + "/output.json");
+    out_file << testjson->dump() << endl;
+    out_file.close();
 }
 
 constexpr const uint64_t INPUT_BUFFER_SIZE = (8<<20);
@@ -765,11 +847,11 @@ void TranscribeTask::transcribe(const char* audio_file, whisperkit_transcription
     text_out_thread->join();
     text_out_thread.reset();
 
+    runtime->write_report(audio_file);
+
     auto transcription = runtime->get_result_text();
 
     if(transcription_result != nullptr) {
         transcription_result->set_transcription(*transcription);
     }
-
 }
-

@@ -134,6 +134,13 @@ whisperkit_status_t whisperkit_configuration_set_model_path(whisperkit_configura
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
+whisperkit_status_t whisperkit_configuration_set_report_path(whisperkit_configuration_t *config, const char* report_dir) {
+    if(config == nullptr || report_dir == nullptr) {
+        return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
+    }
+    config->set_report_path(report_dir);
+    return WHISPERKIT_STATUS_SUCCESS;
+};
 
 #pragma mark - pipeline state
 whisperkit_status_t whisperkit_pipeline_get_status(whisperkit_pipeline_t *pipeline, whisperkit_pipeline_status_t* status) {
