@@ -74,7 +74,12 @@ struct WhisperKitRunner {
 
         status = whisperkit_configuration_set_model_path(configuration, config.modelPath.c_str());
         CHECK_WHISPERKIT_STATUS(status);
-        
+
+        if (config.report){
+            status = whisperkit_configuration_set_report_path(configuration, config.reportPath.c_str());
+            CHECK_WHISPERKIT_STATUS(status);
+        }
+
         status = whisperkit_pipeline_set_configuration(pipeline, configuration);
         CHECK_WHISPERKIT_STATUS(status);
 
@@ -170,7 +175,6 @@ int main(int argc, char* argv[]) {
         std::cerr << "Error parsing options: " << e.what() << std::endl;
         return 1;
     }
-
     WhisperKitRunner runner(config);
 
     try {

@@ -113,6 +113,13 @@ whisperkit_status_t whisperkit_transcription_result_create(whisperkit_transcript
  */
 whisperkit_status_t whisperkit_configuration_set_model_path(whisperkit_configuration_t *config, const char* model_dir);
 
+/** \brief Set the path to the report (json) directory for the WhisperKit pipeline.
+ * 
+ *  Sets the path to the report directory for use in the WhisperKit pipeline.
+ *  The report directory will contain the result json file.
+ */
+whisperkit_status_t whisperkit_configuration_set_report_path(whisperkit_configuration_t *config, const char* report_dir);
+
 /** \brief Set the path to QNN Skel library directory for the WhisperKit pipeline.
  * 
  *  Sets the path to the Skel library directory for use with models delegated to QNN backend.

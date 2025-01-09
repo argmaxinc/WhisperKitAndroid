@@ -33,6 +33,10 @@ void whisperkit_configuration_t::set_model_path(const char* model_path) noexcept
         this->model_path = model_path;
 }
 
+void whisperkit_configuration_t::set_report_path(const char* report_path) noexcept  {
+        this->report_path = report_path;
+}
+
 void whisperkit_configuration_t::set_lib_dir(const char* lib_dir) noexcept  {
         this->lib_dir = lib_dir;
 }
@@ -79,6 +83,10 @@ const std::string whisperkit_configuration_t::get_postproc() const noexcept  {
 
 const std::string whisperkit_configuration_t::get_model_path() const noexcept  {
         return this->model_path;
+}
+
+const std::string whisperkit_configuration_t::get_report_path() const noexcept  {
+        return this->report_path;
 }
 
 const std::string whisperkit_configuration_t::get_lib_dir() const noexcept  {

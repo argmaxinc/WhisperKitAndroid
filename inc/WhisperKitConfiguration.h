@@ -22,6 +22,7 @@ struct whisperkit_configuration_t {
         void set_prewarm(bool prewarm) noexcept;
         void set_load(bool load) noexcept;
         void set_model_path(const char* model_path) noexcept;
+        void set_report_path(const char* report_path) noexcept;
 
         const std::string get_audio_encoder() const noexcept;
         const std::string get_text_decoder() const noexcept;
@@ -32,6 +33,7 @@ struct whisperkit_configuration_t {
         const std::string get_lib_dir() const noexcept;
         const std::string get_cache_dir() const noexcept;
         const std::string get_model_path() const noexcept;
+        const std::string get_report_path() const noexcept;
         bool get_verbose() const noexcept;
         int get_log_level() const noexcept;
         bool get_prewarm() const noexcept;
@@ -48,6 +50,7 @@ struct whisperkit_configuration_t {
         std::string melspectrogram_model;
         std::string postproc;
         std::string model_path;
+        std::string report_path;
         std::string lib_dir;
         std::string cache_dir;
         whisperkit_pipeline_t* pipeline;
