@@ -72,7 +72,7 @@ do
 
     adb -s $DEVICE push "$AXIE_TFLITE_CLI" "$DEVICE_BIN_DIR/."
     adb -s $DEVICE push "$AXIE_TFLITE_LIB" "$DEVICE_LIB_DIR/."
-    adb -s $DEVICE push "$WHISPERKIT_CLI" "$DEVICE_LIB_DIR/."
+    adb -s $DEVICE push "$WHISPERKIT_CLI" "$DEVICE_BIN_DIR/."
     
     push_if_not_exists "$LOCAL_LIBS" "$DEVICE_LIB_DIR"
     push_if_not_exists "$LOCAL_TINY_DIR" "$DEVICE_TINY_DIR"
