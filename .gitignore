@@ -4,6 +4,7 @@
 build/
 inputs/
 models/
+outputs/
 cache/
 external/
 test/dataset/

@@ -16,7 +16,10 @@ case $ARG in
     "linux")
         echo "  ${0} linux   : run in Docker"
         cd $SOURCE_DIR
-        $LINUX_BUILD_DIR/whisperax_cli test/jfk_441khz.m4a tiny
+        $LINUX_BUILD_DIR/whisperkit-cli \
+        --audio-path ./test/jfk_441khz.m4a \
+        --model-path models/openai_whisper-base/ \
+        --report --report-path .
         exit 0 ;;
 
     "gpu" | "qnn" | "" )
@@ -35,8 +38,10 @@ case $ARG in
 
         CMD="cd ${REMOTE_SDROOT_DIR} && \
             export LD_LIBRARY_PATH=${REMOTE_LIB_DIR} && \
-            ${REMOTE_BIN_DIR}/whisperax_cli \
-            ${REMOTE_INPUTS_DIR}/jfk_441khz.m4a tiny"
+            ${REMOTE_BIN_DIR}/whisperkit-cli \
+            --audio-path inputs/jfk_441khz.m4a \
+            --model-path models/openai_whisper-base/ \
+            --report --report-path ."
 
         cd $SOURCE_DIR/test
         adb -s $DEVICE push jfk_441khz.m4a $REMOTE_INPUTS_DIR/.

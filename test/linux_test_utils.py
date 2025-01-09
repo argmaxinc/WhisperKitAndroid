@@ -46,12 +46,6 @@ class TestRunLinux:
         for log in result:
             line = log.decode()
             print(line)
-            find_duration = "Total Duration:"
-            pos = line.find(find_duration)
-            if pos > 0:
-                strs = line[(pos + len(find_duration) + 1): -1].split()
-                return float(strs[0])
-        return 0.0
 
     def copy_file(self, file, subfolder='.'):
         dest_folder =  f"{self.root}/{subfolder}/"
@@ -59,7 +53,7 @@ class TestRunLinux:
             os.makedirs(dest_folder)
         shutil.copy(file, dest_folder)
 
-    def device_test(self, test_bin, input_audio, model_size):
+    def device_test(self, test_bin, input_audio, model_path):
         if test_bin is None: 
             return False
 
@@ -67,14 +61,13 @@ class TestRunLinux:
             [
                 f"export LD_LIBRARY_PATH={self.lib_path} &&",
                 f"{self.bin_path}/{test_bin} ",
-                f"{input_audio} {model_size} debug",
+                f"--audio-path {input_audio} ",
+                f"--model-path {model_path} ",
+                f"--report --report-path ."
             ]
         )
         print(f"Running: {test_cmds}")
-        duration = self._run_docker_cmd(test_cmds)
-        if duration <= 0.0:
-            print(f"An Error Occurred..")
-            return False
+        self._run_docker_cmd(test_cmds)
         return True
 
     def _get_wer(self, ref, pred):
@@ -106,11 +99,11 @@ class TestRunLinux:
     def run_test(
             self, test_binary, 
             file, data_set, 
-            metadata, model_size):
+            metadata, model_path):
         rootdir = self.config['docker']['rootdir']
         localdir = self.config['audio']['local_dir']
         full_path = f"{rootdir}/{localdir}/{file}"
-        result = self.device_test(test_binary, full_path, model_size)
+        result = self.device_test(test_binary, full_path, model_path)
         if result is False:
             return None
         
@@ -146,13 +139,6 @@ class LinuxTestsMixin(unittest.TestCase):
         self.test_path = f"{test_path}/dataset/{self.config['test']['datasets'][0]}"
 
     def run_test(self):
-        if self.args.model_path.find("openai_whisper-tiny") != -1:
-            model_size = "tiny"
-        elif self.args.model_path.find("openai_whisper-base") != -1:
-            model_size = "base"
-        elif self.args.model_path.find("openai_whisper-small") != -1:
-            model_size = "small"
-
         host = TestRunLinux(self.config, self.tokenizer)
     
         outputs_json = []
@@ -169,7 +155,7 @@ class LinuxTestsMixin(unittest.TestCase):
             output = host.run_test(
                 self.test_bin, file, 
                 self.data_set, self.metadata, 
-                model_size)
+                self.args.model_path)
             
             print(f'======== Completed test #{test_no} (audio: {file}) on linux host ========')
 
