@@ -1,7 +1,7 @@
 #pragma once
 
-#include "WhisperKitConfiguration.h"
-#include "WhisperKitTranscriptionResult.h"
+#include "WhisperKitConfiguration.hpp"
+#include "WhisperKitTranscriptionResult.hpp"
 #include "nlohmann/json.hpp"
 #include <thread>
 #include <string>

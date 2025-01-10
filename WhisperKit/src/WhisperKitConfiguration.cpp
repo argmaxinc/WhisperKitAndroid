@@ -1,6 +1,6 @@
 
-#include "WhisperKitConfiguration.h"
-#include "WhisperKitPipeline.h"
+#include "WhisperKitConfiguration.hpp"
+#include "WhisperKitPipeline.hpp"
 
 
  whisperkit_configuration_t::whisperkit_configuration_t() {};

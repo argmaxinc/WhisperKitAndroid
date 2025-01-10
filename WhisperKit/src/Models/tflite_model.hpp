@@ -13,7 +13,7 @@
 #include <filesystem>
 #include <sys/stat.h>
 #include <nlohmann/json.hpp>
-#include <tflite_msg.hpp>
+#include "tflite_msg.hpp"
 
 #include "tensorflow/lite/builtin_ops.h"
 #include "tensorflow/lite/context_util.h"

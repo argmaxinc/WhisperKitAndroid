@@ -1,6 +1,6 @@
 //  For licensing see accompanying LICENSE file.
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
-#include <tflite_model.hpp>
+#include "tflite_model.hpp"
 #include <filesystem>   // C++ 17 or later
 
 using namespace std;

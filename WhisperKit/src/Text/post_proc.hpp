@@ -6,7 +6,7 @@
 #include <cmath>
 #include <vector>
 
-#include <backend_class.hpp>
+#include "backend_class.hpp"
 
 constexpr const uint32_t TOKEN_SOT = 50257;  // Start of transcript
 constexpr const uint32_t TOKEN_EOT = 50256;  // end of transcript

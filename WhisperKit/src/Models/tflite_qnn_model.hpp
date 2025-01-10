@@ -1,6 +1,9 @@
 //  For licensing see accompanying LICENSE file.
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
-#include <tflite_model.hpp>
+#pragma once
+
+#if QNN_DELEGATE
+#include "tflite_model.hpp"
 #include "QnnTFLiteDelegate.h"
 #include "tensorflow/lite/delegates/gpu/delegate.h"
 
@@ -23,3 +26,4 @@ protected:
 
     virtual bool create_interpreter_delegate(std::string model_path);
 };
+#endif

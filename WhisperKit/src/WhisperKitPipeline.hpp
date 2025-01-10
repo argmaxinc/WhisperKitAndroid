@@ -1,7 +1,7 @@
 #pragma once
 
 #include "WhisperKit.h"
-#include "WhisperKitConfiguration.h"
+#include "WhisperKitConfiguration.hpp"
 #include <memory>
 
 struct TranscribeTask;

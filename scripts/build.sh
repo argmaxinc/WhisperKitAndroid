@@ -28,7 +28,7 @@ case $ARG in
         echo "  ${0} [gpu|qnn] : building for arm64 Android (in build/android)"
         PLATFORM="android" ;;
 
-    *) 
+    *)
         echo "Usage: "
         echo "  ${0} clean   : clean build files"
         echo "  ${0} linux   : build for x86 (in build/linux)"
@@ -82,7 +82,7 @@ if [ "$ARG" = "linux" ]; then
     -DCMAKE_BUILD_TYPE=release \
     -B$SOURCE_DIR/$BUILD_DIR \
     -GNinja \
-    -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR} 
+    -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR}
 else
     find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ \
         -name libtensorflowlite_gpu_delegate.so -exec cp {} $SOURCE_DIR/external/libs/android/ \;
@@ -91,12 +91,12 @@ else
         rm $SOURCE_DIR/external/libs/android/libQnn*.so
         rm $SOURCE_DIR/external/libs/android/libqnn*.so
         rm $SOURCE_DIR/external/inc/QnnTFLiteDelegate.h
-        QNN_DELEGATE="-DQNN_DELEGATE=OFF"
+        QNN_DELEGATE="-DQNN_DELEGATE=0"
     else # QCOM QNN delegate
         cp ${QNN_RUNTIME_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/external/libs/android/
         cp ${QNN_SDK_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/external/libs/android/
         cp ${QNN_SDK_ROOT}/headers/QNN/QnnTFLiteDelegate.h $SOURCE_DIR/external/inc/
-        QNN_DELEGATE="-DQNN_DELEGATE=ON"
+        QNN_DELEGATE="-DQNN_DELEGATE=1"
     fi
 
     cmake \
