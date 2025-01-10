@@ -1,6 +1,5 @@
 //  For licensing see accompanying LICENSE file.
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
-#if defined(GPU_DELEGATE)
 #if GPU_DELEGATE
 #include "tflite_gpu_model.hpp"
 #include <filesystem>   // C++ 17 or later
@@ -77,5 +76,4 @@ bool TFLiteGPU::create_interpreter_delegate(string model_path)
 
     return true;
 }
-#endif
 #endif
