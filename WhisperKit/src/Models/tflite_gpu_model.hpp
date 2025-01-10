@@ -2,7 +2,6 @@
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
 #pragma once
 
-#if defined(GPU_DELEGATE)
 #if GPU_DELEGATE
 #include "tflite_model.hpp"
 #include "tensorflow/lite/delegates/gpu/delegate.h"
@@ -24,5 +23,4 @@ public:
 protected: 
     virtual bool create_interpreter_delegate(std::string model_path);
 };
-#endif
 #endif

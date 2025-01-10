@@ -26,7 +26,7 @@ extern "C" {
 // to be deleted
 
 
-#if (defined(QNN_DELEGATE) || defined(GPU_DELEGATE)) 
+#if (QNN_DELEGATE || GPU_DELEGATE) 
 // for Android QNN or GPU delegatea
 #define TRANSCRIBE_TASK_TFLITE_ROOT_PATH    "/sdcard/argmax/tflite"
 #define TRANSCRIBE_TASK_DEFAULT_LIB_DIR     "/data/local/tmp/lib"
@@ -219,7 +219,7 @@ void Runtime::tflite_init_priv() {
     int format = 0;
 
     backend = kUndefinedBackend;
-#if (defined(QNN_DELEGATE) || defined(GPU_DELEGATE)) 
+#if (QNN_DELEGATE || GPU_DELEGATE) 
     if (check_qcom_soc()) // selecting runtime delegation for the model
         backend = kHtpBackend; 
 #else
@@ -256,7 +256,7 @@ void Runtime::tflite_init_priv() {
     //LOGI("root dir:\t%s\nlib dir:\t%s\ncache dir:\t%s\n", 
     //    config.get_model_path().c_str(), lib_dir.c_str(), cache_dir.c_str()
     //);
-
+    
     TFLITE_INIT_CHECK(melspectro->initialize(
         melspectro_model, lib_dir, cache_dir, backend, debug
     ));
@@ -452,7 +452,7 @@ void Runtime::write_report(const char* audio_file) {
     auto timings = json();
 
     testinfo["model"] = config.get_model_path();
-#if (defined(QNN_DELEGATE) || defined(GPU_DELEGATE)) 
+#if (QNN_DELEGATE || GPU_DELEGATE) 
     testinfo["device"] = *cmdexec("getprop ro.product.brand") + " " 
                         + *cmdexec("getprop ro.soc.model");
 #else
@@ -485,7 +485,7 @@ void Runtime::write_report(const char* audio_file) {
                                 + postproc->get_latency_sum());
     testinfo["timings"] = timings;
 
-#if (defined(QNN_DELEGATE) || defined(GPU_DELEGATE)) 
+#if (QNN_DELEGATE || GPU_DELEGATE) 
     staticattr["os"] = "Android " + *cmdexec("getprop ro.build.version.release");
 #else
     staticattr["os"] = *cmdexec("uname -r");

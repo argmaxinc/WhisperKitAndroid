@@ -2,7 +2,6 @@
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
 #pragma once
 
-#if defined(QNN_DELEGATE)
 #if QNN_DELEGATE
 #include "tflite_model.hpp"
 #include "QnnTFLiteDelegate.h"
@@ -27,5 +26,4 @@ protected:
 
     virtual bool create_interpreter_delegate(std::string model_path);
 };
-#endif
 #endif

@@ -6,7 +6,7 @@ CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
 
 WHISPERKIT_CLI="$SOURCE_DIR/build/android/whisperkit-cli"
-AXIE_TFLITE_LIB="$SOURCE_DIR/build/android/libwhisperax.so"
+AXIE_TFLITE_LIB="$SOURCE_DIR/build/android/libwhisperkit.so"
 LOCAL_LIBS="$SOURCE_DIR/external/libs/android"
 LOCAL_TINY_DIR="$SOURCE_DIR/models/openai_whisper-tiny"
 LOCAL_BASE_DIR="$SOURCE_DIR/models/openai_whisper-base"
