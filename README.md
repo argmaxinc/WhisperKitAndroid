@@ -102,12 +102,12 @@ With `all` option, it will conduct deep clean including open source components.
 
 1. Run test on with a sample audio. For Android:
 ```
-make test
+make build
 ```
-For linux:
+
+For Linux:
 ```
-make env
-make test linux
+make build linux
 ```
 
 2. Manually run `whisperkit-cli`:
