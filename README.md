@@ -8,12 +8,13 @@
   <img src="https://github.com/user-attachments/assets/1be5e31c-de42-40ab-9b85-790cb911ed47" alt="WhisperKit" width="20%" />
 </a>
 
-# WhisperKit Android (Alpha)
+# WhisperKit Android (Beta)
 </div>
 
-WhisperKit Android brings Foundation Models On Device for Automatic Speech Recognition. It extends the performance and feature set of [WhisperKit](https://github.com/argmaxinc/WhisperKit) from Apple platforms to Android and (soon) Linux.
+WhisperKit Android brings Foundation Models On Device for Automatic Speech Recognition. It extends the performance and feature set of [WhisperKit](https://github.com/argmaxinc/WhisperKit) from Apple platforms to Android and Linux.  The current feature set is a subset of the iOS counterpart, 
+but we are continuing to invest in Android and now welcome contributions from the community.
 
-[Example App (Coming with Beta)] [[Blog Post]](https://takeargmax.com/blog/android) [[Python Tools Repo]](https://github.com/argmaxinc/whisperkittools)
+[Example App (Coming Soon)] [[Blog Post]](https://takeargmax.com/blog/android) [[Python Tools Repo]](https://github.com/argmaxinc/whisperkittools)
 
 
 ## Table of Contents
@@ -48,7 +49,7 @@ make env
 
 The first time running `make env` command will take several minutes.
 
-After Docker image builds, the next time running make env will execute inside the Docker container right away.
+After the Docker image builds, the next time running `make env` will execute inside the Docker container right away.
 
 You can use the following to rebuild the Docker image, if needed:
 ```
@@ -62,25 +63,29 @@ make rebuild-env
 <details>
   <summary> (Click to expand) </summary>
 
-ArgmaX Inference Engine (`AXIE`) orchestration for TFLite is provided as the `whisperax_cli` CLI.
+WhisperKit Android is a Whisper pipeline built on top of Tensorflow Lite (LiteRT) with a provided 
+CLI interface via `whisperkit-cli`.  The library is built with a C API for Android and Linux.  Please 
+note that as the library is currently in Beta, the C API is not yet stable.
 
 1. Execute into the Docker build environment:
 ```
 make env
 ```
 
-2. Inside the Docker environment, build the `whisperax_cli` CLI using (for Android and Linux):
+2. Inside the Docker environment, build the `whisperkit-cli` CLI using (for Android and Linux):
 ```
-make build [linux]
+make build [linux | qnn | gpu]
 ```
+
+The QNN option builds WhisperKit with Qualcomm AI NPU support and the QNN TFLite delegate.
+The 'gpu' option is the generic GPU backend for all Android devices from TFLite GPU delegate.
+Linux builds are currently CPU-only.
 
 3. Back on the host machine (outside Docker shell), push dependencies to the Android device:
 ```
 make adb-push
 ```
-You can reuse this target to push the `whisperax_cli` if you rebuild it. Note that this is not necessary for Linux build.
-
-If you want to include audio files, place them in the `/path/to/WhisperKitAndroid/inputs` folder and they will be copied to `/sdcard/argmax/tflite/inputs/`.
+You can reuse this target to push the `whisperkit-cli` if you rebuild it. Note that this is not necessary for Linux build.
 
 4. Clean:
 ```
@@ -105,66 +110,52 @@ make env
 make test linux
 ```
 
-2. Manually run `whisperax_cli`:
+2. Manually run `whisperkit-cli`:
+
+Usage: 
+
 ```
-Usage: whisperax_cli <audio input> <tiny | base | small>
+whisperkit-cli transcribe --model-path /path/to/my/whisper_model --audio-path /path/to/my/audio_file.m4a --report --report-path /path/to/dump/report.json
 ```
+
+For all options, run `whisperkit-cli --help`
+
 For Android, log in via adb shell:
 ```
 adb shell
 cd /sdcard/argmax/tflite
 export PATH=/data/local/tmp/bin:$PATH
 export LD_LIBRARY_PATH=/data/local/tmp/lib
-whisperax_cli ./inputs/jfk_441khz.m4a base
+whisperkit-cli transcribe --model-path  /path/to/openai_whisper-base --audio-path /path/to/inputs/jfk_441khz.m4a
 ```
 
 3. Sample execution output:
 ```
-Argmax, Inc.
-
-Audio Codec: aac
-tflite_init input: {"cache":"/data/local/tmp/cache","ch":1,"debug":false,"dur":11052,"fmt":1,"freq":44100,"lib":"/data/local/tmp/lib","root_path":"/storage/emulated/0/argmax/tflite","size":"tiny"}
-SoC: 	QCM5430 -> TFLite GPU
-root dir:	/storage/emulated/0/argmax/tflite
-lib dir:	/data/local/tmp/lib
-cache dir:	/data/local/tmp/cache
-Stream: freq - 44100, channels - 1, format - 32784, target_buf size - 1440000
+root@cf40510e9b93:/src/AXIE# ./build/linux/whisperkit-cli transcribe --model-path /src/AXIE/models/openai_whisper-small --audio-path /src/AXIE/test/jfk_441khz.m4a 
+SoC: 	generic CPU (x86, arm64, etc) 
+INFO: Created TensorFlow Lite XNNPACK delegate for CPU.
 postproc vocab size: 51864
-tflite_init done..
-
-Final Text:   And so my fellow American asked not what your country can do for you   ask what you can do for your country.
-Deleted interpreter & delegate for post_proc
-Deleted interpreter & delegate for whisper_decoder
-Deleted interpreter & delegate for whisper_encoder
-Deleted interpreter & delegate for mel_spectrogram
-Deleted interpreter & delegate for audio_input
-tflite_close done..
-
-Model latencies:
-  Audio Input: 1 inferences,	 median:2.12 ms
-  Melspectro: 1 inferences,	 median:74.50 ms
-  Encoder: 1 inferences,	 median:1197.14 ms
-  Decoder: 28 inferences,	 median:41.62 ms
-  Postproc: 28 inferences,	 median:1.23 ms
-=========================
-Total Duration:	 3262.000 ms
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '(null)':
+  Metadata:
+    major_brand     : M4A 
+    minor_version   : 0
+    compatible_brands: M4A mp42isom
+    creation_time   : 2024-08-07T16:38:45.000000Z
+    iTunSMPB        :  00000000 00000840 000000D4 00000000000766EC 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+  Duration: 00:00:11.05, start: 0.047891, bitrate: 73 kb/s
+  Stream #0:0[0x1](eng): Audio: aac (mp4a / 0x6134706D), 44100 Hz, mono, fltp, 31 kb/s (default)
+      Metadata:
+        creation_time   : 2024-08-07T16:38:45.000000Z
+        vendor_id       : [0][0][0][0]
+Stream: freq - 44100, channels - 1, format - 32784, target_buf size - 1440000
+[aac @ 0x55555a5b8c00] Could not update timestamps for skipped samples.
+Transcription:   And so, my fellow Americans, ask not what your country can do for you.   Ask what you can do for your country.
 ```
 </details>
 
-## Contributing & Roadmap
+## Contributing
 
-WhisperKit Android is currently in the v0.1 Alpha stage. Contributions from the community will be encouraged after the project reaches the v0.1 Beta milestone.
-
-### v0.1 Beta (November 2024)
-- [ ] Temperature fallbacks for decoding guardrails
-- [ ] Input audio file format coverage for wav, flac, mp4, m4a, mp3
-- [ ] Output file format coverage for SRT, VTT, and OpenAI-compatible JSON
-- [ ] [WhisperKit Benchmarks](https://huggingface.co/spaces/argmaxinc/whisperkit-evals) performance and quality data publication
-
-### v0.2 (Q1 2025)
-- [ ] Whisper Large v3 Turbo (v20240930) support
-- [ ] Streaming real-time inference
-- [ ] Model compression
+WhisperKit Android is currently in the v0.1 Beta stage.  We are actively developing the project and welcome contributions from the community.
 
 ## License
 - We release WhisperKit Android under [MIT License](LICENSE).
