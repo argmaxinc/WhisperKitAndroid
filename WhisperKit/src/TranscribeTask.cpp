@@ -100,7 +100,7 @@ public:
     AudioCodec();
     ~AudioCodec();
 
-    bool    open(string filename);
+    bool    open(string filename, int verbose = 0);
     void    close();
 
     int             get_samplerate() const { return _freq; }
@@ -549,13 +549,16 @@ AudioCodec::~AudioCodec()
     assert(!_format_context);
 }
 
-bool AudioCodec::open(string filename)
+bool AudioCodec::open(string filename, int verbose)
 {
     int ret;
     AVCodecParameters *codec_par = nullptr;
     AVDictionary **opts = nullptr;
     AVDictionary *format_opts = nullptr;
 
+    if(!verbose){
+        av_log_set_level(AV_LOG_ERROR);
+    }
     // allocating Format I/O context
     _format_context = avformat_alloc_context();
     _src_frame = av_frame_alloc();
@@ -660,7 +663,9 @@ bool AudioCodec::open(string filename)
         }
     }
     
-    av_dump_format(_format_context, 0, nullptr, false);
+    if(verbose > 0){
+        av_dump_format(_format_context, 0, nullptr, false);
+    }
     av_free(opts);
 
     return true;
@@ -806,7 +811,7 @@ void TranscribeTask::textOutputProc() {
 void TranscribeTask::transcribe(const char* audio_file, whisperkit_transcription_result_t* transcription_result) {
 
 
-    if( !audio_codec->open(audio_file) ){ 
+    if( !audio_codec->open(audio_file, config.get_verbose()) ){ 
         LOGE("Error opening audio file: %s\n", audio_file);
         throw std::runtime_error("Error opening audio file");
     }
