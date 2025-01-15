@@ -293,8 +293,6 @@ void Runtime::tflite_init_priv() {
     all_msgs.clear();
     all_msgs.reserve(1 << 14); // max 4096 sentences
 
-    start_exec = chrono::high_resolution_clock::now();
-
     messenger = std::make_unique<TFLiteMessenger>();
     messenger->_running = true;
 
@@ -312,6 +310,8 @@ void Runtime::tflite_init_audioinput(const AudioCodec* audio_codec, const char* 
     TFLITE_INIT_CHECK(audioinput->initialize(
         audio_model, lib_dir, cache_dir, backend, debug
     ));
+
+    start_exec = chrono::high_resolution_clock::now();
 
 }
 
@@ -478,11 +478,7 @@ void Runtime::write_report(const char* audio_file) {
     // TODO: get the right number once temp fallback is implemented
     timings["totalDecodingFallbacks"] = 0;
     timings["totalDecodingLoops"] = decoder->get_inference_num();
-    timings["fullPipeline"] = (audioinput->get_latency_sum()
-                                + melspectro->get_latency_sum()
-                                + encoder->get_latency_sum()
-                                + decoder->get_latency_sum()
-                                + postproc->get_latency_sum());
+    timings["fullPipeline"] = duration;
     testinfo["timings"] = timings;
 
 #if (QNN_DELEGATE || GPU_DELEGATE) 
