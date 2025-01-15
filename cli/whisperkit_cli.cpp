@@ -25,6 +25,7 @@ public:
     bool report;
     std::string reportPath;
     int concurrentWorkerCount;
+    bool verbose;
 
     WhisperKitConfig()  {
         audioPath = "";
@@ -44,6 +45,7 @@ public:
         report = false;
         reportPath = ".";
         concurrentWorkerCount = 4;
+        verbose = false;
     };
 
 
@@ -79,6 +81,8 @@ struct WhisperKitRunner {
             status = whisperkit_configuration_set_report_path(configuration, config.reportPath.c_str());
             CHECK_WHISPERKIT_STATUS(status);
         }
+        status = whisperkit_configuration_set_verbose(configuration, config.verbose);
+        CHECK_WHISPERKIT_STATUS(status);
 
         status = whisperkit_pipeline_set_configuration(pipeline, configuration);
         CHECK_WHISPERKIT_STATUS(status);
@@ -167,6 +171,7 @@ int main(int argc, char* argv[]) {
             config.reportPath = result["report-path"].as<std::string>();
         }
         if (result["verbose"].as<bool>()) {
+            config.verbose = true;
             std::cout << "Verbose mode is ON." << std::endl;
         }
         
