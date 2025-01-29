@@ -69,6 +69,7 @@ protected:
     std::string _cache_dir; 
     std::string _model_token;
     std::vector<float> _latencies;
+    bool _verbose; 
 
     std::vector<std::pair<char*, int>> _input_ptrs;
     std::vector<std::pair<char*, int>> _output_ptrs;    

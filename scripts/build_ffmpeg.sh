@@ -75,10 +75,5 @@ make clean; make -j 12
 sleep 1
 make install
 
-rm -rf ${BUILD_DIR}/lib/libavdevice.so*
-rm -rf ${BUILD_DIR}/lib/libavfilter.so*
-rm -rf ${BUILD_DIR}/include/libavdevice
-rm -rf ${BUILD_DIR}/include/libavfilter
-
 cp -rf ${BUILD_DIR}/lib/lib*.so* $CURRENT_DIR/../external/libs/$PLATFORM/
 cp -rf ${BUILD_DIR}/include/* $CURRENT_DIR/../external/inc/

@@ -20,21 +20,29 @@ DEVICE_BASE_DIR="${DEVICE_SDROOT_DIR}/models/openai_whisper-base"
 DEVICE_SMALL_DIR="${DEVICE_SDROOT_DIR}/models/openai_whisper-small"
 DEVICE_INPUTS_DIR="${DEVICE_SDROOT_DIR}/inputs"
 
+FORCED=$1
+if  [ "$FORCED" = "forced" ]; then
+    echo "adb push in forced mode.."
+fi
+
 # Function to push files only if they do not exist
 push_if_not_exists() {
     local local_path="$1"
     local device_path="$2"
+    local forced="$3"
 
     if [ -d "$local_path" ]; then
         # If it's a directory, loop through its contents
         echo "Checking $device_path ..."
         for file in "$local_path"/*; do
             local filename=$(basename "$file")
-            push_if_not_exists "$file" "$device_path/$filename"
+            push_if_not_exists "$file" "$device_path/$filename" $forced
         done
     else
         # If it's a file, check if it exists on the remote device
-        if adb -s $DEVICE shell "[ ! -e $device_path ]"; then
+        if  [ "$forced" = "forced" ]; then
+            adb -s $DEVICE push "$local_path" "$device_path"
+        elif adb -s $DEVICE shell "[ ! -e $device_path ]"; then
             adb -s $DEVICE push "$local_path" "$device_path"
         else
             # uncomment to debug
@@ -69,11 +77,11 @@ do
         adb -s $DEVICE shell mkdir "$DEVICE_LIB_DIR"
     fi
 
-    adb -s $DEVICE push "$AXIE_TFLITE_LIB" "$DEVICE_LIB_DIR/."
-    adb -s $DEVICE push "$WHISPERKIT_CLI" "$DEVICE_BIN_DIR/."
+    push_if_not_exists "$AXIE_TFLITE_LIB" "$DEVICE_LIB_DIR/." forced
+    push_if_not_exists "$WHISPERKIT_CLI" "$DEVICE_BIN_DIR/." forced
     adb -s $DEVICE shell "chmod 777 $DEVICE_BIN_DIR/whisperkit-cli"
-    
-    push_if_not_exists "$LOCAL_LIBS" "$DEVICE_LIB_DIR"
+    push_if_not_exists "$LOCAL_LIBS" "$DEVICE_LIB_DIR" $FORCED
+
     push_if_not_exists "$LOCAL_TINY_DIR" "$DEVICE_TINY_DIR"
     push_if_not_exists "$LOCAL_BASE_DIR" "$DEVICE_BASE_DIR"
     push_if_not_exists "$LOCAL_SMALL_DIR" "$DEVICE_SMALL_DIR"

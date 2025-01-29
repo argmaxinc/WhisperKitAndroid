@@ -9,94 +9,134 @@ using namespace std;
 AudioBuffer::AudioBuffer() 
 {
     _buffer = nullptr;
-    _source_spec = nullptr;
-    _stream = nullptr;
+    _swr = nullptr; 
+    _source_frame = nullptr;
+    _target_frame = nullptr; 
+
     _cap_bytes = 0;
-    _bytes_per_sample = sizeof(short int);
+    _tgt_bytes_per_sample = 0;
+    _src_bytes_per_sample = 0;
     _end_index = 0;
+    _verbose = false; 
 }
 
 AudioBuffer::~AudioBuffer() {
     uninitialize();
 }
 
-void AudioBuffer::initialize(
-    SDL_AudioSpec* src_spec,
-    SDL_AudioSpec* tgt_spec
+bool AudioBuffer::initialize(
+    AVFrame *src_frame, 
+    AVFrame *tgt_frame, 
+    bool verbose   
 ){
     lock_guard<mutex> lock(_mutex);
 
-    _source_spec = src_spec;
-    _target_spec = tgt_spec;
-    if(_source_spec->format == SDL_AUDIO_F32){
-        _bytes_per_sample = sizeof(float);
-    } else {
-        _bytes_per_sample = sizeof(short int);
-    }
-    _cap_bytes = (int)(1.5 * MAX_CHUNK_LENGTH * _bytes_per_sample);
-    _buffer = (short int*)SDL_malloc(_cap_bytes);
+    _verbose = verbose;
+    _source_frame = src_frame;
+    _target_frame = tgt_frame;
+    _src_bytes_per_sample = 
+        av_get_bytes_per_sample((AVSampleFormat)_source_frame->format);
+    _tgt_bytes_per_sample = 
+        av_get_bytes_per_sample((AVSampleFormat)_target_frame->format);
 
-    _stream = SDL_CreateAudioStream(_source_spec, _target_spec);
-    if (_stream == nullptr) {
-        LOGE("Failed to create audio stream: %s\n", SDL_GetError());
-        return;
-    }
+    _cap_bytes = (int)(1.5 * MAX_CHUNK_LENGTH * _tgt_bytes_per_sample);
+    _buffer = new float[_cap_bytes/sizeof(float)];
 
-    LOGI("Stream: freq - %d, channels - %d, format - %d, target_buf size - %d\n", 
-        _source_spec->freq, 
-        _source_spec->channels, 
-        _source_spec->format,
-        _cap_bytes
+    _swr = swr_alloc();
+    av_opt_set_chlayout(
+        _swr, "in_chlayout", &_source_frame->ch_layout, 0
     );
+    av_opt_set_int(
+        _swr, "in_sample_rate", _source_frame->sample_rate, 0
+    );
+    av_opt_set_sample_fmt(
+        _swr, "in_sample_fmt", (AVSampleFormat)_source_frame->format, 0
+    );
+
+    av_opt_set_chlayout(
+        _swr, "out_chlayout", &_target_frame->ch_layout,  0
+    );
+    av_opt_set_int(
+        _swr, "out_sample_rate", _target_frame->sample_rate, 0
+    );
+    av_opt_set_sample_fmt(
+        _swr, "out_sample_fmt", (AVSampleFormat)_target_frame->format,  0
+    );
+    int ret = swr_init(_swr);
+    if (ret < 0) {
+        LOGE("Error in swr_init: %s\n", *av_err2string(ret));
+        return false;
+    }
+    return true; 
 }
 
 void AudioBuffer::uninitialize(){
     lock_guard<mutex> lock(_mutex);
 
-    if (_stream == nullptr)
-        return;
+    if (_swr) {
+        swr_free(&_swr);
+        _swr = nullptr;
+    }
 
-    SDL_free(_buffer);
-    SDL_DestroyAudioStream(_stream);
-    SDL_Quit();
+    if(_buffer){
+        delete [] _buffer;
+        _buffer = nullptr;
+    }
 
-    _buffer = nullptr;
-    _source_spec = nullptr;
-    _stream = nullptr;
+    _source_frame = nullptr;
+    _target_frame = nullptr;
     _cap_bytes = 0;
 }
 
-int AudioBuffer::append(int bytes, char* input) {
+int AudioBuffer::append(int bytes, char* input0, char* input1) {
     lock_guard<mutex> lock(_mutex);
 
-    bool bRet = false;
+    av_frame_unref(_target_frame);
+    _target_frame->ch_layout = AV_CHANNEL_LAYOUT_MONO;
+    _target_frame->sample_rate = SAMPLE_FREQ;
+    _target_frame->format = AV_SAMPLE_FMT_FLT;
 
-        bRet = SDL_PutAudioStreamData(
-            _stream, input, bytes
-        );
-        if (!bRet) {
-            LOGE("Failed from SDL_PutAudioStreamData: %s\n", SDL_GetError());
-            return 0;
-        }
-        SDL_FlushAudioStream(_stream);
+    if (_source_frame->sample_rate == SAMPLE_FREQ &&
+        _source_frame->ch_layout.nb_channels == 1 &&
+        _source_frame->format == AV_SAMPLE_FMT_FLT)
+    {
+        memcpy(&_buffer[_end_index], input0, bytes);
+        _target_frame->nb_samples = bytes / _tgt_bytes_per_sample;
+        _end_index += _target_frame->nb_samples;
+    } else {
+        _source_frame->data[0] = (uint8_t*)input0;
+        if(input1 != nullptr) // for planar, ch > 1 audio frame source
+            _source_frame->data[1] = (uint8_t*)input1;
+        _source_frame->nb_samples = bytes / _src_bytes_per_sample;
 
-        auto target_bytes = SDL_GetAudioStreamAvailable(_stream);
-        if ((_end_index * _bytes_per_sample + target_bytes) > _cap_bytes) {
-            LOGE("buffer overflow..\n");
-            return 0;
-        }
-
-        auto ret = SDL_GetAudioStreamData(
-        _stream, &_buffer[_end_index], target_bytes
-        );
+        int ret = swr_convert_frame(_swr, _target_frame, _source_frame);
         if (ret < 0) {
-            LOGE("Failed from SDL_GetAudioStreamData: %s\n", SDL_GetError());
-            return 0;
+            LOGE("Error in swr_convert_frame: %s\n", *av_err2string(ret));
+            return -1;
         }
-    auto samples = (target_bytes / _bytes_per_sample);
-    _end_index += samples;
 
-    return samples;
+        memcpy(&_buffer[_end_index], 
+            _target_frame->extended_data[0],
+            _target_frame->nb_samples * _tgt_bytes_per_sample);
+        _end_index += _target_frame->nb_samples;
+    }
+
+    return _target_frame->nb_samples;
+}
+
+void AudioBuffer::print_frame_info(){
+    if(_verbose){
+        LOGI("source rate: %d, ch: %d, format: %d, samples: %d\n", 
+            _source_frame->sample_rate, 
+            _source_frame->ch_layout.nb_channels, 
+            (int)_source_frame->format, 
+            _source_frame->nb_samples);
+        LOGI("target rate: %d, ch: %d, format: %d, samples: %d\n", 
+            _target_frame->sample_rate, 
+            _target_frame->ch_layout.nb_channels, 
+            (int)_target_frame->format, 
+            _target_frame->nb_samples);
+    }
 }
 
 int AudioBuffer::samples(int desired_samples) {
@@ -116,7 +156,7 @@ void AudioBuffer::consumed(int samples){
         memmove(
             _buffer, 
             &_buffer[_end_index], 
-            (_end_index - samples) * _bytes_per_sample
+            (_end_index - samples) * _tgt_bytes_per_sample
         );
         _end_index -= samples;
     } else {
@@ -134,20 +174,34 @@ AudioInputModel::AudioInputModel( // buffer input mode
    int freq, int channels, int format
 ) :MODEL_SUPER_CLASS("audio_input")
 {
-    _source_spec.freq = freq;
-    _source_spec.channels = channels;
-    _target_spec.channels = 1;
-    _target_spec.freq = SAMPLE_FREQ;
+    _source_frame = av_frame_alloc();
+    _target_frame = av_frame_alloc();
 
-    if (format == SAMPLE_FMT_FLT) {
-        _source_spec.format = SDL_AUDIO_F32;
-        _target_spec.format = SDL_AUDIO_F32;
-    } else {
-        _source_spec.format = SDL_AUDIO_S16;
-        _target_spec.format = SDL_AUDIO_S16;
-    }
+    _source_frame->sample_rate = freq;
+    if (channels == 1)
+        _source_frame->ch_layout = AV_CHANNEL_LAYOUT_MONO;
+    else if (channels == 2)
+        _source_frame->ch_layout = AV_CHANNEL_LAYOUT_STEREO;
+    else assert(false);
+
+    if(format <= AV_SAMPLE_FMT_NONE)
+        _source_frame->format = AV_SAMPLE_FMT_S16;
+    else
+        _source_frame->format = format;
+    _target_frame->ch_layout = AV_CHANNEL_LAYOUT_MONO;
+    _target_frame->sample_rate = SAMPLE_FREQ;
+    _target_frame->format = AV_SAMPLE_FMT_FLT;
 
     _pcm_buffer = make_unique<AudioBuffer>();
+}
+
+AudioInputModel::~AudioInputModel(){
+    av_frame_unref(_source_frame);
+    av_frame_free(&_source_frame);
+    _source_frame = nullptr;
+    av_frame_unref(_target_frame);
+    av_frame_free(&_target_frame);
+    _target_frame = nullptr;
 }
 
 bool AudioInputModel::initialize(
@@ -157,19 +211,18 @@ bool AudioInputModel::initialize(
     int backend, 
     bool debug
 ){
-    SDL_SetMainReady();
-    if (!SDL_Init(0)) {
-        LOGE("Couldn't initialize SDL: %s", SDL_GetError());
-        return false;
-    }
-
     if(!MODEL_SUPER_CLASS::initialize(model_file, lib_dir, cache_dir, backend, debug)){
         LOGE("Failed to initialize\n");
         return false;
     }
 
-    _float_buffer.resize(1.5 * MAX_CHUNK_LENGTH);
-    _pcm_buffer->initialize(&_source_spec, &_target_spec);
+    _float_buffer.resize(1.5 * MAX_CHUNK_LENGTH); // 45 secs buffer
+    if(!_pcm_buffer->initialize(_source_frame, _target_frame, _verbose)){
+        LOGE("Failed to initialize PCM buffer class\n");
+        return false;
+    }
+
+    _pcm_buffer->print_frame_info();
 
     return true;
 }
@@ -300,12 +353,22 @@ uint32_t AudioInputModel::split_on_middle_silence(uint32_t max_index)
     return mid_index + silence_mid_idx * _frame_length_samples;
 }
 
-void AudioInputModel::fill_pcmdata(int bytes, char* pcm_buffer){
-    int ret = _pcm_buffer->append(bytes, pcm_buffer);
+void AudioInputModel::fill_pcmdata(
+    int bytes, 
+    char* pcm_buffer0, 
+    char* pcm_buffer1)
+{
+    int ret = _pcm_buffer->append(bytes, pcm_buffer0, pcm_buffer1);
 
     _curr_buf_time = (_pcm_buffer->samples() + _remain_samples) 
-                    / _target_spec.freq;
+                    / _target_frame->sample_rate;
     _total_src_bytes += bytes; 
+}
+
+float AudioInputModel::get_total_input_time()
+{
+    return (_total_src_bytes / 
+        (_source_frame->sample_rate * _pcm_buffer->get_srcbytes_per_sample())); 
 }
 
 int AudioInputModel::get_next_samples()
@@ -314,28 +377,19 @@ int AudioInputModel::get_next_samples()
         (unsigned int)(_remain_samples * 100)/ SAMPLE_FREQ;
 
     int max_target_samples = 
-        (int)(_target_spec.freq * (3000 - remaining_time_x100)/100);
+        (int)(_target_frame->sample_rate * (3000 - remaining_time_x100)/100);
     auto target_samples = _pcm_buffer->samples(max_target_samples);
     if (target_samples <= 0) {
-        LOGE(" audio buffer is null\n");
+        LOGE(" audio buffer size is 0\n");
         return -1;
     }
 
     auto audio_buffer = _pcm_buffer->get_buffer();
-    if (_source_spec.format == SDL_AUDIO_F32){
-        // it is already in float type format audio samples
-        memcpy(
-            &_float_buffer[_remain_samples], 
-            audio_buffer, 
-            target_samples * sizeof(float)
-        );
-    } else {
-        // float type sample = short int type PCM / 32768.0
-        for (int i = 0; i < target_samples; i++) {
-            _float_buffer[_remain_samples + i] = 
-                (float)audio_buffer[i] / 32768.0;
-        }
-    }
+    memcpy(
+        &_float_buffer[_remain_samples], 
+        audio_buffer, 
+        target_samples * sizeof(float)
+    );
     _pcm_buffer->consumed(target_samples);
     return target_samples;
 }

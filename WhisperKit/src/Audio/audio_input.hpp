@@ -7,53 +7,59 @@
 #include <string>
 #include <vector>
 
-#define SDL_MAIN_HANDLED
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
-#include <SDL3/SDL_audio.h>
+extern "C" {
+#include <libswresample/swresample.h>
+#include <libavutil/opt.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/samplefmt.h>
+}
 
 #include "backend_class.hpp"
 
 constexpr const int SAMPLE_FREQ = 16000;
-constexpr const int SAMPLE_FMT_DEF = 0;     // AV_SAMPLE_FMT_NONE in ffmpeg
-constexpr const int SAMPLE_FMT_FLT = 3;     // AV_SAMPLE_FMT_FLT in ffmpeg
-constexpr const int SAMPLE_FMT_S16P = 6;    // AV_SAMPLE_FMT_S16P in ffmpeg
-constexpr const int SAMPLE_FMT_FLTP = 8;    // AV_SAMPLE_FMT_FLTP in ffmpeg
+
+inline std::unique_ptr<char*> av_err2string(int errnum){
+    return std::make_unique<char*>(av_make_error_string( 
+        (char*)__builtin_alloca(AV_ERROR_MAX_STRING_SIZE), 
+        AV_ERROR_MAX_STRING_SIZE, errnum 
+    ));
+} 
 
 class AudioBuffer {
 private: 
-    SDL_AudioSpec* _source_spec;
-    SDL_AudioSpec* _target_spec;
-    SDL_AudioStream* _stream;
+    SwrContext *_swr; 
+    AVFrame *_source_frame; 
+    AVFrame *_target_frame; 
     std::mutex _mutex;
+    bool _verbose; 
 
     // target buf associated, with 16khz, mono PCM data
     uint32_t _end_index; // unit of short int
     uint32_t _cap_bytes;
-    short int *_buffer;
-    int _bytes_per_sample;
+    float *_buffer; 
+    int _tgt_bytes_per_sample;
+    int _src_bytes_per_sample;
 
 public:
     AudioBuffer();
     ~AudioBuffer();
 
-    void initialize(
-        SDL_AudioSpec* src_spec,
-        SDL_AudioSpec* tgt_spec
-    );
+    bool initialize(AVFrame *src_frame, AVFrame *tgt_frame, bool verbose = false);
     void uninitialize();
     bool empty_source();
 
-    int append(int bytes, char* buffer = nullptr);
+    int append(int bytes, char* buffer0, char* buffer1 = nullptr);
     int samples(int desired_samples = 0);
     void consumed(int samples);
-    short int* get_buffer() { return _buffer; }
+    float* get_buffer()     { return _buffer; }
+    int get_srcbytes_per_sample()   { return _src_bytes_per_sample; }
+    void print_frame_info();
 };
 
 class AudioInputModel: public MODEL_SUPER_CLASS {
 public:
-    AudioInputModel(int freq, int channels, int format = SAMPLE_FMT_DEF);
-    virtual ~AudioInputModel() {};
+    AudioInputModel(int freq, int channels, int format = AV_SAMPLE_FMT_FLT);
+    ~AudioInputModel();
 
     bool initialize(
         std::string model_path, 
@@ -64,24 +70,24 @@ public:
     void uninitialize();
     virtual void invoke(bool measure_time=false);
 
-    void fill_pcmdata(int size, char* pcm_buffer=nullptr);
+    void fill_pcmdata(
+        int size, 
+        char* pcm_buffer0, 
+        char* pcm_buffer1=nullptr
+    );
     float get_next_chunk(char* output);
     int get_curr_buf_time() { return _curr_buf_time; }
-    float get_total_input_time() { 
-        return (_total_src_bytes / (_source_spec.freq * _source_spec.channels * 2)); 
-    }
+    float get_total_input_time();
     bool empty_source() { return _pcm_buffer->empty_source(); }
 
 private:
-    SDL_AudioStream* _stream = nullptr;
-
     int32_t _total_src_bytes = 0;
     int32_t _buffer_index = 0;
 
     std::unique_ptr<AudioBuffer> _pcm_buffer;
 
-    SDL_AudioSpec _source_spec;
-    SDL_AudioSpec _target_spec;
+    AVFrame *_source_frame; 
+    AVFrame *_target_frame; 
 
     const float _energy_threshold = 0.02;
     const int _frame_length_samples = (0.1 * 16000);

@@ -57,7 +57,7 @@ test:
 	@bash $(SCRIPTS_DIR)/build_test.sh $(call args,)
 
 adb-push:
-	@bash $(SCRIPTS_DIR)/adb_push.sh
+	@bash $(SCRIPTS_DIR)/adb_push.sh $(call args,)
 
 all:	# do nothing - sub target of clean
 	@echo ""
@@ -69,4 +69,7 @@ qnn:	# do nothing - sub target of build/test
 	@echo ""
 
 gpu:	# do nothing - sub target of build/test
+	@echo ""
+
+forced:	# do nothing - sub target of adb-push
 	@echo ""
