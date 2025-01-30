@@ -57,12 +57,6 @@ elif [ ! -d $SOURCE_DIR/external/inc/flatbuffers ]; then
     $SOURCE_DIR/scripts/build_tensorflow.sh $PLATFORM
 fi
 
-# check if libSDL3.so is built and exists
-if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libSDL3.so ]; then
-    echo "SDL3 libs are not found, building it now.."
-    $SOURCE_DIR/scripts/build_SDL.sh $PLATFORM
-fi
-
 # check if ffmpeg libs is built and exists
 if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libavcodec.so ]; then
     echo "ffmpeg libs are not found, building it now.."

@@ -92,7 +92,7 @@ target_include_directories(whisperkit
 )
 
 set(AUDIO_CODEC_LIBRARIES avformat avcodec avutil swresample)
-set(BASE_LIBRARIES tensorflowlite SDL3)
+set(BASE_LIBRARIES tensorflowlite)
 set(ALL_LINKED_LIBRARIES ${BASE_LIBRARIES} ${AUDIO_CODEC_LIBRARIES})
 
 if(${ANDROID})

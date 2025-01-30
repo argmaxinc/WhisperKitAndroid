@@ -32,6 +32,7 @@ bool TFLiteModel::initialize(
         LOGE("Failed with allocate_tensors..\n");
         return false;
     }
+    _verbose = debug; 
 
     return true;
 }

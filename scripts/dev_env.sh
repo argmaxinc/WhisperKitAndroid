@@ -59,10 +59,6 @@ if ! $(docker image inspect $IMAGE_NAME > /dev/null 2>&1) || $FORCE_REBUILD; the
     echo "Cloning ffmpeg..."
     git clone --branch release/7.1 https://github.com/FFmpeg/FFmpeg.git "$BUILD_DIR/ffmpeg"
   fi
-  if [ ! -d "$BUILD_DIR/SDL" ]; then
-    echo "Cloning SDL3..."
-    git clone https://github.com/libsdl-org/SDL.git "$BUILD_DIR/SDL"
-  fi
 
   echo "Building Docker image: $IMAGE_NAME"
   docker build --platform=linux/amd64 -t $IMAGE_NAME -f "$CURRENT_DIR/Dockerfile" $SOURCE_DIR
