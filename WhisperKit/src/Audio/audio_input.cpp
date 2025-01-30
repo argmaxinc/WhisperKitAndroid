@@ -2,18 +2,18 @@
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
 #include "audio_input.hpp"
 
-#define MAX_CHUNK_LENGTH    (16000 * 30) // 30 seconds of PCM audio samples
+// 30 seconds of PCM audio samples
+constexpr const int MAX_CHUNK_LENGTH = (16000 * 30);
+constexpr const int INTERNAL_AUDIO_SIZE = (1.5 * MAX_CHUNK_LENGTH);
 
 using namespace std;
 
 AudioBuffer::AudioBuffer() 
 {
-    _buffer = nullptr;
     _swr = nullptr; 
     _source_frame = nullptr;
     _target_frame = nullptr; 
 
-    _cap_bytes = 0;
     _tgt_bytes_per_sample = 0;
     _src_bytes_per_sample = 0;
     _end_index = 0;
@@ -39,8 +39,7 @@ bool AudioBuffer::initialize(
     _tgt_bytes_per_sample = 
         av_get_bytes_per_sample((AVSampleFormat)_target_frame->format);
 
-    _cap_bytes = (int)(1.5 * MAX_CHUNK_LENGTH * _tgt_bytes_per_sample);
-    _buffer = new float[_cap_bytes/sizeof(float)];
+    _buffer.resize(INTERNAL_AUDIO_SIZE);
 
     _swr = swr_alloc();
     av_opt_set_chlayout(
@@ -78,14 +77,10 @@ void AudioBuffer::uninitialize(){
         _swr = nullptr;
     }
 
-    if(_buffer){
-        delete [] _buffer;
-        _buffer = nullptr;
-    }
+    _buffer.clear();
 
     _source_frame = nullptr;
     _target_frame = nullptr;
-    _cap_bytes = 0;
 }
 
 int AudioBuffer::append(int bytes, char* input0, char* input1) {
@@ -154,7 +149,7 @@ void AudioBuffer::consumed(int samples){
     if(_end_index > samples){
         // move the remaining samples to the beginning of _target_buffer
         memmove(
-            _buffer, 
+            &_buffer[0], 
             &_buffer[_end_index], 
             (_end_index - samples) * _tgt_bytes_per_sample
         );
@@ -216,7 +211,7 @@ bool AudioInputModel::initialize(
         return false;
     }
 
-    _float_buffer.resize(1.5 * MAX_CHUNK_LENGTH); // 45 secs buffer
+    _float_buffer.resize(INTERNAL_AUDIO_SIZE); // 45 secs buffer
     if(!_pcm_buffer->initialize(_source_frame, _target_frame, _verbose)){
         LOGE("Failed to initialize PCM buffer class\n");
         return false;

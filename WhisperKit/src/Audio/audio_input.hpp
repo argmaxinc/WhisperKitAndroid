@@ -35,8 +35,7 @@ private:
 
     // target buf associated, with 16khz, mono PCM data
     uint32_t _end_index; // unit of short int
-    uint32_t _cap_bytes;
-    float *_buffer; 
+    std::vector<float> _buffer; 
     int _tgt_bytes_per_sample;
     int _src_bytes_per_sample;
 
@@ -51,7 +50,7 @@ public:
     int append(int bytes, char* buffer0, char* buffer1 = nullptr);
     int samples(int desired_samples = 0);
     void consumed(int samples);
-    float* get_buffer()     { return _buffer; }
+    float* get_buffer()     { return _buffer.data(); }
     int get_srcbytes_per_sample()   { return _src_bytes_per_sample; }
     void print_frame_info();
 };
