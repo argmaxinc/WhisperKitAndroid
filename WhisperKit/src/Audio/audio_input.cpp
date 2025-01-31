@@ -177,7 +177,7 @@ AudioInputModel::AudioInputModel( // buffer input mode
         _source_frame->ch_layout = AV_CHANNEL_LAYOUT_MONO;
     else if (channels == 2)
         _source_frame->ch_layout = AV_CHANNEL_LAYOUT_STEREO;
-    else assert(false);
+    else throw std::invalid_argument("more than 2 audio channels not supported");
 
     if(format <= AV_SAMPLE_FMT_NONE)
         _source_frame->format = AV_SAMPLE_FMT_S16;

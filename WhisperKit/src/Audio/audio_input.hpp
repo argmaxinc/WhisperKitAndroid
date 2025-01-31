@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 extern "C" {
 #include <libswresample/swresample.h>

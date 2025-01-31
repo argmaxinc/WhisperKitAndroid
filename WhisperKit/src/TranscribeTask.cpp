@@ -46,7 +46,6 @@ class Runtime {
         void tflite_close_priv();
         int tflite_loop_priv();
         void tflite_perfjson_priv();
-        void tflite_init_check(bool res);
         void tflite_init_audioinput(
             const AudioCodec* audio_codec, 
             const char* audio_file
@@ -101,14 +100,11 @@ class AudioCodec
 {
 public:
     AudioCodec();
-    ~AudioCodec();
+    ~AudioCodec() = default;
 
-    bool    open(string filename, int verbose = 0);
+    bool    open(const string filename, int verbose = 0);
     void    close();
 
-    int             get_samplerate() const { return _audio_frame->sample_rate; }
-    int             get_channel() const { return _audio_frame->ch_layout.nb_channels; }
-    int             get_format() const { return _audio_frame->format; }
     AVFrame*        get_frame() const { return _audio_frame; }
     int64_t         get_duration_ms() const { return _duration; }
     bool            is_running() const { return _is_running; }
@@ -145,6 +141,14 @@ namespace WhisperKit::TranscribeTask {
 
 #ifndef QCOM_SOC
 #define QCOM_SOC    "qcom"
+#endif
+
+#ifndef TFLITE_INIT_CHECK
+#define TFLITE_INIT_CHECK(x) \
+    if (!(x)) { \
+        LOGE("Error at %s:%d\n", __FUNCTION__, __LINE__); \
+        exit(0); \
+    }
 #endif
 
 Runtime::Runtime(const whisperkit_configuration_t& config) {
@@ -195,13 +199,6 @@ bool Runtime::check_qcom_soc() {
     }
 }
 
-inline void Runtime::tflite_init_check(bool res){
-    if (!res) {
-        LOGE("Error at %s:%d\n", __FUNCTION__, __LINE__);
-        exit(0);
-    }
-}
-
 void Runtime::tflite_init_priv() {
     lock_guard<mutex> lock(gmutex);
 
@@ -248,18 +245,16 @@ void Runtime::tflite_init_priv() {
     //    config.get_model_path().c_str(), lib_dir.c_str(), cache_dir.c_str()
     //);
     
-    tflite_init_check(melspectro->initialize(
+    TFLITE_INIT_CHECK(melspectro->initialize(
         melspectro_model, lib_dir, cache_dir, backend, debug
     ));
-    tflite_init_check(encoder->initialize(
+    TFLITE_INIT_CHECK(encoder->initialize(
         encoder_model, lib_dir, cache_dir, backend, debug
     ));
-    tflite_init_check(decoder->initialize(
+    TFLITE_INIT_CHECK(decoder->initialize(
         decoder_model, lib_dir, cache_dir, backend, debug
     ));
-
-
-    tflite_init_check(postproc->initialize(
+    TFLITE_INIT_CHECK(postproc->initialize(
         postproc_model, lib_dir, cache_dir, kUndefinedBackend, debug
     ));
 
@@ -267,17 +262,20 @@ void Runtime::tflite_init_priv() {
     melspectro_inputs = melspectro->get_input_ptrs();
     melspectro_outputs = melspectro->get_output_ptrs();
     // outputs: melspectrogram
-    assert(melspectro_outputs.size() == 1);
+    if(melspectro_outputs.size() != 1)
+        throw std::invalid_argument("melspectro output tensor # has to be 1");
 
     encoder_inputs = encoder->get_input_ptrs();
     // retrieve encoder output tensor pointers
     encoder_outputs = encoder->get_output_ptrs();
     // outputs: k_cache, v_cache
-    assert(encoder_outputs.size() == 2);
+    if(encoder_outputs.size() != 2)
+        throw std::invalid_argument("audio encoder output tensor # has to be 2");
 
     decoder_outputs = decoder->get_output_ptrs();
     // outputs: logits, k_cache, v_cache
-    assert(decoder_outputs.size() == 3);
+    if(decoder_outputs.size() != 3)
+        throw std::invalid_argument("text decoder output tensor # has to be 3");
 
     all_tokens.clear();
     all_tokens.reserve(1 << 18); // max 256K tokens
@@ -290,15 +288,19 @@ void Runtime::tflite_init_priv() {
 }
 
 void Runtime::tflite_init_audioinput(const AudioCodec* audio_codec, const char* audio_file) {
+    if(audio_codec->get_frame() == nullptr)
+        throw std::runtime_error("audio codec frame handle is null");
 
-    const int freq = audio_codec->get_samplerate();
-    const int channels = audio_codec->get_channel(); 
-    const int fmt = audio_codec->get_format(); 
-    audioinput = make_unique<AudioInputModel>(freq, channels, fmt);
+    auto frame = audio_codec->get_frame();
+    audioinput = make_unique<AudioInputModel>(
+        frame->sample_rate, 
+        frame->ch_layout.nb_channels, 
+        frame->format
+    );
 
     std::string audio_model =  config.get_model_path() +  "/voice_activity_detection.tflite";
 
-    tflite_init_check(audioinput->initialize(
+    TFLITE_INIT_CHECK(audioinput->initialize(
         audio_model, lib_dir, cache_dir, backend, debug
     ));
 
@@ -530,11 +532,6 @@ AudioCodec::AudioCodec()
     _is_streaming   = false;
 }
 
-AudioCodec::~AudioCodec()
-{
-    assert(!_format_context);
-}
-
 bool AudioCodec::open(string filename, int verbose)
 {
     int ret;
@@ -550,9 +547,9 @@ bool AudioCodec::open(string filename, int verbose)
     _format_context = avformat_alloc_context();
     _audio_frame = av_frame_alloc();
 
-    if (!_format_context)
+    if (!_format_context || !_audio_frame)
     {
-        LOGE("alloc format context failed\n");
+        LOGE("alloc format or audio frame context failed\n");
         return false;
     }
 
@@ -589,7 +586,8 @@ bool AudioCodec::open(string filename, int verbose)
         if(codec_par->codec_type == AVMEDIA_TYPE_AUDIO)
             break;
     }
-    assert(codec_par != nullptr);
+    if(codec_par == nullptr)
+        throw std::invalid_argument("codec_par is a null ptr..");
 
     _audio_frame->sample_rate = codec_par->sample_rate;
     _audio_frame->ch_layout = codec_par->ch_layout;
