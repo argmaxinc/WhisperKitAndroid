@@ -113,16 +113,20 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
             for future in futures.as_completed(future_test):
                 device = future_test[future]
                 try: 
-                    output_json = future.result()
+                    delegate_file, output_json = future.result()
                 except Exception as exc:
                     print('device %r generated an exception: %s' % (device, exc))
                 else:
                     if output_json is None:
                         print('device %r test has failed..')
                         self.assertTrue(False)
+                    # writing out result JSON file
                     with open(f"{self.args.output}/{device}_{model_output_str}_{date_time_str}.json", "w")\
                         as json_file:
                         json.dump(output_json, json_file)
+                    # writing out delegate info log file
+                    os.rename(delegate_file, 
+                              f"{self.args.output}/{device}_{model_output_str}_{date_time_str}.log")
 
 
 class TestWhisperKitLinux(LinuxTestsMixin):

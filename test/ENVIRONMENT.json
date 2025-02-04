@@ -4,6 +4,7 @@
         "hf_repo": "argmaxinc/whisperkit-test-data",
         "datasets": ["librispeech-10mins", "earnings22-10mins"],
         "output_file": "output.json",
+        "delegate_file": "delegate.log",
         "android_dir": "/sdcard/argmax/tflite",
         "executable": "whisperkit-cli",
         "metadata": "metadata.json"

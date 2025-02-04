@@ -9,6 +9,7 @@ import os
 import time
 import json
 import evaluate
+import statistics
 import docker
 import threading
 from whisper.normalizers import EnglishTextNormalizer
@@ -32,6 +33,9 @@ class TestRunLinux:
         self.text_normalizer = EnglishTextNormalizer()
         self.container = docker.from_env()\
                             .containers.get(self.config['docker']['container'])
+        self.wers = []
+        self.total_tokens = 0
+        self.sum_time_elapsed = 0.0
 
     def _run_docker_cmd(self, cmd):
         cmds = f"/bin/bash -c '{cmd}'"
@@ -95,6 +99,7 @@ class TestRunLinux:
         normalized = self.text_normalizer(prediction_text)
         self.output_json["testInfo"]["prediction"] = normalized
         self.output_json["testInfo"]["wer"] = self._get_wer(reference, normalized)
+        self.wers.append(self.output_json["testInfo"]["wer"])
 
     def run_test(
             self, test_binary, 
@@ -117,6 +122,11 @@ class TestRunLinux:
         os.remove(output_file)
 
         self._put_test_info(data_set, file, metadata)
+        self.total_tokens += self.output_json["latencyStats"]["measurements"]["cumulativeTokens"]
+        self.sum_time_elapsed += self.output_json["latencyStats"]["measurements"]["timeElapsed"]
+
+        print(f" ** avg WER: {statistics.mean(self.wers)}")
+        print(f" ** toks/sec: {self.total_tokens / self.sum_time_elapsed}")        
         return self.output_json
 
 
