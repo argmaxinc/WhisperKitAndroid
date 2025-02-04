@@ -38,8 +38,8 @@ ENV AXIE_ROOT=/src/AXIE
 ARG ANDROID_NDK_ZIP=$ANDROID_NDK_VERSION-linux.zip
 ARG BAZEL_INSTALLER=bazel-6.5.0-installer-linux-x86_64.sh
 ARG BAZEL_DIR=/opt/bazel
-ARG QNN_RUNTIME=qnn-runtime-2.27.0.aar
-ARG QNN_TFLITE_DELEGATE=qnn-tflite-delegate-2.27.0.aar
+ARG QNN_RUNTIME=qnn-runtime-2.30.0.aar
+ARG QNN_TFLITE_DELEGATE=qnn-litert-delegate-2.30.0.aar
 ARG ANDROID_COMMAND_LINE_TOOLS=commandlinetools-linux-11076708_latest.zip
 
 # Copy build dependencies

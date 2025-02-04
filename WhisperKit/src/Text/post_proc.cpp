@@ -131,7 +131,9 @@ int PostProcModel::process(
      *          outputs[1] is max_text_token_logprob, 
      *          outputs[2] is logprobs[TOKEN_NO_SPEECH]
      */
-    assert(outputs.size() == 1);
+    if(outputs.size() != 1)
+        throw std::invalid_argument("outputs.size should be 1");
+
 
     auto* logprobs = reinterpret_cast<float*>(outputs[0].first);
     auto timestamp_logprob = logprobs[0];

@@ -7,12 +7,7 @@
 // TODO : move these and all audio related code to a separate, non header file.
 extern "C" {
 #include <libavformat/avformat.h>
-#include <libavutil/time.h>
-#include <libavutil/file.h>
 #include <libavcodec/avcodec.h>
-#include <libswresample/swresample.h>
-
-#include <libavutil/opt.h>
 #include <libavutil/channel_layout.h>
 #include <libavutil/samplefmt.h>
 }
@@ -51,16 +46,23 @@ class Runtime {
         void tflite_close_priv();
         int tflite_loop_priv();
         void tflite_perfjson_priv();
+        void tflite_init_audioinput(
+            const AudioCodec* audio_codec, 
+            const char* audio_file
+        );
+        int tflite_write_data_priv(
+            int size, 
+            char* pcm_buffer0, 
+            char* pcm_buffer1 = nullptr
+        );
+        void tflite_conclude_transcription();
+
         void text_output_proc_priv();
         bool check_qcom_soc();
         void encode_decode_postproc_priv(float timestamp);
         std::unique_ptr<std::string> cmdexec(const char* cmd);
-        int tflite_write_data_priv(char* pcm_buffer, int size);
-        void tflite_conclude_transcription();
         std::unique_ptr<std::string> get_result_text();
         void write_report(const char* audio_file);
-    
-        void tflite_init_audioinput(const AudioCodec* audio_codec, const char* audio_file);
         std::unique_ptr<TFLiteMessenger> messenger;
         std::mutex gmutex;
 
@@ -98,19 +100,17 @@ class AudioCodec
 {
 public:
     AudioCodec();
-    ~AudioCodec();
+    ~AudioCodec() = default;
 
-    bool    open(string filename, int verbose = 0);
+    bool    open(const string filename, int verbose = 0);
     void    close();
 
-    int             get_samplerate() const { return _freq; }
-    int             get_channel() const { return _channel; }
-    int             get_format() const;
-    AVFrame*        get_frame() const { return _dst_frame; }
+    AVFrame*        get_frame() const { return _audio_frame; }
     int64_t         get_duration_ms() const { return _duration; }
     bool            is_running() const { return _is_running; }
-    int             get_datasize() const { return _single_ch_datasize; }
+    int             get_datasize() const { return _frame_datasize; }
     int             decode_pcm();
+    bool            is_streaming() { return _is_streaming; }
 
 private:
     AVIOContext*    _io_context;
@@ -118,18 +118,14 @@ private:
     AVFormatContext *_format_context;
     AVCodecContext  *_codec_context;
     AVCodec         *_codec;
-    AVFrame         *_src_frame;
-    AVFrame         *_dst_frame;
-    SwrContext      *_swr;
+    AVFrame         *_audio_frame;
 
-    int             _freq;
-    int             _single_ch_datasize;
-    int             _channel;
-    AVSampleFormat  _sample_format;
+    int             _frame_datasize;
     string          _codec_name;
     int64_t         _duration;
     bool            _is_running;
     bool            _is_wav_input; 
+    bool            _is_streaming;
 };
 
 }
@@ -148,19 +144,11 @@ namespace WhisperKit::TranscribeTask {
 #endif
 
 #ifndef TFLITE_INIT_CHECK
-#define TFLITE_INIT_CHECK(x)                          \
-    if (!(x)) {                               \
+#define TFLITE_INIT_CHECK(x) \
+    if (!(x)) { \
         LOGE("Error at %s:%d\n", __FUNCTION__, __LINE__); \
-        exit(0);                                         \
+        exit(0); \
     }
-#endif
-
-#ifndef av_err2string
-#define av_err2string(errnum) \
-    av_make_error_string( \
-        (char*)__builtin_alloca(AV_ERROR_MAX_STRING_SIZE), \
-        AV_ERROR_MAX_STRING_SIZE, errnum \
-    )
 #endif
 
 Runtime::Runtime(const whisperkit_configuration_t& config) {
@@ -266,8 +254,6 @@ void Runtime::tflite_init_priv() {
     TFLITE_INIT_CHECK(decoder->initialize(
         decoder_model, lib_dir, cache_dir, backend, debug
     ));
-
-
     TFLITE_INIT_CHECK(postproc->initialize(
         postproc_model, lib_dir, cache_dir, kUndefinedBackend, debug
     ));
@@ -276,17 +262,20 @@ void Runtime::tflite_init_priv() {
     melspectro_inputs = melspectro->get_input_ptrs();
     melspectro_outputs = melspectro->get_output_ptrs();
     // outputs: melspectrogram
-    assert(melspectro_outputs.size() == 1);
+    if(melspectro_outputs.size() != 1)
+        throw std::invalid_argument("melspectro output tensor # has to be 1");
 
     encoder_inputs = encoder->get_input_ptrs();
     // retrieve encoder output tensor pointers
     encoder_outputs = encoder->get_output_ptrs();
     // outputs: k_cache, v_cache
-    assert(encoder_outputs.size() == 2);
+    if(encoder_outputs.size() != 2)
+        throw std::invalid_argument("audio encoder output tensor # has to be 2");
 
     decoder_outputs = decoder->get_output_ptrs();
     // outputs: logits, k_cache, v_cache
-    assert(decoder_outputs.size() == 3);
+    if(decoder_outputs.size() != 3)
+        throw std::invalid_argument("text decoder output tensor # has to be 3");
 
     all_tokens.clear();
     all_tokens.reserve(1 << 18); // max 256K tokens
@@ -299,11 +288,15 @@ void Runtime::tflite_init_priv() {
 }
 
 void Runtime::tflite_init_audioinput(const AudioCodec* audio_codec, const char* audio_file) {
+    if(audio_codec->get_frame() == nullptr)
+        throw std::runtime_error("audio codec frame handle is null");
 
-    const int freq = audio_codec->get_samplerate();
-    const int channels = audio_codec->get_channel(); 
-    const int fmt = audio_codec->get_format(); 
-    audioinput = make_unique<AudioInputModel>(freq, channels, fmt);
+    auto frame = audio_codec->get_frame();
+    audioinput = make_unique<AudioInputModel>(
+        frame->sample_rate, 
+        frame->ch_layout.nb_channels, 
+        frame->format
+    );
 
     std::string audio_model =  config.get_model_path() +  "/voice_activity_detection.tflite";
 
@@ -312,7 +305,6 @@ void Runtime::tflite_init_audioinput(const AudioCodec* audio_codec, const char* 
     ));
 
     start_exec = chrono::high_resolution_clock::now();
-
 }
 
 
@@ -429,11 +421,15 @@ void Runtime::encode_decode_postproc_priv(float timestamp)
     all_msgs.push_back(messenger->get_message());
 }
 
-int Runtime::tflite_write_data_priv(char* pcm_buffer, int size) {
-    if(!pcm_buffer || size <= 0){
+int Runtime::tflite_write_data_priv(
+    int size, 
+    char* pcm_buffer0, 
+    char* pcm_buffer1) 
+{
+    if(!pcm_buffer0 || size <= 0){
         return -1;
     }
-    audioinput->fill_pcmdata(size, pcm_buffer);
+    audioinput->fill_pcmdata(size, pcm_buffer0, pcm_buffer1);
     return audioinput->get_curr_buf_time();
 }
 void Runtime::tflite_perfjson_priv() {
@@ -459,19 +455,18 @@ void Runtime::write_report(const char* audio_file) {
     testinfo["device"] = *cmdexec("lscpu | grep Architecture");
 #endif
 
+    float duration =
+        chrono::duration_cast<std::chrono::microseconds>(end_exec - start_exec).count()/1000.0;
+
     time_t now;
     char buf[32];
     time(&now);
     strftime(buf, sizeof buf, "%FT%TZ", gmtime(&now));
     testinfo["date"] = buf;
 
-    float duration =
-        chrono::duration_cast<std::chrono::milliseconds>(end_exec - start_exec).count();
-
     filesystem::path audio_path(audio_file); 
     testinfo["audioFile"] = audio_path.filename().string();
     testinfo["prediction"] = all_tokens; 
-    testinfo["timeElapsedInSeconds"] = duration;
 
     timings["inputAudioSeconds"] = audioinput->get_total_input_time();
     timings["totalEncodingRuns"] = encoder->get_inference_num();
@@ -527,22 +522,14 @@ static int cbDecodeInterrupt(void *ctx)
 AudioCodec::AudioCodec()
 {
     _format_context = nullptr;
-    _freq           = 0;
-    _channel        = 0;
     _io_context     = nullptr;
     _io_buffer      = nullptr;
     _codec_context  = nullptr;
     _codec          = nullptr;
-    _src_frame      = nullptr;
-    _dst_frame      = nullptr;
-    _sample_format  = AV_SAMPLE_FMT_S16P;
+    _audio_frame    = nullptr;
     _is_wav_input   = false;
-    _single_ch_datasize = 0;
-}
-
-AudioCodec::~AudioCodec()
-{
-    assert(!_format_context);
+    _frame_datasize = 0;
+    _is_streaming   = false;
 }
 
 bool AudioCodec::open(string filename, int verbose)
@@ -551,18 +538,18 @@ bool AudioCodec::open(string filename, int verbose)
     AVCodecParameters *codec_par = nullptr;
     AVDictionary **opts = nullptr;
     AVDictionary *format_opts = nullptr;
-
+    
     if(!verbose){
         av_log_set_level(AV_LOG_ERROR);
     }
+
     // allocating Format I/O context
     _format_context = avformat_alloc_context();
-    _src_frame = av_frame_alloc();
-    _dst_frame = av_frame_alloc();
+    _audio_frame = av_frame_alloc();
 
-    if (!_format_context)
+    if (!_format_context || !_audio_frame)
     {
-        LOGE("alloc format context failed\n");
+        LOGE("alloc format or audio frame context failed\n");
         return false;
     }
 
@@ -575,18 +562,18 @@ bool AudioCodec::open(string filename, int verbose)
     
     AVInputFormat *input_format = nullptr;
 
+    if(strstr(filename.c_str(), "http://") || strstr(filename.c_str(), "tcp://")) { 
+        av_dict_set(&format_opts, "listen", "0", 0);
+        av_dict_set(&format_opts, "timeout", "20000000", 0);
+        _is_streaming = true;
+    }
     ret = avformat_open_input(
         &_format_context, filename.c_str(), input_format, &format_opts
     );
     if (ret < 0)
     {
-        LOGE("avformat_open_input Error: %s\n", av_err2string(ret));
+        LOGE("avformat_open_input Error: %s\n", *av_err2string(ret));
         return false;
-    }
-    if (filename.find(".wav") != string::npos
-        || filename.find(".wave") != string::npos)
-    {
-        _is_wav_input = true;
     }
 
     opts = (AVDictionary**)av_calloc(_format_context->nb_streams, sizeof(*opts));
@@ -599,13 +586,21 @@ bool AudioCodec::open(string filename, int verbose)
         if(codec_par->codec_type == AVMEDIA_TYPE_AUDIO)
             break;
     }
-    assert(codec_par != nullptr);
-    _freq = codec_par->sample_rate;
-    _channel = codec_par->ch_layout.nb_channels;
-    _sample_format  = (AVSampleFormat)codec_par->format;
+    if(codec_par == nullptr)
+        throw std::invalid_argument("codec_par is a null ptr..");
 
-    if (!_is_wav_input)
+    _audio_frame->sample_rate = codec_par->sample_rate;
+    _audio_frame->ch_layout = codec_par->ch_layout;
+    if (codec_par->format == AV_SAMPLE_FMT_NONE)
+        _audio_frame->format = AV_SAMPLE_FMT_S16;
+    else
+        _audio_frame->format = codec_par->format;
+
+    if (filename.find(".wav") != string::npos
+        || filename.find(".wave") != string::npos)
     {
+        _is_wav_input = true;
+    } else {
         _codec = (AVCodec*)avcodec_find_decoder(codec_par->codec_id);
         if (!_codec)
         {
@@ -614,7 +609,7 @@ bool AudioCodec::open(string filename, int verbose)
         }
         _codec_name = string(avcodec_get_name(codec_par->codec_id));
         
-        //LOGI("Audio Codec: %s\n", _codec_name.c_str());
+        // LOGI("Audio Codec: %s\n", _codec_name.c_str());
         if(_codec_context != nullptr){
             avcodec_free_context(&_codec_context);
         }
@@ -626,39 +621,8 @@ bool AudioCodec::open(string filename, int verbose)
             LOGE("Could not open audio codec..\n");
             return false;
         }
-        _channel = 1; // we'll convert to mono, S16LE format
-
-        _swr = swr_alloc();
-        av_opt_set_chlayout(
-            _swr, "in_chlayout", &_codec_context->ch_layout, 0
-        );
-        av_opt_set_int(
-            _swr, "in_sample_rate", _codec_context->sample_rate, 0
-        );
-        av_opt_set_sample_fmt(
-            _swr, "in_sample_fmt", (AVSampleFormat)codec_par->format, 0
-        );
-
-        _dst_frame->sample_rate = _codec_context->sample_rate;
-        _dst_frame->format = AV_SAMPLE_FMT_S16;
-        _dst_frame->ch_layout = AV_CHANNEL_LAYOUT_MONO;
-
-        av_opt_set_chlayout(
-            _swr, "out_chlayout", &_dst_frame->ch_layout,  0
-        );
-        av_opt_set_int(
-            _swr, "out_sample_rate", _dst_frame->sample_rate, 0
-        );
-        av_opt_set_sample_fmt(
-            _swr, "out_sample_fmt", (AVSampleFormat)_dst_frame->format,  0
-        );
-        ret = swr_init(_swr);
-        if (ret < 0) {
-            LOGE("Error in swr_init: %s\n", av_err2string(ret));
-            return false;
-        }
     }
-    
+
     if(verbose > 0){
         av_dump_format(_format_context, 0, nullptr, false);
     }
@@ -674,17 +638,10 @@ void AudioCodec::close()
         av_free(_codec_context);
         _codec_context = nullptr;
     }
-    if(_dst_frame){
-        av_frame_unref(_dst_frame);
-        av_frame_free(&_dst_frame);
-        _dst_frame = nullptr;
-        av_frame_unref(_src_frame);
-        av_frame_free(&_src_frame);
-        _src_frame = nullptr;
-    }
-    if (_swr) {
-        swr_free(&_swr);
-        _swr = nullptr;
+    if(_audio_frame){
+        av_frame_unref(_audio_frame);
+        av_frame_free(&_audio_frame);
+        _audio_frame = nullptr;
     }
     if (_io_context) {
         avio_flush(_io_context);
@@ -712,63 +669,40 @@ int AudioCodec::decode_pcm()
     }
 
     if (_is_wav_input && packet.size > 0){
-        _dst_frame->data[0] = packet.data;  
-        _single_ch_datasize = packet.size;
+        _audio_frame->data[0] = packet.data;  
+        _audio_frame->nb_samples = packet.size 
+            / av_get_bytes_per_sample((AVSampleFormat)_audio_frame->format);
+        _frame_datasize = packet.size;
         return 0;          
     }
+
     if(packet.size > 0) {
         ret = avcodec_send_packet(_codec_context, &packet);
         if (ret < 0) {
-            LOGE("Error sending a packet: %s\n", av_err2string(ret));
+            LOGE("Error sending a packet: %s\n", *av_err2string(ret));
             return ret;
         }
     }
-    av_frame_unref(_src_frame);
-    ret = avcodec_receive_frame(_codec_context, _src_frame);
+    av_frame_unref(_audio_frame);
+    ret = avcodec_receive_frame(_codec_context, _audio_frame);
     if (ret == AVERROR(EAGAIN)) {
         return ret;
     } else if (ret == AVERROR_EOF) {
         return ret;
     } else if (ret < 0) {
-        LOGE("Error during decoding: %s\n", av_err2string(ret));
+        LOGE("Error during decoding: %s\n", *av_err2string(ret));
         return ret;
     }
-    if(_sample_format != AV_SAMPLE_FMT_S16P){
-        av_frame_unref(_dst_frame);
 
-        _dst_frame->sample_rate = _codec_context->sample_rate;
-        _dst_frame->format = AV_SAMPLE_FMT_S16;
-        _dst_frame->ch_layout = AV_CHANNEL_LAYOUT_MONO;
-
-        ret = swr_convert_frame(_swr, _dst_frame, _src_frame);
-        if (ret < 0) {
-            LOGE("Error in swr_convert_frame: %s\n", av_err2string(ret));
-            return -1;
-        }
-    } else 
-        av_frame_move_ref(_dst_frame, _src_frame);
-
-    _single_ch_datasize = _dst_frame->nb_samples 
-        * av_get_bytes_per_sample((AVSampleFormat)_dst_frame->format);
+    _frame_datasize = _audio_frame->nb_samples 
+        * av_get_bytes_per_sample((AVSampleFormat)_audio_frame->format);
 
     return 0;
-}
-
-int AudioCodec::get_format() const { 
-    return _dst_frame->format; 
 }
 
 
 #ifdef QCOM_SOC
 #undef QCOM_SOC
-#endif
-
-#ifdef TFLITE_INIT_CHECK
-#undef TFLITE_INIT_CHECK
-#endif
-
-#ifdef av_err2string
-#undef av_err2string
 #endif
 
 }
@@ -797,7 +731,8 @@ void TranscribeTask::textOutputProc() {
 
     runtime->messenger->_cond_var.wait(ulock, [this]
     {
-        //runtime->messenger->print();
+        // if (audio_codec->is_streaming())
+        //     runtime->messenger->print();
         return !runtime->messenger->_running;
     });
     });
@@ -806,7 +741,6 @@ void TranscribeTask::textOutputProc() {
 
 void TranscribeTask::transcribe(const char* audio_file, whisperkit_transcription_result_t* transcription_result) {
 
-
     if( !audio_codec->open(audio_file, config.get_verbose()) ){ 
         LOGE("Error opening audio file: %s\n", audio_file);
         throw std::runtime_error("Error opening audio file");
@@ -814,10 +748,11 @@ void TranscribeTask::transcribe(const char* audio_file, whisperkit_transcription
 
     runtime->tflite_init_audioinput(audio_codec.get(), audio_file);
 
-
     textOutputProc();
 
     int pcm_secs = 0, ret = 0;
+    int segment_length = audio_codec->is_streaming() ? 15 : 30;
+    
     while(true) {
         if (ret != AVERROR_EOF) {
 
@@ -829,11 +764,12 @@ void TranscribeTask::transcribe(const char* audio_file, whisperkit_transcription
             }
 
             pcm_secs = runtime->tflite_write_data_priv(
-                (char*)audio_codec->get_frame()->extended_data[0], 
-                audio_codec->get_datasize()
+                audio_codec->get_datasize(),
+                (char*)audio_codec->get_frame()->data[0], 
+                (char*)audio_codec->get_frame()->data[1]
             );
 
-            if (pcm_secs < 30) {
+            if (pcm_secs < segment_length) {
                 continue;
             }
         }
