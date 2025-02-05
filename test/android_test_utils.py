@@ -207,7 +207,7 @@ class TestRunADB:
                     
         return diffs
     
-    def _parse_delegate_info(self, file_path):
+    def _parse_delegate_file(self, file_path):
         delegate_counts = defaultdict(int)
         total_nodes = 0
         
@@ -224,7 +224,11 @@ class TestRunADB:
         
         for delegate, count in delegate_counts.items():
             percentage = (count / total_nodes * 100) if total_nodes > 0 else 0
-            delegate_counts[delegate] = (count, total_nodes, f"{percentage}%")
+            delegate_counts[delegate] = {
+                "count": count,
+                "totalNodes": total_nodes,
+                "percentage": f"{percentage:.2f}%"
+            }
         
         return delegate_counts
 
@@ -242,7 +246,7 @@ class TestRunADB:
         device_info["batt_level"] = self.batts[1]
 
         if self.delegate_file and os.path.exists(self.delegate_file):
-            delegate_counts = self._parse_delegate_info(self.delegate_file)
+            delegate_counts = self._parse_delegate_file(self.delegate_file)
             self.output_json["delegateInfo"] = delegate_counts
 
         self.output_json["deviceInfo"] = json.dumps(device_info)
