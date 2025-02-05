@@ -75,13 +75,13 @@ class TestRunLinux:
         return True
 
     def _get_wer(self, ref, pred):
-        wer_metric = evaluate.load("wer")
-        avg_wer = wer_metric.compute(
+        wer_metric = evaluate.load("argmaxinc/detailed-wer")
+        detailed_wer = wer_metric.compute(
             references=[ref,],
             predictions=[pred,],
+            detailed=True
         )
-        avg_wer = round(100 * avg_wer, 2)
-        return avg_wer
+        return detailed_wer
 
     def _put_test_info(self, data_set, file, metadata):
         reference = None
@@ -91,15 +91,26 @@ class TestRunLinux:
                 reference = data['text']
                 break
 
-        self.output_json["testInfo"]["datasetDir"] = data_set
-        self.output_json["testInfo"]["reference"] = reference
-        
         prediction_token = self.output_json["testInfo"]["prediction"]
         prediction_text = self.tokenizer.decode(prediction_token)
         normalized = self.text_normalizer(prediction_text)
-        self.output_json["testInfo"]["prediction"] = normalized
-        self.output_json["testInfo"]["wer"] = self._get_wer(reference, normalized)
-        self.wers.append(self.output_json["testInfo"]["wer"])
+        file = self.output_json["testInfo"]["audioFile"]
+        audio_duration = self.output_json["timings"]["inputAudioSeconds"]
+        wer = self._get_wer(reference, normalized)
+        
+        self.output_json = {}
+        self.output_json["reference"] = reference
+        self.output_json["prediction"] = normalized
+        self.output_json["wer"] = wer["wer"]
+        self.output_json["file"] = file
+        self.output_json["audioDuration"] = audio_duration
+        self.output_json["substitutionRate"] = wer["substitution_rate"]
+        self.output_json["deletionRate"] = wer["deletion_rate"]
+        self.output_json["insertionRate"] = wer["insertion_rate"]
+        self.output_json["numSubstitutions"] = wer["num_substitutions"]
+        self.output_json["numDeletions"] = wer["num_deletions"]
+        self.output_json["numInsertions"] = wer["num_insertions"]
+        self.output_json["numHits"] = wer["num_hits"]
 
     def run_test(
             self, test_binary, 
@@ -151,7 +162,7 @@ class LinuxTestsMixin(unittest.TestCase):
     def run_test(self):
         host = TestRunLinux(self.config, self.tokenizer)
     
-        outputs_json = []
+        outputs_json = {"results": []}
         for file in self.files:
             with self.lock:
                 test_no = self.test_no
@@ -169,7 +180,7 @@ class LinuxTestsMixin(unittest.TestCase):
             
             print(f'======== Completed test #{test_no} (audio: {file}) on linux host ========')
 
-            outputs_json.append(output)
+            outputs_json["results"].append(output)
             time.sleep(1)
 
         json.dumps(outputs_json)

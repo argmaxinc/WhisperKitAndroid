@@ -12,6 +12,7 @@ import evaluate
 import statistics
 from threading import Thread, Condition, Lock
 from whisper.normalizers import EnglishTextNormalizer
+from difflib import Differ
 
 
 class TestRunADB:
@@ -175,13 +176,34 @@ class TestRunADB:
         self.probe_thread.join()
 
     def _get_wer(self, ref, pred):
-        wer_metric = evaluate.load("wer")
-        avg_wer = wer_metric.compute(
+        wer_metric = evaluate.load("argmaxinc/detailed-wer")
+        detailed_wer = wer_metric.compute(
             references=[ref,],
             predictions=[pred,],
+            detailed=True
         )
-        avg_wer = round(100 * avg_wer, 2)
-        return avg_wer
+        return detailed_wer
+    
+    def _get_text_diffs(self, ref, pred):
+        d = Differ()
+        reference_words = ref.split()
+        prediction_words = pred.split()
+        
+        diffs = []
+        for token in d.compare(reference_words, prediction_words):
+            if token.startswith('?'):
+                continue
+                
+            status = token[0]
+            word = token[2:].strip()
+            
+            if word:  
+                if status == ' ':
+                    diffs.append((word, None))  
+                else:
+                    diffs.append((word, status))  
+                    
+        return diffs
 
     def _put_test_info(self, data_set, file, metadata):
         reference = None
@@ -203,9 +225,18 @@ class TestRunADB:
         prediction_token = self.output_json["testInfo"]["prediction"]
         prediction_text = self.tokenizer.decode(prediction_token)
         normalized = self.text_normalizer(prediction_text)
+        wer = self._get_wer(reference, normalized)
+        
         self.output_json["testInfo"]["prediction"] = normalized
-        self.output_json["testInfo"]["wer"] = self._get_wer(reference, normalized)
-        self.wers.append(self.output_json["testInfo"]["wer"])
+        self.output_json["testInfo"]["diff"] = self._get_text_diffs(reference, normalized)
+        self.output_json["testInfo"]["wer"] = wer["wer"]
+        self.output_json["testInfo"]["substitutionRate"] = wer["substitution_rate"]
+        self.output_json["testInfo"]["deletionRate"] = wer["deletion_rate"]
+        self.output_json["testInfo"]["insertionRate"] = wer["insertion_rate"]
+        self.output_json["testInfo"]["numSubstitutions"] = wer["num_substitutions"]
+        self.output_json["testInfo"]["numDeletions"] = wer["num_deletions"]
+        self.output_json["testInfo"]["numInsertions"] = wer["num_insertions"]
+        self.output_json["testInfo"]["numHits"] = wer["num_hits"]
 
     def run_test(
             self, test_binary, 
