@@ -91,7 +91,15 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
             for dataset in self.config['test']['datasets']:
                 if dataset in self.args.input:
                     print(f"dataset: {dataset}")
-                    self.args.output = f'./outputs/{model_dir}/{dataset}'
+                    try:
+                        git_hash = subprocess.check_output(['git', 'rev-parse', '--short=7', 'HEAD'], 
+                                                        cwd=os.path.dirname(os.path.abspath(__file__)) + "/..").decode('ascii').strip()
+                        git_timestamp = subprocess.check_output(['git', 'show', '-s', '--format=%cd', '--date=format:%Y-%m-%dT%H%M%S', 'HEAD'],
+                                                        cwd=os.path.dirname(os.path.abspath(__file__)) + "/..").decode('ascii').strip()
+                        self.args.output = f'./outputs/android/{git_timestamp}_{git_hash}'
+                    except subprocess.CalledProcessError:
+                        timestamp = datetime.now().strftime("%Y-%m-%dT%H%M%S")
+                        self.args.output = f'./outputs/android/{timestamp}_nogit'
                     model_output_str = f'{model_dir}_{dataset}'
 
             if self.args.output is None:
@@ -176,7 +184,7 @@ class TestWhisperKitLinux(LinuxTestsMixin):
             model_dir = path_parts[-1]
             for dataset in self.config['test']['datasets']:
                 if dataset in self.args.input:
-                    self.args.output = f'./outputs/{model_dir}/{dataset}'
+                    self.args.output = f'./outputs/linux/{model_dir}/{dataset}'
                     model_output_str = f'{model_dir}_{dataset}'
 
             if self.args.output is None:
