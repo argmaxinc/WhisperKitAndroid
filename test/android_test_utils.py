@@ -207,7 +207,7 @@ class TestRunADB:
                     
         return diffs
     
-    def _parse_delegate_file(self, file_path):
+    def _parse_delegate_info(self, file_path):
         delegate_counts = defaultdict(int)
         total_nodes = 0
         
@@ -224,9 +224,9 @@ class TestRunADB:
         
         for delegate, count in delegate_counts.items():
             percentage = (count / total_nodes * 100) if total_nodes > 0 else 0
-            delegate_counts[delegate] = (count, f"{percentage}%")
-
-        return delegate_counts        
+            delegate_counts[delegate] = (count, total_nodes, f"{percentage}%")
+        
+        return delegate_counts
 
     def _put_test_info(self, data_set, file, metadata):
         reference = None
@@ -242,8 +242,8 @@ class TestRunADB:
         device_info["batt_level"] = self.batts[1]
 
         if self.delegate_file and os.path.exists(self.delegate_file):
-            delegation_info = self._parse_delegate_file(self.delegate_file)
-            device_info["delegationInfo"] = delegation_info
+            delegate_counts = self._parse_delegate_info(self.delegate_file)
+            self.output_json["delegateInfo"] = delegate_counts
 
         self.output_json["deviceInfo"] = json.dumps(device_info)
         self.output_json["testInfo"]["datasetDir"] = data_set
@@ -253,6 +253,8 @@ class TestRunADB:
         prediction_text = self.tokenizer.decode(prediction_token)
         normalized = self.text_normalizer(prediction_text)
         wer = self._get_wer(reference, normalized)
+
+        self.wers.append(wer["wer"])
         
         self.output_json["testInfo"]["prediction"] = normalized
         self.output_json["testInfo"]["diff"] = self._get_text_diffs(reference, normalized)

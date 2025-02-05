@@ -94,9 +94,12 @@ class TestRunLinux:
         prediction_token = self.output_json["testInfo"]["prediction"]
         prediction_text = self.tokenizer.decode(prediction_token)
         normalized = self.text_normalizer(prediction_text)
+        
         file = self.output_json["testInfo"]["audioFile"]
         audio_duration = self.output_json["timings"]["inputAudioSeconds"]
         wer = self._get_wer(reference, normalized)
+
+        self.wers.append(wer["wer"])
         
         self.output_json = {}
         self.output_json["reference"] = reference
