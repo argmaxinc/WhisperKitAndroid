@@ -28,7 +28,8 @@ class TestRunLinux:
         self.root = os.path.dirname(os.path.abspath(__file__)) + "/.."
         self.bin_path = self.config['docker']['rootdir'] + "/build/linux"
         self.lib_path = self.config['docker']['rootdir'] + "/external/libs/linux"
-        self.output_json = None
+        self.output_json = {}
+        self.report_json = {}
         self.tokenizer = tokenizer
         self.text_normalizer = EnglishTextNormalizer()
         self.container = docker.from_env()\
@@ -96,24 +97,24 @@ class TestRunLinux:
         normalized = self.text_normalizer(prediction_text)
         
         file = self.output_json["testInfo"]["audioFile"]
-        audio_duration = self.output_json["timings"]["inputAudioSeconds"]
+        audio_duration = self.output_json["testInfo"]["timings"]["inputAudioSeconds"]
         wer = self._get_wer(reference, normalized)
 
         self.wers.append(wer["wer"])
         
-        self.output_json = {}
-        self.output_json["reference"] = reference
-        self.output_json["prediction"] = normalized
-        self.output_json["wer"] = wer["wer"]
-        self.output_json["file"] = file
-        self.output_json["audioDuration"] = audio_duration
-        self.output_json["substitutionRate"] = wer["substitution_rate"]
-        self.output_json["deletionRate"] = wer["deletion_rate"]
-        self.output_json["insertionRate"] = wer["insertion_rate"]
-        self.output_json["numSubstitutions"] = wer["num_substitutions"]
-        self.output_json["numDeletions"] = wer["num_deletions"]
-        self.output_json["numInsertions"] = wer["num_insertions"]
-        self.output_json["numHits"] = wer["num_hits"]
+        self.report_json = {}
+        self.report_json["reference"] = reference
+        self.report_json["prediction"] = normalized
+        self.report_json["wer"] = wer["wer"]
+        self.report_json["file"] = file
+        self.report_json["audioDuration"] = audio_duration
+        self.report_json["substitutionRate"] = wer["substitution_rate"]
+        self.report_json["deletionRate"] = wer["deletion_rate"]
+        self.report_json["insertionRate"] = wer["insertion_rate"]
+        self.report_json["numSubstitutions"] = wer["num_substitutions"]
+        self.report_json["numDeletions"] = wer["num_deletions"]
+        self.report_json["numInsertions"] = wer["num_insertions"]
+        self.report_json["numHits"] = wer["num_hits"]
 
     def run_test(
             self, test_binary, 
@@ -141,7 +142,7 @@ class TestRunLinux:
 
         print(f" ** avg WER: {statistics.mean(self.wers)}")
         print(f" ** toks/sec: {self.total_tokens / self.sum_time_elapsed}")        
-        return self.output_json
+        return self.report_json
 
 
 class LinuxTestsMixin(unittest.TestCase):
