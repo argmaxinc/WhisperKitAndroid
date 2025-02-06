@@ -9,8 +9,12 @@ import os
 import time
 import json
 import evaluate
+import statistics
+import re
 from threading import Thread, Condition, Lock
 from whisper.normalizers import EnglishTextNormalizer
+from difflib import Differ
+from collections import defaultdict
 
 
 class TestRunADB:
@@ -44,6 +48,11 @@ class TestRunADB:
         self.tokenizer = tokenizer
         self.text_normalizer = EnglishTextNormalizer()
         self.serial = serial
+        self.delegate_file = None
+        self.first_exec = True
+        self.wers = []
+        self.total_tokens = 0
+        self.sum_time_elapsed = 0.0
 
     def _adb(self, cmd):
         cmds = ["adb", "-s", self.serial]
@@ -85,6 +94,10 @@ class TestRunADB:
                 f"--report --report-path ."
             ]
         )
+
+        if self.first_exec:
+            test_cmds += f" --verbose > {self.config['test']['delegate_file']}"
+
         print(f"Running: {test_cmds}")
         self.executing = True
         with self.condition:
@@ -165,13 +178,59 @@ class TestRunADB:
         self.probe_thread.join()
 
     def _get_wer(self, ref, pred):
-        wer_metric = evaluate.load("wer")
-        avg_wer = wer_metric.compute(
+        wer_metric = evaluate.load("argmaxinc/detailed-wer")
+        detailed_wer = wer_metric.compute(
             references=[ref,],
             predictions=[pred,],
+            detailed=True
         )
-        avg_wer = round(100 * avg_wer, 2)
-        return avg_wer
+        return detailed_wer
+    
+    def _get_text_diffs(self, ref, pred):
+        d = Differ()
+        reference_words = ref.split()
+        prediction_words = pred.split()
+        
+        diffs = []
+        for token in d.compare(reference_words, prediction_words):
+            if token.startswith('?'):
+                continue
+                
+            status = token[0]
+            word = token[2:].strip()
+            
+            if word:  
+                if status == ' ':
+                    diffs.append((word, None))  
+                else:
+                    diffs.append((word, status))  
+                    
+        return diffs
+    
+    def _parse_delegate_file(self, file_path):
+        delegate_counts = defaultdict(int)
+        total_nodes = 0
+        
+        pattern = r"Node \d+ is a (TfLite\w+) node .+?, which has delegated (\d+) nodes:"
+        
+        with open(file_path, 'r') as file:
+            for line in file:
+                match = re.search(pattern, line)
+                if match:
+                    delegate_type = match.group(1)
+                    node_count = int(match.group(2))
+                    delegate_counts[delegate_type] += node_count
+                    total_nodes += node_count
+        
+        for delegate, count in delegate_counts.items():
+            percentage = (count / total_nodes * 100) if total_nodes > 0 else 0
+            delegate_counts[delegate] = {
+                "count": count,
+                "totalNodes": total_nodes,
+                "percentage": f"{percentage:.2f}%"
+            }
+        
+        return delegate_counts
 
     def _put_test_info(self, data_set, file, metadata):
         reference = None
@@ -186,6 +245,10 @@ class TestRunADB:
         device_info["cpu_temp"] = self.temps[1]
         device_info["batt_level"] = self.batts[1]
 
+        if self.delegate_file and os.path.exists(self.delegate_file):
+            delegate_counts = self._parse_delegate_file(self.delegate_file)
+            self.output_json["delegateInfo"] = delegate_counts
+
         self.output_json["deviceInfo"] = json.dumps(device_info)
         self.output_json["testInfo"]["datasetDir"] = data_set
         self.output_json["testInfo"]["reference"] = reference
@@ -193,8 +256,20 @@ class TestRunADB:
         prediction_token = self.output_json["testInfo"]["prediction"]
         prediction_text = self.tokenizer.decode(prediction_token)
         normalized = self.text_normalizer(prediction_text)
+        wer = self._get_wer(reference, normalized)
+
+        self.wers.append(wer["wer"])
+        
         self.output_json["testInfo"]["prediction"] = normalized
-        self.output_json["testInfo"]["wer"] = self._get_wer(reference, normalized)
+        self.output_json["testInfo"]["diff"] = self._get_text_diffs(reference, normalized)
+        self.output_json["testInfo"]["wer"] = wer["wer"]
+        self.output_json["testInfo"]["substitutionRate"] = wer["substitution_rate"]
+        self.output_json["testInfo"]["deletionRate"] = wer["deletion_rate"]
+        self.output_json["testInfo"]["insertionRate"] = wer["insertion_rate"]
+        self.output_json["testInfo"]["numSubstitutions"] = wer["num_substitutions"]
+        self.output_json["testInfo"]["numDeletions"] = wer["num_deletions"]
+        self.output_json["testInfo"]["numInsertions"] = wer["num_insertions"]
+        self.output_json["testInfo"]["numHits"] = wer["num_hits"]
 
     def run_test(
             self, test_binary, 
@@ -212,12 +287,21 @@ class TestRunADB:
         if os.path.exists(output_file) is False:
             return None
 
+        if self.first_exec:
+            self.delegate_file = self.pull(file=self.config['test']['delegate_file'])
+            self.first_exec = False
+
         f = open(output_file)
         self.output_json = json.load(f)
         f.close()
         os.remove(output_file)
 
         self._put_test_info(data_set, file, metadata)
+        self.total_tokens += self.output_json["latencyStats"]["measurements"]["cumulativeTokens"]
+        self.sum_time_elapsed += self.output_json["latencyStats"]["measurements"]["timeElapsed"]
+
+        print(f" ** avg WER: {statistics.mean(self.wers)}")
+        print(f" ** toks/sec: {self.total_tokens / self.sum_time_elapsed}")
         return self.output_json
 
 
@@ -243,6 +327,8 @@ class AndroidTestsMixin(unittest.TestCase):
                          self.tokenizer, device)
     
         outputs_json = []
+        idx = 0
+        intermediate_file = f"{self.args.output}/{device}_intermediate.json"
         for file in self.files:
             with self.lock:
                 test_no = self.test_no
@@ -260,7 +346,16 @@ class AndroidTestsMixin(unittest.TestCase):
             print(f'======== Completed test #{test_no} (audio: {file}) on {device} ========')
 
             outputs_json.append(output)
+            
+            idx += 1
+            if idx % 10 == 0:
+                with open(intermediate_file, "w") as json_file:
+                    json.dump(outputs_json, json_file)
             time.sleep(1)
 
         json.dumps(outputs_json)
-        return outputs_json
+
+        if os.path.exists(intermediate_file):
+            os.remove(intermediate_file)
+        
+        return adb.delegate_file, outputs_json

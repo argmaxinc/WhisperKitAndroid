@@ -91,7 +91,15 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
             for dataset in self.config['test']['datasets']:
                 if dataset in self.args.input:
                     print(f"dataset: {dataset}")
-                    self.args.output = f'./outputs/{model_dir}/{dataset}'
+                    try:
+                        git_hash = subprocess.check_output(['git', 'rev-parse', '--short=7', 'HEAD'], 
+                                                        cwd=os.path.dirname(os.path.abspath(__file__)) + "/..").decode('ascii').strip()
+                        git_timestamp = subprocess.check_output(['git', 'show', '-s', '--format=%cd', '--date=format:%Y-%m-%dT%H%M%S', 'HEAD'],
+                                                        cwd=os.path.dirname(os.path.abspath(__file__)) + "/..").decode('ascii').strip()
+                        self.args.output = f'./outputs/android/{git_timestamp}_{git_hash}'
+                    except subprocess.CalledProcessError:
+                        timestamp = datetime.now().strftime("%Y-%m-%dT%H%M%S")
+                        self.args.output = f'./outputs/android/{timestamp}_nogit'
                     model_output_str = f'{model_dir}_{dataset}'
 
             if self.args.output is None:
@@ -113,16 +121,20 @@ class TestWhisperKitAndroid(AndroidTestsMixin):
             for future in futures.as_completed(future_test):
                 device = future_test[future]
                 try: 
-                    output_json = future.result()
+                    delegate_file, output_json = future.result()
                 except Exception as exc:
                     print('device %r generated an exception: %s' % (device, exc))
                 else:
                     if output_json is None:
                         print('device %r test has failed..')
                         self.assertTrue(False)
+                    # writing out result JSON file
                     with open(f"{self.args.output}/{device}_{model_output_str}_{date_time_str}.json", "w")\
                         as json_file:
                         json.dump(output_json, json_file)
+                    # writing out delegate info log file
+                    os.rename(delegate_file, 
+                              f"{self.args.output}/{device}_{model_output_str}_{date_time_str}.log")
 
 
 class TestWhisperKitLinux(LinuxTestsMixin):
@@ -176,7 +188,7 @@ class TestWhisperKitLinux(LinuxTestsMixin):
             model_dir = path_parts[-1]
             for dataset in self.config['test']['datasets']:
                 if dataset in self.args.input:
-                    self.args.output = f'./outputs/{model_dir}/{dataset}'
+                    self.args.output = f'./outputs/linux/{model_dir}/{dataset}'
                     model_output_str = f'{model_dir}_{dataset}'
 
             if self.args.output is None:

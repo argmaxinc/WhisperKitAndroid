@@ -466,7 +466,7 @@ void Runtime::write_report(const char* audio_file) {
     testinfo["date"] = buf;
 
     float duration =
-        chrono::duration_cast<std::chrono::milliseconds>(end_exec - start_exec).count();
+        chrono::duration_cast<std::chrono::microseconds>(end_exec - start_exec).count()/1000.0;
 
     filesystem::path audio_path(audio_file); 
     testinfo["audioFile"] = audio_path.filename().string();
