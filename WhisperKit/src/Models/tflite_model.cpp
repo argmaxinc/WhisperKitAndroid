@@ -2,6 +2,7 @@
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
 #include "tflite_model.hpp"
 #include <filesystem>   // C++ 17 or later
+#include <android/log.h>
 
 using namespace std;
 
@@ -38,7 +39,7 @@ bool TFLiteModel::initialize(
 
 void TFLiteModel::uninitialize() {
     if (_interpreter.get() != nullptr) {
-        //LOGI("Deleted interpreter & delegate for %s\n", _model_name.c_str());
+        LOGI("Deleted interpreter & delegate for %s\n", _model_name.c_str());
         _interpreter->Cancel();
         _interpreter.reset(nullptr);
     }

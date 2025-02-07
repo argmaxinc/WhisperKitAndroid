@@ -1,32 +1,58 @@
 //  For licensing see accompanying LICENSE.md file.
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
 
+#include "whisperkit_cli.h"
 #include <iostream>
-#include "cxxopts.hpp"
-#include "WhisperKit.h"
+#include <string>
+#include <android/log.h>
 
-struct WhisperKitConfig {
+#define LOG_TAG "WhisperKitCLI"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
+class Timer
+{
 public:
-    std::string audioPath;
-    std::string modelPath;
-    std::string audioEncoderComputeUnits;
-    std::string textDecoderComputeUnits;
-    float temperature;
-    float temperatureIncrementOnFallback;
-    int temperatureFallbackCount;
-    int bestOf;
-    bool skipSpecialTokens;
-    bool withoutTimestamps;
-    bool wordTimestamps;
-    float logprobThreshold;
-    float firstTokenLogProbThreshold;
-    float noSpeechThreshold;
-    bool report;
-    std::string reportPath;
-    int concurrentWorkerCount;
+    void start()
+    {
+        m_StartTime = std::chrono::system_clock::now();
+        m_bRunning = true;
+    }
+    
+    void stop()
+    {
+        m_EndTime = std::chrono::system_clock::now();
+        m_bRunning = false;
+    }
+    
+    double elapsedMilliseconds()
+    {
+        std::chrono::time_point<std::chrono::system_clock> endTime;
+        
+        if(m_bRunning)
+        {
+            endTime = std::chrono::system_clock::now();
+        }
+        else
+        {
+            endTime = m_EndTime;
+        }
+        
+        return std::chrono::duration_cast<std::chrono::milliseconds>(endTime - m_StartTime).count();
+    }
+    
+    double elapsedSeconds()
+    {
+        return elapsedMilliseconds() / 1000.0;
+    }
 
-    WhisperKitConfig()  {
+private:
+    std::chrono::time_point<std::chrono::system_clock> m_StartTime;
+    std::chrono::time_point<std::chrono::system_clock> m_EndTime;
+    bool                                               m_bRunning = false;
+};
+
+WhisperKitConfig::WhisperKitConfig()  {
         audioPath = "";
         modelPath = "";
         audioEncoderComputeUnits = "";
@@ -44,91 +70,84 @@ public:
         report = false;
         reportPath = ".";
         concurrentWorkerCount = 4;
-    };
-
-
 };
+
 
 void CHECK_WHISPERKIT_STATUS(whisperkit_status_t status) {
     if (status != WHISPERKIT_STATUS_SUCCESS) {
+        LOGE("WhisperKit error: %d", status);
         throw std::runtime_error("WhisperKit error: " + std::to_string(status));
     }
 }
 
-struct WhisperKitRunner {
 
-    WhisperKitRunner(WhisperKitConfig& config) : config(config) {
+WhisperKitRunner::WhisperKitRunner(WhisperKitConfig& config) : config(config) {
 
-        whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
-        status = whisperkit_configuration_create(&configuration);
+    whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
+    status = whisperkit_configuration_create(&configuration);
+    CHECK_WHISPERKIT_STATUS(status);
+
+    status = whisperkit_pipeline_create(&pipeline);
+    CHECK_WHISPERKIT_STATUS(status);
+    LOGI("WhisperKitRunner constructor ran without errors!");
+}
+
+void WhisperKitRunner::buildPipeline() {
+    LOGI("Entered buildPipeline function");
+    whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
+    if (configuration == nullptr) {
+        LOGE("buildPipeline: configuration pointer is null");
+        return;
+    }
+    status = whisperkit_configuration_set_model_path(configuration, config.modelPath.c_str());
+    CHECK_WHISPERKIT_STATUS(status);
+    LOGI("Model path set");
+    if (config.report){
+        status = whisperkit_configuration_set_report_path(configuration, config.reportPath.c_str());
         CHECK_WHISPERKIT_STATUS(status);
-
-        status = whisperkit_pipeline_create(&pipeline);
-        CHECK_WHISPERKIT_STATUS(status);
-
     }
 
-    void buildPipeline() {
+    status = whisperkit_pipeline_set_configuration(pipeline, configuration);
+    CHECK_WHISPERKIT_STATUS(status);
+    LOGI("Pipeline configuration set");
+    status = whisperkit_pipeline_build(pipeline);
+    CHECK_WHISPERKIT_STATUS(status);
+    LOGI("Pipeline build succeeded");
+}
 
-        whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
+void WhisperKitRunner::transcribe() {
+    whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
 
-        status = whisperkit_configuration_set_model_path(configuration, config.modelPath.c_str());
-        CHECK_WHISPERKIT_STATUS(status);
+    status = whisperkit_transcription_result_create(&transcriptionResult);
+    CHECK_WHISPERKIT_STATUS(status);
 
-        if (config.report){
-            status = whisperkit_configuration_set_report_path(configuration, config.reportPath.c_str());
-            CHECK_WHISPERKIT_STATUS(status);
-        }
+    status = whisperkit_pipeline_transcribe(pipeline, config.audioPath.c_str(), transcriptionResult);
+    CHECK_WHISPERKIT_STATUS(status);
 
-        status = whisperkit_pipeline_set_configuration(pipeline, configuration);
-        CHECK_WHISPERKIT_STATUS(status);
+    char* transcription = nullptr;
+    status = whisperkit_transcription_result_get_transcription(transcriptionResult, &transcription);
+    CHECK_WHISPERKIT_STATUS(status);
 
-        status = whisperkit_pipeline_build(pipeline);
-        CHECK_WHISPERKIT_STATUS(status);
+    std::string transcriptionString(transcription);
+    std::cout << "Transcription: " << transcriptionString.c_str() << std::endl;
 
+    if(transcription != nullptr) {
+        free((void*)transcription);
     }
 
-    void transcribe() {
-        whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
+}
 
-        status = whisperkit_transcription_result_create(&transcriptionResult);
-        CHECK_WHISPERKIT_STATUS(status);
-
-        status = whisperkit_pipeline_transcribe(pipeline, config.audioPath.c_str(), transcriptionResult);
-        CHECK_WHISPERKIT_STATUS(status);
-
-        char* transcription = nullptr;
-        status = whisperkit_transcription_result_get_transcription(transcriptionResult, &transcription);
-        CHECK_WHISPERKIT_STATUS(status);
-
-        std::string transcriptionString(transcription);
-        std::cout << "Transcription: " << transcriptionString.c_str() << std::endl;
-
-        if(transcription != nullptr) {
-            free((void*)transcription);
-        }
-
+WhisperKitRunner::~WhisperKitRunner() {
+    if (pipeline) {
+        whisperkit_pipeline_destroy(&pipeline);
     }
-
-     ~WhisperKitRunner() {
-        if (pipeline) {
-            whisperkit_pipeline_destroy(&pipeline);
-        }
-        if (configuration) {
-            whisperkit_configuration_destroy(&configuration);
-        }
-        if (transcriptionResult) {
-            whisperkit_transcription_result_destroy(&transcriptionResult);
-        }
+    if (configuration) {
+        whisperkit_configuration_destroy(&configuration);
     }
-
-
-    private: 
-        WhisperKitConfig config;
-        whisperkit_pipeline_t* pipeline;
-        whisperkit_configuration_t* configuration;
-        whisperkit_transcription_result_t* transcriptionResult;
-};
+    if (transcriptionResult) {
+        whisperkit_transcription_result_destroy(&transcriptionResult);
+    }
+}
 
 
 
@@ -178,8 +197,19 @@ int main(int argc, char* argv[]) {
     WhisperKitRunner runner(config);
 
     try {
+        Timer t = Timer();
+        t.start();
         runner.buildPipeline();
+        t.stop();
+        double buildTime = t.elapsedMilliseconds();
+        
+        t.start();
         runner.transcribe();
+        t.stop();
+        double transcribeTime = t.elapsedMilliseconds();
+        std::cout << "Elapsed time (build + transcription) " << transcribeTime + buildTime << " ms" << std::endl;
+        std::cout << "Build " << buildTime << " ms" << std::endl;
+        std::cout << "Transcribe " << transcribeTime << " ms" << std::endl;
 
     } catch (const std::exception& e) {
         std::cerr << "Error transcribing audio: " << e.what() << std::endl;

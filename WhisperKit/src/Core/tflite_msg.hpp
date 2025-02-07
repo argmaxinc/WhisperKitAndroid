@@ -7,20 +7,11 @@
 #include <thread>
 #include <condition_variable>
 #include <mutex>
-
-#ifdef ANDROID_JNI
 #include <android/log.h>
 
 constexpr const char* ARGMAX_WHISPERKIT_BUNDLE_INFO = "com.argmax.whisperax";
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  ARGMAX_WHISPERKIT_BUNDLE_INFO, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, ARGMAX_WHISPERKIT_BUNDLE_INFO, __VA_ARGS__)
-
-#else
-
-#define LOGI(...) fprintf(stdout, __VA_ARGS__)
-#define LOGE(...) fprintf(stderr, __VA_ARGS__)
-
-#endif
 
 class TFLiteMessenger{
 public:

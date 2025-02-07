@@ -1,4 +1,5 @@
 
+.vscode/
 # Ignore build folders
 .source/
 build/

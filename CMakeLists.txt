@@ -19,6 +19,7 @@ set(EXT_INC_DIR ${CMAKE_SOURCE_DIR}/external/inc)
 set(WHISPERKIT_CLI_DIR ${CMAKE_SOURCE_DIR}/cli)
 set(WHISPERKIT_PUBLIC_HEADERS ${CMAKE_SOURCE_DIR}/WhisperKit/)
 set(WHISPERKIT_EXTERNAL_HEADERS ${CMAKE_SOURCE_DIR}/WhisperKit/external/)
+set(WHISPERKIT_JNI_DIR ${CMAKE_SOURCE_DIR}/jni)
 
 file(GLOB_RECURSE WHISPERKIT_SOURCES ${WHISPERKIT_SRC_DIR}/*.cpp)
 
@@ -29,6 +30,8 @@ set(WHISPERKIT_INTERNAL_HEADERS_DIRECTORIES
   ${WHISPERKIT_SRC_DIR}/Audio/
   ${WHISPERKIT_SRC_DIR}/
 )
+
+find_library(log-lib log)
 
 # QNN delegate legal only on Android with QCOM SoC;
 # GPU delegate legal on all Android;
@@ -79,8 +82,25 @@ if(NOT (DEFINED GPU_DELEGATE AND GPU_DELEGATE IN_LIST DELEGATE_ALLOWED_VALUES))
     message(FATAL_ERROR "GPU_DELEGATE must be defined and set to either 0 or 1. Current value: '${GPU_DELEGATE}'")
 endif()
 
-add_library(whisperkit   SHARED
-    ${WHISPERKIT_SOURCES}
+if (${JNI})
+  message(NOTICE "Building for JNI")
+  add_subdirectory(${SDL3_DIR})
+endif()
+
+add_library(native-whisper SHARED
+  ${WHISPERKIT_JNI_DIR}/NativeWhisperKit.cpp
+  ${WHISPERKIT_CLI_DIR}/whisperkit_cli.cpp
+
+)
+
+add_library(whisperkit SHARED
+  ${WHISPERKIT_SOURCES}
+)
+
+target_include_directories(native-whisper PRIVATE
+${WHISPERKIT_PUBLIC_HEADERS}
+${WHISPERKIT_CLI_DIR}/external/
+${WHISPERKIT_CLI_DIR}
 )
 
 target_include_directories(whisperkit
@@ -92,7 +112,11 @@ target_include_directories(whisperkit
 )
 
 set(AUDIO_CODEC_LIBRARIES avformat avcodec avutil swresample)
-set(BASE_LIBRARIES tensorflowlite SDL3)
+if (${JNI})
+  set(BASE_LIBRARIES tensorflowlite SDL3::SDL3-shared)
+else()
+  set(BASE_LIBRARIES tensorflowlite SDL3)
+endif()
 set(ALL_LINKED_LIBRARIES ${BASE_LIBRARIES} ${AUDIO_CODEC_LIBRARIES})
 
 if(${ANDROID})
@@ -103,11 +127,11 @@ if(${ANDROID})
       ${EXT_LIB_DIR}/libQnnTFLiteDelegate.so
     )
 
-    list(APPEND ALL_LINKED_LIBRARIES qnn_delegate tensorflowlite_gpu_delegate ${ANDROID_LOG})
+    list(APPEND ALL_LINKED_LIBRARIES qnn_delegate tensorflowlite_gpu_delegate ${log-lib})
 
   else()
 
-    list(APPEND ALL_LINKED_LIBRARIES tensorflowlite_gpu_delegate ${ANDROID_LOG})
+    list(APPEND ALL_LINKED_LIBRARIES tensorflowlite_gpu_delegate ${log-lib})
 
   endif()
 endif()
@@ -130,12 +154,34 @@ add_executable(whisperkit-cli
 target_include_directories(whisperkit-cli PRIVATE
   ${WHISPERKIT_PUBLIC_HEADERS}
   ${WHISPERKIT_CLI_DIR}/external/
+  ${WHISPERKIT_CLI_DIR}
 )
 
 target_link_libraries(whisperkit-cli PRIVATE
   whisperkit
+  ${log-lib}
 )
 
 target_compile_definitions(whisperkit-cli PRIVATE
   "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\""
 )
+
+# Executable to try out the native library on android terminal
+
+# add_executable(native-whisper-cli
+#   ${WHISPERKIT_JNI_DIR}/NativeWhisperKit.cpp)
+
+# target_include_directories(native-whisper-cli PRIVATE
+# ${WHISPERKIT_PUBLIC_HEADERS}
+# ${WHISPERKIT_CLI_DIR}/external/
+# ${WHISPERKIT_CLI_DIR}
+# )
+
+# target_link_libraries(native-whisper-cli PRIVATE
+#   whisperkit
+#   native-whisper
+#   ${log-lib}
+# )
+
+target_link_libraries(native-whisper PRIVATE whisperkit ${log-lib})
+

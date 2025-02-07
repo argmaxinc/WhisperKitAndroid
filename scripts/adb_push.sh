@@ -6,7 +6,9 @@ CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
 
 WHISPERKIT_CLI="$SOURCE_DIR/build/android/whisperkit-cli"
+NATIVE_WHISPER_CLI="$SOURCE_DIR/build/android/native-whisper-cli"
 AXIE_TFLITE_LIB="$SOURCE_DIR/build/android/libwhisperkit.so"
+NATIVE_LIB="$SOURCE_DIR/build/android/libnative-lib.so"
 LOCAL_LIBS="$SOURCE_DIR/external/libs/android"
 LOCAL_TINY_DIR="$SOURCE_DIR/models/openai_whisper-tiny"
 LOCAL_BASE_DIR="$SOURCE_DIR/models/openai_whisper-base"
@@ -19,6 +21,9 @@ DEVICE_TINY_DIR="${DEVICE_SDROOT_DIR}/models/openai_whisper-tiny"
 DEVICE_BASE_DIR="${DEVICE_SDROOT_DIR}/models/openai_whisper-base"
 DEVICE_SMALL_DIR="${DEVICE_SDROOT_DIR}/models/openai_whisper-small"
 DEVICE_INPUTS_DIR="${DEVICE_SDROOT_DIR}/inputs"
+
+EXEC_SCRIPT="$SOURCE_DIR/scripts/run_on_android.sh"
+TEST_AUDIO_FILE="$SOURCE_DIR/test/jfk_441khz.m4a"
 
 # Function to push files only if they do not exist
 push_if_not_exists() {
@@ -70,8 +75,14 @@ do
     fi
 
     adb -s $DEVICE push "$AXIE_TFLITE_LIB" "$DEVICE_LIB_DIR/."
+    adb -s $DEVICE push "$NATIVE_LIB" "$DEVICE_LIB_DIR/." 
     adb -s $DEVICE push "$WHISPERKIT_CLI" "$DEVICE_BIN_DIR/."
+    adb -s $DEVICE push "$NATIVE_WHISPER_CLI" "$DEVICE_BIN_DIR/."
+    adb -s $DEVICE push "$TEST_AUDIO_FILE" "$DEVICE_SDROOT_DIR/inputs/"
+    adb -s $DEVICE push "$EXEC_SCRIPT" "$DEVICE_SDROOT_DIR"
+    adb -s $DEVICE shell "chmod 777 $DEVICE_SDROOT_DIR/run_on_android.sh"
     adb -s $DEVICE shell "chmod 777 $DEVICE_BIN_DIR/whisperkit-cli"
+    adb -s $DEVICE shell "chmod 777 $DEVICE_BIN_DIR/native-whisper"
     
     push_if_not_exists "$LOCAL_LIBS" "$DEVICE_LIB_DIR"
     push_if_not_exists "$LOCAL_TINY_DIR" "$DEVICE_TINY_DIR"

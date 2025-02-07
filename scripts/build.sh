@@ -7,6 +7,8 @@ ARG=$1
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
 
+SDL3_DIR="$SOURCE_DIR/.source/SDL"
+
 case $ARG in
     "clean")
         echo "  ${0} clean: cleaning build files"
@@ -26,6 +28,10 @@ case $ARG in
 
     "gpu" | "qnn" | "" )
         echo "  ${0} [gpu|qnn] : building for arm64 Android (in build/android)"
+        PLATFORM="android" ;;
+
+    "jni" )
+        echo "  ${0} jni : building for arm64 Android (in build/android)" 
         PLATFORM="android" ;;
 
     *)
@@ -92,13 +98,19 @@ else
         rm $SOURCE_DIR/external/libs/android/libqnn*.so
         rm $SOURCE_DIR/external/inc/QnnTFLiteDelegate.h
         QNN_DELEGATE="-DQNN_DELEGATE=0"
-    else # QCOM QNN delegate
+    else # QCOM QNN delegate (INCLUDES JNI BUILD)
         cp ${QNN_RUNTIME_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/external/libs/android/
         cp ${QNN_SDK_ROOT}/jni/arm64-v8a/lib*.so $SOURCE_DIR/external/libs/android/
         cp ${QNN_SDK_ROOT}/headers/QNN/QnnTFLiteDelegate.h $SOURCE_DIR/external/inc/
         QNN_DELEGATE="-DQNN_DELEGATE=1"
     fi
-
+    if [ "$ARG" = "jni" ]; then # embed SDL3 in .so
+        SDL3_FLAG="-DSDL3_DIR=${SDL3_DIR}"
+        JNI_FLAG="-DJNI=1"
+    else 
+        SDL3_FLAG=""
+        JNI_FLAG="-DJNI=0"
+    fi
     cmake \
     -H$SOURCE_DIR \
     -DCMAKE_SYSTEM_NAME=Android \
@@ -117,6 +129,8 @@ else
     -B$SOURCE_DIR/$BUILD_DIR \
     -GNinja \
     -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR} \
+    ${SDL3_FLAG} \
+    ${JNI_FLAG} \
     ${QNN_DELEGATE}
 fi
 

@@ -21,7 +21,7 @@ extern "C" {
 #include "backend_class.hpp"
 #include "audio_input.hpp"
 #include "post_proc.hpp"
-
+#include <android/log.h>
 
 // to be deleted
 
@@ -196,7 +196,7 @@ std::unique_ptr<std::string> Runtime::cmdexec(const char* cmd) {
 
 bool Runtime::check_qcom_soc() {
     vector<string> supported_socs{
-        "SM8650", "SM8550", "SM8450","SM8350"
+        "SM8650", "SM8550", "SM8450","SM8350", "SA8295P", "SM7450", "ranchu"
     };
 
     auto soc = *cmdexec("getprop ro.soc.model");
@@ -214,12 +214,13 @@ bool Runtime::check_qcom_soc() {
 void Runtime::tflite_init_priv() {
     lock_guard<mutex> lock(gmutex);
 
-    //LOGI("tflite_init input: %s\n", config.get_model_path().c_str());
+    LOGI("tflite_init input: %s\n", config.get_model_path().c_str());
 
     int format = 0;
 
     backend = kUndefinedBackend;
 #if (QNN_DELEGATE || GPU_DELEGATE) 
+    LOGI("Setting QNN or GPU delegate");
     if (check_qcom_soc()) // selecting runtime delegation for the model
         backend = kHtpBackend; 
 #else
@@ -253,16 +254,19 @@ void Runtime::tflite_init_priv() {
         report_dir = config.get_report_path();
     }
 
-    //LOGI("root dir:\t%s\nlib dir:\t%s\ncache dir:\t%s\n", 
-    //    config.get_model_path().c_str(), lib_dir.c_str(), cache_dir.c_str()
-    //);
-    
+    LOGI("root dir:\t%s\nlib dir:\t%s\ncache dir:\t%s\n", 
+       config.get_model_path().c_str(), lib_dir.c_str(), cache_dir.c_str()
+    );
+    LOGI("About to initialize melspectro with model: %s", melspectro_model.c_str());
     TFLITE_INIT_CHECK(melspectro->initialize(
         melspectro_model, lib_dir, cache_dir, backend, debug
     ));
+    LOGI("About to initialize encoder with model: %s", encoder_model.c_str());
     TFLITE_INIT_CHECK(encoder->initialize(
         encoder_model, lib_dir, cache_dir, backend, debug
     ));
+    LOGI("About to initialize decoder with model: %s", decoder_model.c_str());
+
     TFLITE_INIT_CHECK(decoder->initialize(
         decoder_model, lib_dir, cache_dir, backend, debug
     ));
@@ -278,16 +282,18 @@ void Runtime::tflite_init_priv() {
     // outputs: melspectrogram
     assert(melspectro_outputs.size() == 1);
 
+    LOGI("Melspectrogram configured!");
+
     encoder_inputs = encoder->get_input_ptrs();
     // retrieve encoder output tensor pointers
     encoder_outputs = encoder->get_output_ptrs();
     // outputs: k_cache, v_cache
     assert(encoder_outputs.size() == 2);
-
+    LOGI("Encoder configured!");
     decoder_outputs = decoder->get_output_ptrs();
     // outputs: logits, k_cache, v_cache
     assert(decoder_outputs.size() == 3);
-
+    LOGI("Decoder configured!");
     all_tokens.clear();
     all_tokens.reserve(1 << 18); // max 256K tokens
     all_msgs.clear();
@@ -297,7 +303,7 @@ void Runtime::tflite_init_priv() {
 
     messenger = std::make_unique<TFLiteMessenger>();
     messenger->_running = true;
-
+    LOGI("tflite_init_priv() function successful");
 }
 
 void Runtime::tflite_init_audioinput(const AudioCodec* audio_codec, const char* audio_file) {
@@ -338,11 +344,25 @@ std::unique_ptr<std::string> Runtime::get_result_text(){
 }
 
 void Runtime::tflite_close_priv() {
-    postproc->uninitialize();
-    decoder->uninitialize();
-    encoder->uninitialize();
-    melspectro->uninitialize();
-    audioinput->uninitialize();
+    if (postproc) {
+        postproc->uninitialize();
+    }
+    
+    if (decoder) {
+        decoder->uninitialize();
+    }
+    
+    if (encoder) {
+        encoder->uninitialize();
+    }
+    
+    if (melspectro) {
+        melspectro->uninitialize();
+    }
+    
+    if (audioinput) {
+        audioinput->uninitialize();
+    }
 }
 
 
