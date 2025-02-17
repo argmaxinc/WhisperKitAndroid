@@ -2,53 +2,28 @@
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
 
 #include <iostream>
-#include "cxxopts.hpp"
-#include "WhisperKit.h"
+#include <string>
+#include "whisperkit_cli.h"
 
-struct WhisperKitConfig {
-
-public:
-    std::string audioPath;
-    std::string modelPath;
-    std::string audioEncoderComputeUnits;
-    std::string textDecoderComputeUnits;
-    float temperature;
-    float temperatureIncrementOnFallback;
-    int temperatureFallbackCount;
-    int bestOf;
-    bool skipSpecialTokens;
-    bool withoutTimestamps;
-    bool wordTimestamps;
-    float logprobThreshold;
-    float firstTokenLogProbThreshold;
-    float noSpeechThreshold;
-    bool report;
-    std::string reportPath;
-    int concurrentWorkerCount;
-    bool verbose;
-
-    WhisperKitConfig()  {
-        audioPath = "";
-        modelPath = "";
-        audioEncoderComputeUnits = "";
-        textDecoderComputeUnits = "";
-        temperature = 0.f;
-        temperatureIncrementOnFallback = 0.2f;
-        temperatureFallbackCount = 5;
-        bestOf = 5;
-        skipSpecialTokens = false;
-        withoutTimestamps = false;
-        wordTimestamps = false;
-        logprobThreshold = -1.f;
-        firstTokenLogProbThreshold = -1.f;
-        noSpeechThreshold = 0.3f;
-        report = false;
-        reportPath = ".";
-        concurrentWorkerCount = 4;
-        verbose = false;
-    };
-
-
+WhisperKitConfig::WhisperKitConfig()  {
+    audioPath = "";
+    modelPath = "";
+    audioEncoderComputeUnits = "";
+    textDecoderComputeUnits = "";
+    temperature = 0.f;
+    temperatureIncrementOnFallback = 0.2f;
+    temperatureFallbackCount = 5;
+    bestOf = 5;
+    skipSpecialTokens = false;
+    withoutTimestamps = false;
+    wordTimestamps = false;
+    logprobThreshold = -1.f;
+    firstTokenLogProbThreshold = -1.f;
+    noSpeechThreshold = 0.3f;
+    report = false;
+    reportPath = ".";
+    concurrentWorkerCount = 4;
+    verbose = false;
 };
 
 void CHECK_WHISPERKIT_STATUS(whisperkit_status_t status) {
@@ -57,82 +32,73 @@ void CHECK_WHISPERKIT_STATUS(whisperkit_status_t status) {
     }
 }
 
-struct WhisperKitRunner {
+WhisperKitRunner::WhisperKitRunner(WhisperKitConfig& config) : config(config) {
 
-    WhisperKitRunner(WhisperKitConfig& config) : config(config) {
+    whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
+    status = whisperkit_configuration_create(&configuration);
+    CHECK_WHISPERKIT_STATUS(status);
 
-        whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
-        status = whisperkit_configuration_create(&configuration);
+    status = whisperkit_pipeline_create(&pipeline);
+    CHECK_WHISPERKIT_STATUS(status);
+
+}
+
+void WhisperKitRunner::buildPipeline() {
+
+    whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
+
+    status = whisperkit_configuration_set_model_path(configuration, config.modelPath.c_str());
+    CHECK_WHISPERKIT_STATUS(status);
+
+    if (config.report){
+        status = whisperkit_configuration_set_report_path(configuration, config.reportPath.c_str());
         CHECK_WHISPERKIT_STATUS(status);
+    }
+    status = whisperkit_configuration_set_verbose(configuration, config.verbose);
+    CHECK_WHISPERKIT_STATUS(status);
 
-        status = whisperkit_pipeline_create(&pipeline);
-        CHECK_WHISPERKIT_STATUS(status);
+    status = whisperkit_pipeline_set_configuration(pipeline, configuration);
+    CHECK_WHISPERKIT_STATUS(status);
 
+    status = whisperkit_pipeline_build(pipeline);
+    CHECK_WHISPERKIT_STATUS(status);
+
+}
+
+void WhisperKitRunner::transcribe() {
+    whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
+
+    status = whisperkit_transcription_result_create(&transcriptionResult);
+    CHECK_WHISPERKIT_STATUS(status);
+
+    status = whisperkit_pipeline_transcribe(pipeline, config.audioPath.c_str(), transcriptionResult);
+    CHECK_WHISPERKIT_STATUS(status);
+
+    char* transcription = nullptr;
+    status = whisperkit_transcription_result_get_transcription(transcriptionResult, &transcription);
+    CHECK_WHISPERKIT_STATUS(status);
+
+    std::string transcriptionString(transcription);
+    std::cout << "Transcription: " << transcriptionString.c_str() << std::endl;
+
+    if(transcription != nullptr) {
+        free((void*)transcription);
     }
 
-    void buildPipeline() {
+}
 
-        whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
-
-        status = whisperkit_configuration_set_model_path(configuration, config.modelPath.c_str());
-        CHECK_WHISPERKIT_STATUS(status);
-
-        if (config.report){
-            status = whisperkit_configuration_set_report_path(configuration, config.reportPath.c_str());
-            CHECK_WHISPERKIT_STATUS(status);
-        }
-        status = whisperkit_configuration_set_verbose(configuration, config.verbose);
-        CHECK_WHISPERKIT_STATUS(status);
-
-        status = whisperkit_pipeline_set_configuration(pipeline, configuration);
-        CHECK_WHISPERKIT_STATUS(status);
-
-        status = whisperkit_pipeline_build(pipeline);
-        CHECK_WHISPERKIT_STATUS(status);
-
+WhisperKitRunner::~WhisperKitRunner() {
+    if (pipeline) {
+        whisperkit_pipeline_destroy(&pipeline);
     }
-
-    void transcribe() {
-        whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
-
-        status = whisperkit_transcription_result_create(&transcriptionResult);
-        CHECK_WHISPERKIT_STATUS(status);
-
-        status = whisperkit_pipeline_transcribe(pipeline, config.audioPath.c_str(), transcriptionResult);
-        CHECK_WHISPERKIT_STATUS(status);
-
-        char* transcription = nullptr;
-        status = whisperkit_transcription_result_get_transcription(transcriptionResult, &transcription);
-        CHECK_WHISPERKIT_STATUS(status);
-
-        std::string transcriptionString(transcription);
-        std::cout << "Transcription: " << transcriptionString.c_str() << std::endl;
-
-        if(transcription != nullptr) {
-            free((void*)transcription);
-        }
-
+    if (configuration) {
+        whisperkit_configuration_destroy(&configuration);
     }
-
-     ~WhisperKitRunner() {
-        if (pipeline) {
-            whisperkit_pipeline_destroy(&pipeline);
-        }
-        if (configuration) {
-            whisperkit_configuration_destroy(&configuration);
-        }
-        if (transcriptionResult) {
-            whisperkit_transcription_result_destroy(&transcriptionResult);
-        }
+    if (transcriptionResult) {
+        whisperkit_transcription_result_destroy(&transcriptionResult);
     }
+}
 
-
-    private: 
-        WhisperKitConfig config;
-        whisperkit_pipeline_t* pipeline;
-        whisperkit_configuration_t* configuration;
-        whisperkit_transcription_result_t* transcriptionResult;
-};
 
 
 

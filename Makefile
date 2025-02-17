@@ -10,17 +10,17 @@ args = `arg="$(filter-out $@,$(MAKECMDGOALS))" && echo $${arg:-${1}}`
 
 help:
 	@echo "Available targets:"
-	@echo "  setup             Checking dependencies and any setup for the host."
-	@echo "  download-models   Download all models and files."
-	@echo "  env               Builds and runs docker environment to build axie_tflite CLI."
-	@echo "  ci-env            Builds and runs docker environment for GitHub CI"
-	@echo "  rebuild-env       Clean and rebuilds and runs docker environment."
-	@echo "  clean        	   Clean WhisperKitAndroid build."
-	@echo "    [all]       	   Deep clean WhisperKitAndroid build, including external components"
-	@echo "  build             Build the axie_tflite CLI. **Run this inside development environment** "
-	@echo "    [qnn|gpu|linux] Build for each target: QNN or GPU for Android, or Linux"
-	@echo "  adb-push          Push axie_tflite CLI and other dependencies to the Android device. Run this on host."
-	@echo "  test              Builds and install test dependencies."
+	@echo "  setup             		Checking dependencies and any setup for the host."
+	@echo "  download-models   		Download all models and files."
+	@echo "  env               		Builds and runs docker environment to build axie_tflite CLI."
+	@echo "  ci-env            		Builds and runs docker environment for GitHub CI"
+	@echo "  rebuild-env       		Clean and rebuilds and runs docker environment."
+	@echo "  clean        	   		Clean WhisperKitAndroid build."
+	@echo "    [all]       	   		Deep clean WhisperKitAndroid build, including external components"
+	@echo "  build             		Build the axie_tflite CLI. **Run this inside development environment** "
+	@echo "    [qnn|gpu|linux|jni] 	Build for each target: QNN or GPU for Android, or Linux"
+	@echo "  adb-push          		Push axie_tflite CLI and other dependencies to the Android device. Run this on host."
+	@echo "  test              		Builds and install test dependencies."
 
 
 setup:
@@ -69,6 +69,9 @@ qnn:	# do nothing - sub target of build/test
 	@echo ""
 
 gpu:	# do nothing - sub target of build/test
+	@echo ""
+
+jni:	# do nothing - sub target of build/test
 	@echo ""
 
 forced:	# do nothing - sub target of adb-push

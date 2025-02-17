@@ -24,9 +24,12 @@ extern "C" {
 
 
 // to be deleted
-
-
-#if (QNN_DELEGATE || GPU_DELEGATE) 
+// JNI: set to app's cache dir
+#if (JNI_BUILD)
+#define TRANSCRIBE_TASK_TFLITE_ROOT_PATH    "/sdcard/argmax/tflite"
+#define TRANSCRIBE_TASK_DEFAULT_LIB_DIR     "/data/local/tmp/lib"
+#define TRANSCRIBE_TASK_DEFAULT_CACHE_DIR   "/data/user/0/com.whispertflite/cache"
+#elif (QNN_DELEGATE || GPU_DELEGATE) 
 // for Android QNN or GPU delegatea
 #define TRANSCRIBE_TASK_TFLITE_ROOT_PATH    "/sdcard/argmax/tflite"
 #define TRANSCRIBE_TASK_DEFAULT_LIB_DIR     "/data/local/tmp/lib"
