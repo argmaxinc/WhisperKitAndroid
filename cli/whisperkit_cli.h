@@ -38,10 +38,10 @@ public:
     ~WhisperKitRunner();
     void buildPipeline();
     void transcribe();
-     whisperkit_transcription_result_t* transcriptionResult;
+    whisperkit_transcription_result_t* transcriptionResult;
 
 private:
-    WhisperKitConfig config;
+    WhisperKitConfig& config;
     whisperkit_pipeline_t* pipeline;
     whisperkit_configuration_t* configuration;
     

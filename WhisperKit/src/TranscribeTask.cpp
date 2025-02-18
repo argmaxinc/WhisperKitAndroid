@@ -337,6 +337,7 @@ std::unique_ptr<std::string> Runtime::get_result_text(){
         {
             *output += (*iter + '\n');
         }
+    all_msgs.clear();
     return output;
 }
 
