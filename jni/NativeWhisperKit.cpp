@@ -8,7 +8,7 @@
 // Wrapper class to manage native resources
 class NativeWhisperKit {
 public:
-    WhisperKitRunner* runner;
+    std::unique_ptr<WhisperKitRunner> runner;
     WhisperKitConfig config;
 
     NativeWhisperKit(const std::string& modelPath,
@@ -22,12 +22,11 @@ public:
         config.concurrentWorkerCount = concurrentWorkers;
         config.audioPath = audioPath;
         
-        runner = new WhisperKitRunner(config);
+        runner = std::make_unique<WhisperKitRunner>(config);
 
         try {
             runner->buildPipeline();
         } catch (const std::exception& e) {
-            delete runner;
             throw;
         }
     }
@@ -41,12 +40,6 @@ public:
             return std::string(result);
         } catch (const std::exception& e) {
             throw;
-        }
-    }
-
-    ~NativeWhisperKit() {
-        if (runner) {
-            delete runner;
         }
     }
 };
