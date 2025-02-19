@@ -21,6 +21,7 @@ but we are continuing to invest in Android and now welcome contributions from th
 - [Installation](#installation)
 - [Getting Started](#getting-started)
 - [CLI Run and Test](#cli-run-and-test)
+- [Running Android app](#running-android-app)
 - [Contributing \& Roadmap](#contributing--roadmap)
 - [License](#license)
 - [Citation](#citation)
@@ -151,6 +152,22 @@ Stream: freq - 44100, channels - 1, format - 32784, target_buf size - 1440000
 [aac @ 0x55555a5b8c00] Could not update timestamps for skipped samples.
 Transcription:   And so, my fellow Americans, ask not what your country can do for you.   Ask what you can do for your country.
 ```
+</details>
+
+# Running Android App
+
+<details>
+  <summary> (Click to expand) </summary>
+
+1. Move model to assets folder  
+Download the models if you haven't done so as specified in the Installation section. Move specifically the "whisper_tiny" folder into the assets folder of the app. 
+
+2. Run the app with Android Studio
+
+3. Things to consider.  
+QNN will only work if the SoC of your device is among the supported ones listed in the C++ code. The model may take a couple minutes to load when using QNN delegate.
+After recording with the microphone, the input is saved into the MicInput.wav file, you can select it to transcribe your audio.
+
 </details>
 
 ## Contributing
