@@ -34,7 +34,7 @@ void CHECK_WHISPERKIT_STATUS(whisperkit_status_t status);
 
 class WhisperKitRunner {
 public:
-    explicit WhisperKitRunner(WhisperKitConfig& config);
+    explicit WhisperKitRunner(WhisperKitConfig& config, std::string libDir);
     ~WhisperKitRunner();
     void buildPipeline();
     void transcribe();

@@ -75,12 +75,13 @@ make env
 
 2. Inside the Docker environment, build the `whisperkit-cli` CLI using (for Android and Linux):
 ```
-make build [linux | qnn | gpu]
+make build [linux | qnn | gpu | jni]
 ```
 
 The QNN option builds WhisperKit with Qualcomm AI NPU support and the QNN TFLite delegate.
 The 'gpu' option is the generic GPU backend for all Android devices from TFLite GPU delegate.
 Linux builds are currently CPU-only.
+The 'jni' option builds the .so file with JNI library to use on android (using QNN support).
 
 3. Back on the host machine (outside Docker shell), push dependencies to the Android device:
 ```
@@ -111,7 +112,16 @@ For Linux:
 make build linux
 ```
 
-2. Manually run `whisperkit-cli`:
+2. Run on Android with `run_on_android.sh` script:
+
+Log in via adb shell:
+```
+adb shell
+cd /sdcard/argmax/tflite
+sh run_on_android.sh
+```
+
+3. Manually run `whisperkit-cli`:
 
 Usage: 
 
@@ -130,7 +140,7 @@ export LD_LIBRARY_PATH=/data/local/tmp/lib
 whisperkit-cli transcribe --model-path  /path/to/openai_whisper-base --audio-path /path/to/inputs/jfk_441khz.m4a
 ```
 
-3. Sample execution output:
+4. Sample execution output:
 ```
 root@cf40510e9b93:/src/AXIE# ./build/linux/whisperkit-cli transcribe --model-path /src/AXIE/models/openai_whisper-small --audio-path /src/AXIE/test/jfk_441khz.m4a 
 SoC: 	generic CPU (x86, arm64, etc) 

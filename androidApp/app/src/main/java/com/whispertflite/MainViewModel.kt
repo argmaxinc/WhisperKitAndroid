@@ -41,6 +41,9 @@ class MainViewModel : ViewModel() {
     private lateinit var whisperKit: WhisperKitNative
 
     fun initialize(context: Context) {
+        val cacheDir = context.cacheDir
+        Log.d("Cache", cacheDir.absolutePath)
+        val nativeLibsDir = context.applicationInfo.nativeLibraryDir
         copyDataToSdCardFolder(context)
         loadAudioFileNames(sdcardDataFolder!!.absolutePath)
 
@@ -55,7 +58,7 @@ class MainViewModel : ViewModel() {
         waveFile = File(sdcardDataFolder!!.absolutePath + "/" + microphoneInputFileName)
 
         viewModelScope.launch(Dispatchers.IO) {
-            whisperKit = WhisperKitNative(modelDestFolder.absolutePath, audioPath, ".", 4)
+            whisperKit = WhisperKitNative(modelDestFolder.absolutePath, audioPath, ".", nativeLibsDir,  4)
             statusState.value = "IDLE"
         }
     }

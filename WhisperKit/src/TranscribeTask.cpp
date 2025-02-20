@@ -30,7 +30,7 @@ extern "C" {
 #define TRANSCRIBE_TASK_DEFAULT_LIB_DIR     "/data/local/tmp/lib"
 #define TRANSCRIBE_TASK_DEFAULT_CACHE_DIR   "/data/user/0/com.whispertflite/cache"
 #elif (QNN_DELEGATE || GPU_DELEGATE) 
-// for Android QNN or GPU delegatea
+// for Android QNN or GPU delegate
 #define TRANSCRIBE_TASK_TFLITE_ROOT_PATH    "/sdcard/argmax/tflite"
 #define TRANSCRIBE_TASK_DEFAULT_LIB_DIR     "/data/local/tmp/lib"
 #define TRANSCRIBE_TASK_DEFAULT_CACHE_DIR   "/data/local/tmp/cache"
@@ -199,7 +199,7 @@ std::unique_ptr<std::string> Runtime::cmdexec(const char* cmd) {
 
 bool Runtime::check_qcom_soc() {
     vector<string> supported_socs{
-        "SM8650", "SM8550", "SM8450","SM8350"
+        "SM8650", "SM8550", "SM8450","SM8350", "SM7450"
     };
 
     auto soc = *cmdexec("getprop ro.soc.model");

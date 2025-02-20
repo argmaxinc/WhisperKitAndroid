@@ -14,6 +14,7 @@ public:
     NativeWhisperKit(const std::string& modelPath,
                     const std::string& audioPath, 
                     const std::string& reportPath,
+                    const std::string& nativeLibsDir,
                     bool enableReport,
                     int concurrentWorkers) {
         config.modelPath = modelPath;
@@ -22,7 +23,7 @@ public:
         config.concurrentWorkerCount = concurrentWorkers;
         config.audioPath = audioPath;
         
-        runner = std::make_unique<WhisperKitRunner>(config);
+        runner = std::make_unique<WhisperKitRunner>(config, nativeLibsDir);
 
         try {
             runner->buildPipeline();
@@ -51,18 +52,21 @@ Java_com_whispertflite_WhisperKitNative_init(
     jstring modelPath,
     jstring audioPath,
     jstring reportPath,
+    jstring nativeLibsDir,
     jboolean enableReport,
     jint concurrentWorkers) {
     
     const char* modelPathStr = env->GetStringUTFChars(modelPath, nullptr);
     const char* audioPathStr = env->GetStringUTFChars(audioPath, nullptr);
     const char* reportPathStr = env->GetStringUTFChars(reportPath, nullptr);
+    const char* nativeLibsDirStr = env->GetStringUTFChars(nativeLibsDir, nullptr);
     
     try {
         auto nativeInst = new NativeWhisperKit(
             std::string(modelPathStr),
             std::string(audioPathStr),
             std::string(reportPathStr),
+            std::string(nativeLibsDirStr),
             enableReport,
             concurrentWorkers
         );
@@ -70,6 +74,7 @@ Java_com_whispertflite_WhisperKitNative_init(
         env->ReleaseStringUTFChars(modelPath, modelPathStr);
         env->ReleaseStringUTFChars(audioPath, audioPathStr);
         env->ReleaseStringUTFChars(reportPath, reportPathStr);
+        env->ReleaseStringUTFChars(nativeLibsDir, nativeLibsDirStr);
         
         return reinterpret_cast<jlong>(nativeInst);
     } catch (const std::exception& e) {
