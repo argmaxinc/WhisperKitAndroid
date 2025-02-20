@@ -30,6 +30,7 @@ androidApp/app/src/main/assets/openai_whisper-tiny/
 
 # Gradle files and caches
 .gradle/
+local.properties
 
 # Native build outputs (e.g., C++/JNI)
 .cxx/
