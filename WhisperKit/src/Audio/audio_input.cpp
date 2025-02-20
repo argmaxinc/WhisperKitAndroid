@@ -16,7 +16,6 @@ AudioBuffer::AudioBuffer()
 
     _tgt_bytes_per_sample = 0;
     _src_bytes_per_sample = 0;
-    _end_index = 0;
     _verbose = false; 
 }
 
@@ -38,8 +37,6 @@ bool AudioBuffer::initialize(
         av_get_bytes_per_sample((AVSampleFormat)_source_frame->format);
     _tgt_bytes_per_sample = 
         av_get_bytes_per_sample((AVSampleFormat)_target_frame->format);
-
-    _buffer.resize(INTERNAL_AUDIO_SIZE);
 
     _swr = swr_alloc();
     av_opt_set_chlayout(
@@ -95,9 +92,12 @@ int AudioBuffer::append(int bytes, char* input0, char* input1) {
         _source_frame->ch_layout.nb_channels == 1 &&
         _source_frame->format == AV_SAMPLE_FMT_FLT)
     {
-        memcpy(&_buffer[_end_index], input0, bytes);
+        _buffer.insert(_buffer.end(), 
+            reinterpret_cast<float*>(input0), 
+            reinterpret_cast<float*>(input0) + (bytes / sizeof(float))
+        );
+
         _target_frame->nb_samples = bytes / _tgt_bytes_per_sample;
-        _end_index += _target_frame->nb_samples;
     } else {
         _source_frame->data[0] = (uint8_t*)input0;
         if(input1 != nullptr) // for planar, ch > 1 audio frame source
@@ -110,10 +110,11 @@ int AudioBuffer::append(int bytes, char* input0, char* input1) {
             return -1;
         }
 
-        memcpy(&_buffer[_end_index], 
-            _target_frame->extended_data[0],
-            _target_frame->nb_samples * _tgt_bytes_per_sample);
-        _end_index += _target_frame->nb_samples;
+        _buffer.insert(_buffer.end(), 
+            reinterpret_cast<float*>(_target_frame->extended_data[0]), 
+            reinterpret_cast<float*>(_target_frame->extended_data[0]) 
+                + (_target_frame->nb_samples)
+        );
     }
 
     return _target_frame->nb_samples;
@@ -136,31 +137,23 @@ void AudioBuffer::print_frame_info(){
 
 int AudioBuffer::samples(int desired_samples) {
     if (desired_samples == 0) {
-        return _end_index;
-    } else if (_end_index > desired_samples){
+        return _buffer.size();
+    } else if (_buffer.size() > desired_samples){
         return desired_samples;
     } else 
-        return _end_index;
+        return _buffer.size();
 }
 
 void AudioBuffer::consumed(int samples){
     lock_guard<mutex> lock(_mutex);
 
-    if(_end_index > samples){
-        // move the remaining samples to the beginning of _target_buffer
-        memmove(
-            &_buffer[0], 
-            &_buffer[_end_index], 
-            (_end_index - samples) * _tgt_bytes_per_sample
-        );
-        _end_index -= samples;
+    if (_buffer.size() >= samples){
+        _buffer.erase(_buffer.begin(), _buffer.begin() + samples);
     } else {
-        if(_end_index < samples){
-            LOGE("requested samples (%d) > available (%d)\n", 
-                samples, _end_index
-            );
-        }
-        _end_index = 0;
+        LOGE("requested samples (%d) > available (%ld)\n", 
+            samples, _buffer.size()
+        );
+        _buffer.clear();
     }
 }
 
@@ -211,7 +204,6 @@ bool AudioInputModel::initialize(
         return false;
     }
 
-    _float_buffer.resize(INTERNAL_AUDIO_SIZE); // 45 secs buffer
     if(!_pcm_buffer->initialize(_source_frame, _target_frame, _verbose)){
         LOGE("Failed to initialize PCM buffer class\n");
         return false;
@@ -277,13 +269,11 @@ float AudioInputModel::get_silence_index(char* output, int audio_samples){
 
     _remain_samples = max_index - end_index;
     auto start_time = (float)_silence_index / SAMPLE_FREQ;
-    memcpy(output, &_float_buffer[0], (end_index - _silence_index) * sizeof(float));
+    memcpy(output, _float_buffer.data(), (end_index - _silence_index) * sizeof(float));
 
-    // move the remaining samples to the beginning of _float_buffer
-    memmove(
-        &_float_buffer[0], 
-        &_float_buffer[end_index - _silence_index], 
-        _remain_samples * sizeof(float)
+    _float_buffer.erase(
+        _float_buffer.begin(), 
+        _float_buffer.begin() + (end_index - _silence_index)
     );
 
     _silence_index = end_index;    
@@ -380,10 +370,10 @@ int AudioInputModel::get_next_samples()
     }
 
     auto audio_buffer = _pcm_buffer->get_buffer();
-    memcpy(
-        &_float_buffer[_remain_samples], 
+    _float_buffer.insert(
+        _float_buffer.end(), 
         audio_buffer, 
-        target_samples * sizeof(float)
+        audio_buffer + target_samples
     );
     _pcm_buffer->consumed(target_samples);
     return target_samples;

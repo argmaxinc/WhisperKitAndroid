@@ -35,7 +35,6 @@ private:
     bool _verbose; 
 
     // target buf associated, with 16khz, mono PCM data
-    uint32_t _end_index; // unit of short int
     std::vector<float> _buffer; 
     int _tgt_bytes_per_sample;
     int _src_bytes_per_sample;
