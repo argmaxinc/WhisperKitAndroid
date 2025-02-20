@@ -21,6 +21,7 @@ but we are continuing to invest in Android and now welcome contributions from th
 - [Installation](#installation)
 - [Getting Started](#getting-started)
 - [CLI Run and Test](#cli-run-and-test)
+- [Running Android app](#running-android-app)
 - [Contributing \& Roadmap](#contributing--roadmap)
 - [License](#license)
 - [Citation](#citation)
@@ -74,12 +75,13 @@ make env
 
 2. Inside the Docker environment, build the `whisperkit-cli` CLI using (for Android and Linux):
 ```
-make build [linux | qnn | gpu]
+make build [linux | qnn | gpu | jni]
 ```
 
 The QNN option builds WhisperKit with Qualcomm AI NPU support and the QNN TFLite delegate.
 The 'gpu' option is the generic GPU backend for all Android devices from TFLite GPU delegate.
 Linux builds are currently CPU-only.
+The 'jni' option builds the .so file with JNI library to use on android (using QNN support).
 
 3. Back on the host machine (outside Docker shell), push dependencies to the Android device:
 ```
@@ -110,7 +112,16 @@ For Linux:
 make build linux
 ```
 
-2. Manually run `whisperkit-cli`:
+2. Run on Android with `run_on_android.sh` script:
+
+Log in via adb shell:
+```
+adb shell
+cd /sdcard/argmax/tflite
+sh run_on_android.sh
+```
+
+3. Manually run `whisperkit-cli`:
 
 Usage: 
 
@@ -129,7 +140,7 @@ export LD_LIBRARY_PATH=/data/local/tmp/lib
 whisperkit-cli transcribe --model-path  /path/to/openai_whisper-base --audio-path /path/to/inputs/jfk_441khz.m4a
 ```
 
-3. Sample execution output:
+4. Sample execution output:
 ```
 root@cf40510e9b93:/src/AXIE# ./build/linux/whisperkit-cli transcribe --model-path /src/AXIE/models/openai_whisper-small --audio-path /src/AXIE/test/jfk_441khz.m4a 
 SoC: 	generic CPU (x86, arm64, etc) 
@@ -151,6 +162,22 @@ Stream: freq - 44100, channels - 1, format - 32784, target_buf size - 1440000
 [aac @ 0x55555a5b8c00] Could not update timestamps for skipped samples.
 Transcription:   And so, my fellow Americans, ask not what your country can do for you.   Ask what you can do for your country.
 ```
+</details>
+
+# Running Android App
+
+<details>
+  <summary> (Click to expand) </summary>
+
+1. Move model to assets folder  
+Download the models if you haven't done so as specified in the Installation section. Move specifically the "whisper_tiny" folder into the assets folder of the app. 
+
+2. Run the app with Android Studio
+
+3. Things to consider.  
+QNN will only work if the SoC of your device is among the supported ones listed in the C++ code. The model may take a couple minutes to load when using QNN delegate.
+After recording with the microphone, the input is saved into the MicInput.wav file, you can select it to transcribe your audio.
+
 </details>
 
 ## Contributing

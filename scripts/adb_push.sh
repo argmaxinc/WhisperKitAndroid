@@ -20,6 +20,9 @@ DEVICE_BASE_DIR="${DEVICE_SDROOT_DIR}/models/openai_whisper-base"
 DEVICE_SMALL_DIR="${DEVICE_SDROOT_DIR}/models/openai_whisper-small"
 DEVICE_INPUTS_DIR="${DEVICE_SDROOT_DIR}/inputs"
 
+EXEC_SCRIPT="$SOURCE_DIR/scripts/run_on_android.sh"
+TEST_AUDIO_FILE="$SOURCE_DIR/test/jfk_441khz.m4a"
+
 FORCED=$1
 if  [ "$FORCED" = "forced" ]; then
     echo "adb push in forced mode.."
@@ -79,8 +82,12 @@ do
 
     push_if_not_exists "$AXIE_TFLITE_LIB" "$DEVICE_LIB_DIR/." forced
     push_if_not_exists "$WHISPERKIT_CLI" "$DEVICE_BIN_DIR/." forced
-    adb -s $DEVICE shell "chmod 777 $DEVICE_BIN_DIR/whisperkit-cli"
     push_if_not_exists "$LOCAL_LIBS" "$DEVICE_LIB_DIR" $FORCED
+    adb -s $DEVICE push "$EXEC_SCRIPT" "$DEVICE_SDROOT_DIR"
+    adb -s $DEVICE push "$TEST_AUDIO_FILE" "$DEVICE_SDROOT_DIR/inputs/"
+    adb -s $DEVICE shell "chmod 777 $DEVICE_SDROOT_DIR/run_on_android.sh"
+    adb -s $DEVICE shell "chmod 777 $DEVICE_BIN_DIR/whisperkit-cli"
+   
 
     push_if_not_exists "$LOCAL_TINY_DIR" "$DEVICE_TINY_DIR"
     push_if_not_exists "$LOCAL_BASE_DIR" "$DEVICE_BASE_DIR"

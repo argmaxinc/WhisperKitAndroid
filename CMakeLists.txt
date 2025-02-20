@@ -19,6 +19,7 @@ set(CMAKE_BUILD_TYPE Release)
 set(WHISPERKIT_SRC_DIR ${CMAKE_SOURCE_DIR}/WhisperKit/src/)
 set(EXT_INC_DIR ${CMAKE_SOURCE_DIR}/external/inc)
 set(WHISPERKIT_CLI_DIR ${CMAKE_SOURCE_DIR}/cli)
+set(WHISPERKIT_JNI_DIR ${CMAKE_SOURCE_DIR}/jni)
 set(WHISPERKIT_PUBLIC_HEADERS ${CMAKE_SOURCE_DIR}/WhisperKit/)
 set(WHISPERKIT_EXTERNAL_HEADERS ${CMAKE_SOURCE_DIR}/WhisperKit/external/)
 
@@ -37,6 +38,7 @@ set(WHISPERKIT_INTERNAL_HEADERS_DIRECTORIES
 # linux configuration currently supports CPU only.
 OPTION(QNN_DELEGATE "QNN delegate" OFF) # Disabled by default
 OPTION(GPU_DELEGATE "GPU delegate" OFF) # Disabled by default
+OPTION(JNI_BUILD "Build for JNI" OFF)
 SET(DELEGATE_ALLOWED_VALUES 0 1)
 
 if(${ANDROID})
@@ -64,12 +66,17 @@ if(${ANDROID})
     message(NOTICE  " Delegate via Generic TFLite GPU..")
     SET(QNN_DELEGATE 0)
     SET(GPU_DELEGATE 1)
-
   endif()
 else() # other generic arch, CPU only
   message(NOTICE  " Generic CPU only..")
   SET(QNN_DELEGATE 0)
   SET(GPU_DELEGATE 0)
+endif()
+
+if(${JNI})
+  SET(JNI_BUILD 1)
+else()
+  SET(JNI_BUILD 0)
 endif()
 
 # Delegates (QNN, GPU, ...) are required to be defined, and values are required to be 0 or 1
@@ -93,8 +100,29 @@ target_include_directories(whisperkit
   PRIVATE ${TENSORFLOW_SOURCE_DIR}
 )
 
+if (${JNI})
+  message(NOTICE "Building for JNI")
+  add_subdirectory(${SDL3_DIR})
+  add_library(native-whisper SHARED
+    ${WHISPERKIT_JNI_DIR}/NativeWhisperKit.cpp
+    ${WHISPERKIT_CLI_DIR}/whisperkit_cli.cpp
+
+  )
+
+  target_include_directories(native-whisper
+    PUBLIC ${WHISPERKIT_PUBLIC_HEADERS}
+    PRIVATE ${WHISPERKIT_CLI_DIR}/external/
+    PRIVATE ${WHISPERKIT_CLI_DIR}
+  )
+endif()
+
+
 set(AUDIO_CODEC_LIBRARIES avformat avcodec avutil swresample)
-set(BASE_LIBRARIES tensorflowlite SDL3)
+if (${JNI})
+  set(BASE_LIBRARIES tensorflowlite SDL3::SDL3-shared)
+else()
+  set(BASE_LIBRARIES tensorflowlite SDL3)
+endif()
 set(ALL_LINKED_LIBRARIES ${BASE_LIBRARIES} ${AUDIO_CODEC_LIBRARIES})
 
 if(${ANDROID})
@@ -114,9 +142,15 @@ if(${ANDROID})
   endif()
 endif()
 
-ADD_DEFINITIONS(-DGPU_DELEGATE=${GPU_DELEGATE} -DQNN_DELEGATE=${QNN_DELEGATE})
+ADD_DEFINITIONS(-DGPU_DELEGATE=${GPU_DELEGATE} -DQNN_DELEGATE=${QNN_DELEGATE} -DJNI_BUILD=${JNI_BUILD})
 
 target_link_libraries(whisperkit PRIVATE ${ALL_LINKED_LIBRARIES})
+
+if(${JNI})
+  target_link_libraries(native-whisper PRIVATE whisperkit)
+  target_compile_definitions(native-whisper PRIVATE ANDROID_JNI)
+endif()
+
 
 execute_process(
   COMMAND git rev-parse HEAD
@@ -132,6 +166,7 @@ add_executable(whisperkit-cli
 target_include_directories(whisperkit-cli PRIVATE
   ${WHISPERKIT_PUBLIC_HEADERS}
   ${WHISPERKIT_CLI_DIR}/external/
+  ${WHISPERKIT_CLI_DIR}
 )
 
 target_link_libraries(whisperkit-cli PRIVATE
