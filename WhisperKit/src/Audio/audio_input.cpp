@@ -132,7 +132,7 @@ void AudioBuffer::consumed(int samples){
 // AudioInputModel
 AudioInputModel::AudioInputModel( // buffer input mode
    int freq, int channels, int format
-) :MODEL_SUPER_CLASS("audio_input")
+)
 {
     _source_spec.freq = freq;
     _source_spec.channels = channels;
@@ -146,6 +146,8 @@ AudioInputModel::AudioInputModel( // buffer input mode
         _source_spec.format = SDL_AUDIO_S16;
         _target_spec.format = SDL_AUDIO_S16;
     }
+
+    _model = std::make_unique<TFLiteModel>("audio_input");
 
     _pcm_buffer = make_unique<AudioBuffer>();
 }
@@ -163,7 +165,7 @@ bool AudioInputModel::initialize(
         return false;
     }
 
-    if(!MODEL_SUPER_CLASS::initialize(model_file, lib_dir, cache_dir, backend, debug)){
+    if(!_model->initialize(model_file, lib_dir, cache_dir, backend, debug)){
         LOGE("Failed to initialize\n");
         return false;
     }
@@ -178,11 +180,11 @@ void AudioInputModel::uninitialize() {
     _float_buffer.clear();
     _pcm_buffer->uninitialize();
 
-    MODEL_SUPER_CLASS::uninitialize();
+    _model->uninitialize();
 }
 
 void AudioInputModel::invoke(bool measure_time){
-    MODEL_SUPER_CLASS::invoke(measure_time);
+    _model->invoke(measure_time);
 }
 
 float AudioInputModel::get_next_chunk(char* output){
@@ -205,11 +207,12 @@ float AudioInputModel::get_next_chunk(char* output){
 
     auto start_time = get_silence_index(output, audio_samples);
 
+    auto& latencies = _model->_latencies;
     auto after_exec = chrono::high_resolution_clock::now();
     float interval_infs =
         chrono::duration_cast<std::chrono::microseconds>(
             after_exec - before_exec).count() / 1000.0;
-    _latencies.push_back(interval_infs);  
+    latencies.push_back(interval_infs);  
 
     return start_time;
 }
@@ -251,7 +254,7 @@ uint32_t AudioInputModel::split_on_middle_silence(uint32_t max_index)
     vector<bool> voices;
 
     // calculateVoiceActivityInChunks
-    auto inputs = get_input_ptrs();
+    auto inputs = _model->get_input_ptrs();
     memcpy(
         inputs[0].first, 
         (char*)&_float_buffer[mid_index - _silence_index], 
@@ -259,9 +262,9 @@ uint32_t AudioInputModel::split_on_middle_silence(uint32_t max_index)
     );
     memcpy(inputs[1].first, &_energy_threshold, sizeof(float));
 
-    invoke();
+    _model->invoke();
 
-    auto outputs = get_output_ptrs();
+    auto outputs = _model->get_output_ptrs();
 
     // find the Longest Silence 
     // all indices here mean voices index from above, not audio samples
@@ -298,6 +301,20 @@ uint32_t AudioInputModel::split_on_middle_silence(uint32_t max_index)
     auto silence_mid_idx = longest_start + (longest_end - longest_start) / 2;
     // voice activity index to audio sample index + mid_index
     return mid_index + silence_mid_idx * _frame_length_samples;
+}
+
+std::vector<std::pair<char*, int>> AudioInputModel::get_input_ptrs() {
+    if(_model == nullptr) {
+        return {};
+    }
+    return _model->get_input_ptrs();
+}
+
+std::vector<std::pair<char*, int>> AudioInputModel::get_output_ptrs() {
+    if(_model == nullptr) {
+        return {};
+    }
+    return _model->get_output_ptrs();
 }
 
 void AudioInputModel::fill_pcmdata(int bytes, char* pcm_buffer){

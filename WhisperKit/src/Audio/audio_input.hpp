@@ -50,7 +50,7 @@ public:
     short int* get_buffer() { return _buffer; }
 };
 
-class AudioInputModel: public MODEL_SUPER_CLASS {
+class AudioInputModel {
 public:
     AudioInputModel(int freq, int channels, int format = SAMPLE_FMT_DEF);
     virtual ~AudioInputModel() {};
@@ -64,6 +64,10 @@ public:
     void uninitialize();
     virtual void invoke(bool measure_time=false);
 
+    // this is temporary
+    std::vector<std::pair<char*, int>> get_input_ptrs();
+    std::vector<std::pair<char*, int>> get_output_ptrs();
+
     void fill_pcmdata(int size, char* pcm_buffer=nullptr);
     float get_next_chunk(char* output);
     int get_curr_buf_time() { return _curr_buf_time; }
@@ -74,6 +78,8 @@ public:
 
 private:
     SDL_AudioStream* _stream = nullptr;
+
+    std::unique_ptr<TFLiteModel> _model;
 
     int32_t _total_src_bytes = 0;
     int32_t _buffer_index = 0;
