@@ -29,6 +29,16 @@
 
 using json = nlohmann::json;
 
+namespace WhisperKit {
+    namespace InMemoryModel {
+        enum class ModelType {
+            kSimpleVADModel = 1,
+            kSimplePostProcessingModel = 2
+        };
+    }
+}
+
+
 class TFLiteModel {
 public:
     TFLiteModel(const std::string& name);
@@ -41,6 +51,12 @@ public:
         int backend, 
         bool debug=false
     );
+
+    bool initializeModelInMemory(
+        WhisperKit::InMemoryModel::ModelType model_type,
+        bool debug=false
+    );
+
     void uninitialize();
     virtual void invoke(bool measure_time=false);
 
@@ -59,6 +75,8 @@ public:
 
     static void save_tensor(std::string filename, char* tensor, int size);
 
+    std::vector<float> _latencies;
+
 protected: 
     std::mutex _mutex;
     std::unique_ptr<tflite::FlatBufferModel> _model;
@@ -68,7 +86,6 @@ protected:
     std::string _lib_dir; 
     std::string _cache_dir; 
     std::string _model_token;
-    std::vector<float> _latencies;
 
     std::vector<std::pair<char*, int>> _input_ptrs;
     std::vector<std::pair<char*, int>> _output_ptrs;    
@@ -77,4 +94,8 @@ protected:
     bool allocate_tensors();
     void modify_graph_delegate();
     void set_dirs(std::string filename, std::string lib_dir, std::string cache_dir);
+
+
+    private:
+        bool buildSimpleVADModel();
 };

@@ -3,6 +3,15 @@
 #include "tflite_model.hpp"
 #include <filesystem>   // C++ 17 or later
 
+#include "flatbuffers/flatbuffers.h"
+#include "tensorflow/lite/schema/schema_generated.h"
+#include "tensorflow/lite/model.h"
+#include "tensorflow/lite/kernels/register.h"
+#include "tensorflow/lite/interpreter.h"
+
+#define TFLITE_SCHEMA_VERSION 3
+
+
 using namespace std;
 
 TFLiteModel::TFLiteModel(const string& name)
@@ -13,6 +22,128 @@ TFLiteModel::TFLiteModel(const string& name)
 
 TFLiteModel::~TFLiteModel() {
     uninitialize();
+}
+
+bool TFLiteModel::buildSimpleVADModel() {
+
+
+    /* Structure:
+
+    -- create op codes composing the model;
+    -- define the input tensors (here: input frames, and the energy threshold as a bias)
+    -- define the intermediate tensors between the nodes
+    -- create the output tensor
+    -- assemble the graph, connecting the nodes by the tensor indices
+    -- build the graph, assign the model to an interpreter
+    */
+    flatbuffers::FlatBufferBuilder builder;
+    
+    const std::vector<int32_t> input_shape = {150, 1600};
+    const std::vector<int32_t> scalar_shape = {}; // For RMSE and bias
+
+    auto op_code_square = tflite::CreateOperatorCode(builder, tflite::BuiltinOperator_SQUARE);
+    auto op_code_mean = tflite::CreateOperatorCode(builder, tflite::BuiltinOperator_MEAN);
+    auto op_code_sqrt = tflite::CreateOperatorCode(builder, tflite::BuiltinOperator_SQRT);
+    auto op_code_sub = tflite::CreateOperatorCode(builder, tflite::BuiltinOperator_SUB);
+    
+    auto input_tensor = tflite::CreateTensor(builder, builder.CreateVector<int32_t>(input_shape), tflite::TensorType_FLOAT32,
+        0, builder.CreateString("input_frames"));
+    auto bias_tensor = tflite::CreateTensor(builder, builder.CreateVector<int32_t>(scalar_shape), tflite::TensorType_FLOAT32, 
+        0, builder.CreateString("energy_threshold"));
+
+    auto squared_tensor = tflite::CreateTensor(builder, builder.CreateVector<int32_t>(input_shape), tflite::TensorType_FLOAT32);
+    auto reduced_mean_tensor = tflite::CreateTensor(builder, builder.CreateVector<int32_t>(scalar_shape), tflite::TensorType_FLOAT32);
+    auto rmse_tensor = tflite::CreateTensor(builder, builder.CreateVector<int32_t>(scalar_shape), tflite::TensorType_FLOAT32);
+
+    std::vector<int32_t> mean_axis_data = {1};
+    auto mean_axis_buffer = builder.CreateVector(reinterpret_cast<const uint8_t*>(mean_axis_data.data()), mean_axis_data.size() * sizeof(int32_t));
+    auto mean_axis_tensor = tflite::CreateTensor(
+        builder,
+        builder.CreateVector<int32_t>({1}),  // shape
+        tflite::TensorType_INT32,                    // type
+        0,                                   // buffer index
+        builder.CreateString("mean_axis"),   // name
+        /*quantization=*/0,                  // optional quantization
+        /*is_variable=*/false,              // is_variable
+        /*sparsity=*/0,                     // optional sparsity
+        /*shape_signature=*/0               // optional shape signature
+    );
+
+    auto output_tensor = tflite::CreateTensor(builder, builder.CreateVector<int32_t>(scalar_shape), tflite::TensorType_FLOAT32,
+        0, builder.CreateString("output_0"));
+
+    // Operators
+    auto square_op = tflite::CreateOperator(builder, 0, builder.CreateVector<int32_t>({0}), builder.CreateVector<int32_t>({2}));
+    auto mean_op = tflite::CreateOperator(builder, 1, builder.CreateVector<int32_t>({2, 3}), builder.CreateVector<int32_t>({4}));
+    auto sqrt_op = tflite::CreateOperator(builder, 2, builder.CreateVector<int32_t>({4}), builder.CreateVector<int32_t>({5}));
+    auto sub_op = tflite::CreateOperator(builder, 3, builder.CreateVector<int32_t>({4, 1}), builder.CreateVector<int32_t>({6}));
+
+    // Create graph
+    auto graph = tflite::CreateSubGraph(builder, 
+        builder.CreateVector({input_tensor, bias_tensor, squared_tensor, reduced_mean_tensor, rmse_tensor, mean_axis_tensor, output_tensor}),
+        builder.CreateVector<int32_t>({0, 1}),
+        builder.CreateVector<int32_t>({6}),
+        builder.CreateVector({square_op, mean_op, sqrt_op, sub_op})
+    );
+    
+
+    auto buffer = tflite::CreateBuffer(builder, builder.CreateVector({}));
+
+
+    auto model = tflite::CreateModel(builder, TFLITE_SCHEMA_VERSION,
+        builder.CreateVector({op_code_square, op_code_mean, op_code_sqrt, op_code_sub}),
+        builder.CreateVector({graph}),
+        builder.CreateString("RMSE Model"),
+        builder.CreateVector({buffer}));
+    
+    builder.Finish(model, tflite::ModelIdentifier());
+
+    // Wrap in FlatBufferModel object
+    _model =
+        tflite::FlatBufferModel::BuildFromBuffer(
+            reinterpret_cast<const char*>(builder.GetBufferPointer()), builder.GetSize());
+
+    if (!_model) {
+        std::cerr << "Failed to build TFLite model in memory!" << std::endl;
+        return false;
+    }
+
+    // Build an interpreter
+    tflite::ops::builtin::BuiltinOpResolver resolver;
+    tflite::InterpreterBuilder interpreter_builder(*_model, resolver);
+    interpreter_builder(&_interpreter);
+
+    if (!_interpreter) {
+        std::cerr << "Failed to create TFLite interpreter!" << std::endl;
+        return false;
+    }
+
+    // Allocate memory for tensors (see other default initializer method, we put here instead of initializeModelInMemory)
+    if (_interpreter->AllocateTensors() != kTfLiteOk) {
+        std::cerr << "Failed to allocate tensors!" << std::endl;
+        return false;
+    }
+    return true;
+
+}
+
+bool TFLiteModel::initializeModelInMemory(
+    WhisperKit::InMemoryModel::ModelType model_type,
+    bool debug
+) {
+
+    switch(model_type) {
+        case WhisperKit::InMemoryModel::ModelType::kSimpleVADModel:
+            return buildSimpleVADModel();
+        case WhisperKit::InMemoryModel::ModelType::kSimplePostProcessingModel:
+            // TODO: implement
+            break;
+        default:
+            LOGE("Unsupported model type for in-memory model\n");
+            return false;
+    }
+
+    return false;
 }
 
 bool TFLiteModel::initialize(
