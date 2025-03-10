@@ -8,9 +8,42 @@ cache/
 external/
 test/dataset/
 
+.vscode/
+
 # Never exclude src files
 !WhisperKit/**
 !cli/**
 
 # MacOS specific
 .DS_Store
+
+### Android ###
+# IntelliJ IDEA project files
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Model folder (too large)
+androidApp/app/src/main/assets/openai_whisper-tiny/
+
+# Gradle files and caches
+.gradle/
+local.properties
+
+# Native build outputs (e.g., C++/JNI)
+.cxx/
+
+# Heap dump files
+*.hprof
+
+# Log files
+*.log
+
+# test audio files
+androidApp/app/src/main/assets/*.wav
+androidApp/app/src/main/assets/*.m4a
+
+# .so folder in the app (repeated files)
+androidApp/app/src/main/jniLibs
