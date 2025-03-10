@@ -40,3 +40,10 @@ local.properties
 
 # Log files
 *.log
+
+# test audio files
+androidApp/app/src/main/assets/*.wav
+androidApp/app/src/main/assets/*.m4a
+
+# .so folder in the app (repeated files)
+androidApp/app/src/main/jniLibs

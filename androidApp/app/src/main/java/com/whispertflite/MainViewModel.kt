@@ -24,7 +24,7 @@ class MainViewModel : ViewModel() {
     lateinit var modelDestFolder: File
 
     // Constant strings
-    private val defaultAudioFileName = "jfk.wav"
+    private val defaultAudioFileName = "jfk_441khz.m4a"
     private val whisperFolderName = "openai_whisper-tiny"
     private val microphoneInputFileName = "MicInput.wav"
 
@@ -32,7 +32,7 @@ class MainViewModel : ViewModel() {
     val waveFileNamesState: State<List<String>> get() = _waveFileNamesState
 
     var mPlayer: Player? = null
-    var waveFile: File? = null
+    lateinit var waveFile: File
     private var mRecorder: Recorder? = null
 
     var sdcardDataFolder: File? = null
@@ -45,6 +45,15 @@ class MainViewModel : ViewModel() {
         Log.d("Cache", cacheDir.absolutePath)
         val nativeLibsDir = context.applicationInfo.nativeLibraryDir
         copyDataToSdCardFolder(context)
+        waveFile = File(sdcardDataFolder!!.absolutePath, microphoneInputFileName)
+        if (!waveFile.exists()) {
+            try {
+                // Create the file
+                waveFile.createNewFile()
+            } catch (e: IOException) {
+                e.printStackTrace()  // handle the exception appropriately
+            }
+        }
         loadAudioFileNames(sdcardDataFolder!!.absolutePath)
 
         val audioPath = sdcardDataFolder!!.absolutePath + "/" + selectedWavFilename.value
@@ -54,8 +63,6 @@ class MainViewModel : ViewModel() {
 
         resultState = mutableStateOf("")
         statusState = mutableStateOf("LOADING MODEL (This may take a few minutes when using QNN)")
-
-        waveFile = File(sdcardDataFolder!!.absolutePath + "/" + microphoneInputFileName)
 
         viewModelScope.launch(Dispatchers.IO) {
             whisperKit = WhisperKitNative(modelDestFolder.absolutePath, audioPath, ".", nativeLibsDir,  4)
@@ -77,7 +84,14 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             lateinit var transcriptOutput: String
             val time = measureTimeMillis {
-                transcriptOutput = whisperKit.transcribe(sdcardDataFolder!!.absolutePath + "/" + selectedWavFilename.value)
+                try {
+                    // Create the file
+                    transcriptOutput = whisperKit.transcribe(sdcardDataFolder!!.absolutePath + "/" + selectedWavFilename.value)
+                } catch (e: IOException) {
+                    e.printStackTrace()  // handle the exception appropriately
+                    transcriptOutput = "Transcription ERROR"
+                }
+
             }
 
             statusState.value = "IDLE  |  Last transcript took $time ms"
