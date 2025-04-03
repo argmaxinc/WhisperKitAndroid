@@ -801,7 +801,7 @@ void TranscribeTask::textOutputProc() {
 
     runtime->messenger->_cond_var.wait(ulock, [this]
     {
-        //runtime->messenger->print();
+        runtime->messenger->print();
         return !runtime->messenger->_running;
     });
     });

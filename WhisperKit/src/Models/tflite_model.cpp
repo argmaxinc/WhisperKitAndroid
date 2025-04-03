@@ -8,6 +8,7 @@
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/interpreter.h"
+#include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
 
 #define TFLITE_SCHEMA_VERSION 3
 
@@ -16,7 +17,8 @@ using namespace std;
 
 TFLiteModel::TFLiteModel(const string& name)
 {
-    _delegate = nullptr;
+    _delegates.clear();
+    _cpu_core_count = std::thread::hardware_concurrency();
     _model_name = name;
 }
 
@@ -168,8 +170,21 @@ bool TFLiteModel::initialize(
 }
 
 void TFLiteModel::uninitialize() {
+    if (!_delegates.empty()) {
+        for (int i = 0; i < _delegates.size(); ++i) {
+            if (_delegates[i] == nullptr) {
+                continue;
+            }
+            if (_delegate_types[i]
+                == BackendType::WHISPERKIT_BACKEND_CPU) {
+                TfLiteXNNPackDelegateDelete(_delegates[i]);
+            }
+        }
+    }
+    _delegates.clear();
+    _delegate_types.clear();
+
     if (_interpreter.get() != nullptr) {
-        //LOGI("Deleted interpreter & delegate for %s\n", _model_name.c_str());
         _interpreter->Cancel();
         _interpreter.reset(nullptr);
     }
@@ -183,21 +198,43 @@ bool TFLiteModel::allocate_tensors() {
 
 void TFLiteModel::modify_graph_delegate() {
     // Replace the original delegate with the new one.
-    _interpreter->ModifyGraphWithDelegate(_delegate);
+    for (int i = 0; i < _delegates.size(); ++i) {
+        if (_interpreter->ModifyGraphWithDelegate(_delegates[i]) !=
+            kTfLiteOk) {
+            LOGI("[%s] Failed to apply delegate %d\n", _model_name.c_str(), i);
+        }
+    }
 }
 
 bool TFLiteModel::create_interpreter_delegate(string model_path) 
 {
     _model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
-    if (_model.get() == nullptr) 
-        return false; 
+    if (_model.get() == nullptr)
+        return false;
 
-    tflite::ops::builtin::BuiltinOpResolver resolver;
-    tflite::InterpreterBuilder builder(*_model, resolver);
-    TFLITE_FUNCTION_CHECK(builder(&_interpreter))
+    auto tflite_resolver = std::make_unique<
+        tflite::ops::builtin::BuiltinOpResolverWithoutDefaultDelegates>();
+    tflite::InterpreterBuilder builder(*_model, *tflite_resolver);
+    if (builder(&_interpreter, _cpu_core_count) != kTfLiteOk) {
+        throw std::runtime_error("Error at "
+            + std::string(__FUNCTION__) + std::to_string(__LINE__));
+    }
 
-    const auto processor_count = thread::hardware_concurrency();
-    _interpreter->SetNumThreads(processor_count/2);
+    TfLiteXNNPackDelegateOptions xnnpack_opts
+        = TfLiteXNNPackDelegateOptionsDefault();
+    xnnpack_opts.num_threads = _cpu_core_count;
+    auto xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
+
+    if (xnn_delegate == nullptr) {
+        LOGI("Failed to create XNNPACK delegate\n");
+    } else {
+        _delegates.push_back(xnn_delegate);
+        _delegate_types.push_back(
+            BackendType::WHISPERKIT_BACKEND_CPU);
+    }
+
+    _interpreter->SetNumThreads(_cpu_core_count);
+    _interpreter->SetAllowFp16PrecisionForFp32(true);
 
     return true;
 }

@@ -45,7 +45,9 @@ if(${ANDROID})
   message(NOTICE  "Config build for Android ARM64..")
   set(CMAKE_TOOLCHAIN_FILE ${ANDROID_NDK_ROOT}/build/cmake/android.toolchain.cmake)
   set(ANDROID_ABI arm64-v8a)
-  set(EXT_LIB_DIR ${CMAKE_SOURCE_DIR}/external/libs/android)
+  set(EXT_LIB_DIR 
+    ${CMAKE_SOURCE_DIR}/external/libs/android
+    ${CMAKE_SOURCE_DIR}/gpuv3/lib)
   find_library(ANDROID_LOG log)
 else()
   message(NOTICE  "Config build for linux..")
@@ -67,10 +69,12 @@ if(${ANDROID})
     SET(QNN_DELEGATE 0)
     SET(GPU_DELEGATE 1)
   endif()
+  set(SPEAKERKIT_GPUV3_HEADERS ${CMAKE_SOURCE_DIR}/gpuv3/inc)
 else() # other generic arch, CPU only
   message(NOTICE  " Generic CPU only..")
   SET(QNN_DELEGATE 0)
   SET(GPU_DELEGATE 0)
+  set(SPEAKERKIT_GPUV3_HEADERS )
 endif()
 
 if(${JNI})
@@ -98,6 +102,7 @@ target_include_directories(whisperkit
   PRIVATE ${WHISPERKIT_EXTERNAL_HEADERS}
   PRIVATE ${EXT_INC_DIR}
   PRIVATE ${TENSORFLOW_SOURCE_DIR}
+  PRIVATE ${SPEAKERKIT_GPUV3_HEADERS}
 )
 
 if (${JNI})
@@ -136,8 +141,15 @@ if(${ANDROID})
     list(APPEND ALL_LINKED_LIBRARIES qnn_delegate tensorflowlite_gpu_delegate ${ANDROID_LOG})
 
   else()
+    add_library(mldrift_delegate SHARED IMPORTED)
+    set_property(TARGET mldrift_delegate PROPERTY IMPORTED_LOCATION
+        ${CMAKE_SOURCE_DIR}/gpuv3/lib/libtflite_ml_drift_cl.so
+    )
 
-    list(APPEND ALL_LINKED_LIBRARIES tensorflowlite_gpu_delegate ${ANDROID_LOG})
+    list(APPEND ALL_LINKED_LIBRARIES 
+        mldrift_delegate
+        tensorflowlite_gpu_delegate
+        ${ANDROID_LOG})
 
   endif()
 endif()

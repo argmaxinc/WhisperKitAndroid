@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <nlohmann/json.hpp>
 #include "tflite_msg.hpp"
+#include "DelegateInterface.hpp"
 
 #include "tensorflow/lite/builtin_ops.h"
 #include "tensorflow/lite/context_util.h"
@@ -28,6 +29,7 @@
     }
 
 using json = nlohmann::json;
+using BackendType = WhisperKit::Delegates::BackendType;
 
 namespace WhisperKit {
     namespace InMemoryModel {
@@ -81,11 +83,13 @@ protected:
     std::mutex _mutex;
     std::unique_ptr<tflite::FlatBufferModel> _model;
     std::unique_ptr<tflite::Interpreter> _interpreter;
-    TfLiteDelegate* _delegate = nullptr;
+    std::vector<TfLiteDelegate*> _delegates;
+    std::vector<BackendType> _delegate_types;
     std::string _model_name;
     std::string _lib_dir; 
     std::string _cache_dir; 
     std::string _model_token;
+    int         _cpu_core_count;
 
     std::vector<std::pair<char*, int>> _input_ptrs;
     std::vector<std::pair<char*, int>> _output_ptrs;    

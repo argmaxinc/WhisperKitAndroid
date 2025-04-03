@@ -4,6 +4,7 @@
 #include "tflite_gpu_model.hpp"
 #include <filesystem>   // C++ 17 or later
 #include "tensorflow/lite/optional_debug_tools.h"
+#include "ml_drift_delegate/ml_drift_cl.h"
 
 using namespace std;
 
@@ -44,12 +45,24 @@ bool TFLiteGPU::initialize(
 }
 
 void TFLiteGPU::uninitialize() {
-    if (_delegate != nullptr) {
-        TfLiteGpuDelegateV2Delete(_delegate);
-        _delegate = nullptr;
+    if (!_delegates.empty()) {
+        for (int i = 0; i < _delegates.size(); ++i) {
+            if (_delegates[i] == nullptr) {
+                continue;
+            }
+            if (_delegate_types[i]
+                == BackendType::WHISPERKIT_BACKEND_EXPERIMENTAL) {
+                TfLiteDeleteMlDriftClDelegate(_delegates[i]);
+            }
+        }
     }
+    _delegates.clear();
+    _delegate_types.clear();
 
-    TFLiteModel::uninitialize();
+    if (_interpreter.get() != nullptr) {
+        _interpreter->Cancel();
+        _interpreter.reset(nullptr);
+    }
 }
 
 bool TFLiteGPU::create_interpreter_delegate(string model_path) 
@@ -62,14 +75,20 @@ bool TFLiteGPU::create_interpreter_delegate(string model_path)
     tflite::InterpreterBuilder builder(*_model, tflite_resolver);
     TFLITE_FUNCTION_CHECK(builder(&_interpreter))
 
-    TfLiteGpuDelegateOptionsV2 gpu_options = TfLiteGpuDelegateOptionsV2Default();
-    gpu_options.serialization_dir = _cache_dir.c_str();
-    gpu_options.experimental_flags |= TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_SERIALIZATION;
-    gpu_options.max_delegated_partitions = 3;
-    _delegate = TfLiteGpuDelegateV2Create(&gpu_options);
+    _interpreter->SetAllowFp16PrecisionForFp32(true);
 
-    if (_delegate == nullptr) 
-        return false; 
+    //  other options (priority, precision loss allowed)
+    //  also causes 2x impact.
+    MlDriftClDelegateOptions* mldrift_options
+        = MlDriftClDelegateDefaultOptions();
+    TfLiteDelegate* delegate = TfLiteCreateMlDriftClDelegate(mldrift_options);
+    if (delegate == nullptr) {
+        LOGI("Failed to create GPU delegate\n");
+    } else {
+        _delegates.push_back(delegate);
+        _delegate_types.push_back(
+            BackendType::WHISPERKIT_BACKEND_EXPERIMENTAL);
+    }
 
     const auto processor_count = thread::hardware_concurrency();
     _interpreter->SetNumThreads(processor_count);
