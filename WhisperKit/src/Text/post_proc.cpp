@@ -21,10 +21,6 @@ PostProcModel::PostProcModel(
 }
 
 bool PostProcModel::initialize(
-    string model_file, 
-    string lib_dir,
-    string cache_dir, 
-    int backend,
     bool debug
 ){
     ifstream json_file(_token_file);
@@ -32,7 +28,8 @@ bool PostProcModel::initialize(
 
     LOGI("postproc vocab size: %lu\n", _vocab_json->size());
 
-    if(!MODEL_SUPER_CLASS::initialize(model_file, lib_dir, cache_dir, backend, debug)){
+    if(!MODEL_SUPER_CLASS::initializeModelInMemory(
+        WhisperKit::InMemoryModel::ModelType::kSimplePostProcessingModel, debug)){
         LOGE("Failed to initialize\n");
         return false;
     }
@@ -131,11 +128,9 @@ int PostProcModel::process(
      *          outputs[1] is max_text_token_logprob, 
      *          outputs[2] is logprobs[TOKEN_NO_SPEECH]
      */
-    assert(outputs.size() == 1);
 
-    auto* logprobs = reinterpret_cast<float*>(outputs[0].first);
-    auto timestamp_logprob = logprobs[0];
-    auto max_text_token_logprob = logprobs[1];
+    auto timestamp_logprob = reinterpret_cast<float*>(outputs[0].first)[0];
+    auto max_text_token_logprob = reinterpret_cast<float*>(outputs[1].first)[0];
     if(timestamp_logprob > max_text_token_logprob)
     {
         LOGITS_TO_NEG_INF( 

@@ -22,10 +22,6 @@ public:
     virtual ~PostProcModel() {};
 
     bool initialize(
-        std::string model_path, 
-        std::string lib_dir,
-        std::string cache_dir, 
-        int backend, 
         bool debug=false
     );
     virtual void invoke(bool measure_time=false);
