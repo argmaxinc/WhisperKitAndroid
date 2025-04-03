@@ -81,6 +81,7 @@ protected:
     std::mutex _mutex;
     std::unique_ptr<tflite::FlatBufferModel> _model;
     std::unique_ptr<tflite::Interpreter> _interpreter;
+    flatbuffers::FlatBufferBuilder _builder;
     TfLiteDelegate* _delegate = nullptr;
     std::string _model_name;
     std::string _lib_dir; 

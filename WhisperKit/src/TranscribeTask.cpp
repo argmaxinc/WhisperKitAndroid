@@ -308,11 +308,7 @@ void Runtime::tflite_init_audioinput(const AudioCodec* audio_codec, const char* 
     const int fmt = audio_codec->get_format(); 
     audioinput = make_unique<AudioInputModel>(freq, channels, fmt);
 
-    std::string audio_model =  config.get_model_path() +  "/voice_activity_detection.tflite";
-
-    TFLITE_INIT_CHECK(audioinput->initialize(
-        audio_model, lib_dir, cache_dir, backend, debug
-    ));
+    TFLITE_INIT_CHECK(audioinput->initialize(debug));
 
     start_exec = chrono::high_resolution_clock::now();
 

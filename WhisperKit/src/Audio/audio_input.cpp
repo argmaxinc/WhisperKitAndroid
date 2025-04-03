@@ -153,10 +153,6 @@ AudioInputModel::AudioInputModel( // buffer input mode
 }
 
 bool AudioInputModel::initialize(
-    string model_file,
-    string lib_dir,
-    string cache_dir, 
-    int backend, 
     bool debug
 ){
     SDL_SetMainReady();
@@ -165,7 +161,7 @@ bool AudioInputModel::initialize(
         return false;
     }
 
-    if(!_model->initialize(model_file, lib_dir, cache_dir, backend, debug)){
+    if(!_model->initializeModelInMemory(WhisperKit::InMemoryModel::ModelType::kSimpleVADModel, debug)){
         LOGE("Failed to initialize\n");
         return false;
     }
