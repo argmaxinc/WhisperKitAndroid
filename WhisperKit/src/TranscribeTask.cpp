@@ -271,9 +271,7 @@ void Runtime::tflite_init_priv() {
     ));
 
 
-    TFLITE_INIT_CHECK(postproc->initialize(
-        postproc_model, lib_dir, cache_dir, kUndefinedBackend, debug
-    ));
+    TFLITE_INIT_CHECK(postproc->initialize(debug));
 
 
     melspectro_inputs = melspectro->get_input_ptrs();

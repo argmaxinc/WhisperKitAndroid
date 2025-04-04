@@ -99,4 +99,5 @@ protected:
 
     private:
         bool buildSimpleVADModel();
+        bool buildPostProcModel();
 };
