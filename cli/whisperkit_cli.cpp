@@ -5,6 +5,9 @@
 #include <string>
 #include "whisperkit_cli.h"
 
+#define TRANSCRIBE_TASK_DEFAULT_LIB_DIR     "/data/local/tmp/lib"
+
+
 WhisperKitConfig::WhisperKitConfig()  {
     audioPath = "";
     modelPath = "";
@@ -32,7 +35,7 @@ void CHECK_WHISPERKIT_STATUS(whisperkit_status_t status) {
     }
 }
 
-WhisperKitRunner::WhisperKitRunner(WhisperKitConfig& config) : config(config) {
+WhisperKitRunner::WhisperKitRunner(WhisperKitConfig& config, std::string libDir) : config(config) {
 
     whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
     status = whisperkit_configuration_create(&configuration);
@@ -40,6 +43,9 @@ WhisperKitRunner::WhisperKitRunner(WhisperKitConfig& config) : config(config) {
 
     status = whisperkit_pipeline_create(&pipeline);
     CHECK_WHISPERKIT_STATUS(status);
+
+    status = whisperkit_configuration_set_lib_dir(configuration, libDir.c_str());
+    CHECK_WHISPERKIT_STATUS(status);                                                                    
 
 }
 
@@ -146,7 +152,7 @@ int main(int argc, char* argv[]) {
         std::cerr << "Error parsing options: " << e.what() << std::endl;
         return 1;
     }
-    WhisperKitRunner runner(config);
+    WhisperKitRunner runner(config, std::string(TRANSCRIBE_TASK_DEFAULT_LIB_DIR));
 
     try {
         runner.buildPipeline();
