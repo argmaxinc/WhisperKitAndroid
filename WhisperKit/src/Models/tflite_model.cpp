@@ -136,8 +136,7 @@ bool TFLiteModel::initializeModelInMemory(
         case WhisperKit::InMemoryModel::ModelType::kSimpleVADModel:
             return buildSimpleVADModel();
         case WhisperKit::InMemoryModel::ModelType::kSimplePostProcessingModel:
-            // TODO: implement
-            break;
+            return buildPostProcModel();
         default:
             LOGE("Unsupported model type for in-memory model\n");
             return false;
@@ -165,6 +164,329 @@ bool TFLiteModel::initialize(
     }
 
     return true;
+}
+
+bool TFLiteModel::buildPostProcModel() {
+
+    /* Structure:
+
+    -- create op codes composing the model;
+    -- define the input tensor (here: logits)
+    -- define the intermediate tensors between the nodes and output tensors
+    -- assemble the graph, connecting the nodes by the tensor indices
+    -- build the graph, assign the model to an interpreter
+    */
+    constexpr int LOGITS_SIZE = 51864;
+    constexpr int TOKEN_TIMESTAMP_BEGIN = 50363;
+    constexpr int TOKEN_NO_SPEECH = 50361;
+
+    
+    const std::vector<int32_t> input_shape = {LOGITS_SIZE};
+    const std::vector<int32_t> text_slice_shape = {TOKEN_TIMESTAMP_BEGIN};
+    const std::vector<int32_t> timestamp_slice_shape = {LOGITS_SIZE-TOKEN_TIMESTAMP_BEGIN};
+    const std::vector<int32_t> unary_shape = {1};
+    const std::vector<int32_t> output_shape = {3};
+
+    // Op Codes
+    auto op_code_log_softmax = tflite::CreateOperatorCode(_builder, tflite::BuiltinOperator_LOG_SOFTMAX);
+    auto op_code_slice = tflite::CreateOperatorCode(_builder, tflite::BuiltinOperator_SLICE);
+    auto op_code_exp = tflite::CreateOperatorCode(_builder, tflite::BuiltinOperator_EXP);
+    auto op_code_sum = tflite::CreateOperatorCode(_builder, tflite::BuiltinOperator_SUM);
+    auto op_code_log = tflite::CreateOperatorCode(_builder, tflite::BuiltinOperator_LOG);
+    auto op_code_reduce_max = tflite::CreateOperatorCode(_builder, tflite::BuiltinOperator_REDUCE_MAX);
+    auto op_code_sub = tflite::CreateOperatorCode(_builder, tflite::BuiltinOperator_SUB);
+    auto op_code_add = tflite::CreateOperatorCode(_builder, tflite::BuiltinOperator_ADD);
+    std::vector<flatbuffers::Offset<tflite::Tensor>> tensors;
+    
+    // IO tensors
+    auto input_tensor = tflite::CreateTensor(_builder, _builder.CreateVector<int32_t>(input_shape), tflite::TensorType_FLOAT32,
+        0, _builder.CreateString("logits"));
+    
+    // Intermediary tensors
+    // Holds results of LogSoftmax operation on logits input
+    auto logsoftmax_tensor = tflite::CreateTensor(_builder, _builder.CreateVector<int32_t>(input_shape), tflite::TensorType_FLOAT32);
+    
+    // Holds results of the Slice operations on logprobs
+    auto text_slice_tensor = tflite::CreateTensor(_builder, _builder.CreateVector<int32_t>(text_slice_shape), tflite::TensorType_FLOAT32);
+    auto timestamp_slice_tensor = tflite::CreateTensor(_builder, _builder.CreateVector<int32_t>(timestamp_slice_shape), tflite::TensorType_FLOAT32);
+    auto nospeech_slice_tensor =tflite::CreateTensor(_builder, _builder.CreateVector<int32_t>(unary_shape),
+                                                    tflite::TensorType_FLOAT32, 0, _builder.CreateString("no_speech_logprob")); 
+    
+    // Holds results of max reduction operation on the text slice
+    auto text_max_tensor = tflite::CreateTensor(_builder, _builder.CreateVector<int32_t>(unary_shape), tflite::TensorType_FLOAT32, 0, _builder.CreateString("text_logprob"));
+    
+    // Holds result of exp operation on the timestamp slice
+    auto timestamp_exp_tensor = tflite::CreateTensor(_builder, _builder.CreateVector<int32_t>(timestamp_slice_shape), tflite::TensorType_FLOAT32);
+    // Holds results of sum reduction operation on the results of the exp operation
+    auto timestamp_sum_tensor = tflite::CreateTensor(_builder, _builder.CreateVector<int32_t>(unary_shape), tflite::TensorType_FLOAT32);
+    // Holds results of log operation on the timestamp summed probability
+    auto timestamp_log_tensor = tflite::CreateTensor(_builder, _builder.CreateVector<int32_t>(unary_shape), tflite::TensorType_FLOAT32,
+                                                    0, _builder.CreateString("timestamp_log"));
+
+    // Buffers
+    // Empty Buffer for IO tensors
+    auto empty_buffer = tflite::CreateBuffer(_builder);
+    // Text
+    std::vector<int32_t> text_slice_begin_data = {0};
+    std::vector<int32_t> text_slice_size_data = {TOKEN_TIMESTAMP_BEGIN};
+    auto text_slice_begin_buffer_data = _builder.CreateVector(reinterpret_cast<const uint8_t*>(
+        text_slice_begin_data.data()), text_slice_begin_data.size() * sizeof(int32_t));
+    auto text_slice_size_buffer_data = _builder.CreateVector(reinterpret_cast<const uint8_t*>(
+        text_slice_size_data.data()), text_slice_size_data.size() * sizeof(int32_t));
+    auto text_slice_begin_buffer = tflite::CreateBuffer(_builder, text_slice_begin_buffer_data);
+    auto text_slice_size_buffer = tflite::CreateBuffer(_builder, text_slice_size_buffer_data);
+    
+    // Timestamp
+    std::vector<int32_t> timestamp_slice_begin_data = {TOKEN_TIMESTAMP_BEGIN};
+    std::vector<int32_t> timestamp_slice_size_data = {LOGITS_SIZE-TOKEN_TIMESTAMP_BEGIN};
+    auto timestamp_slice_begin_buffer_data = _builder.CreateVector(reinterpret_cast<const uint8_t*>(
+        timestamp_slice_begin_data.data()), timestamp_slice_begin_data.size() * sizeof(int32_t));
+    auto timestamp_slice_size_buffer_data = _builder.CreateVector(reinterpret_cast<const uint8_t*>(
+        timestamp_slice_size_data.data()), timestamp_slice_size_data.size() * sizeof(int32_t));
+    auto timestamp_slice_begin_buffer = tflite::CreateBuffer(_builder, timestamp_slice_begin_buffer_data);
+    auto timestamp_slice_size_buffer = tflite::CreateBuffer(_builder, timestamp_slice_size_buffer_data);
+
+    // No speech token
+    std::vector<int32_t> nospeech_slice_begin_data = {TOKEN_NO_SPEECH};
+    std::vector<int32_t> nospeech_slice_size_data = {1};
+    auto nospeech_slice_begin_buffer_data = _builder.CreateVector(reinterpret_cast<const uint8_t*>(
+        nospeech_slice_begin_data.data()), nospeech_slice_begin_data.size() * sizeof(int32_t));
+    auto nospeech_slice_size_buffer_data = _builder.CreateVector(reinterpret_cast<const uint8_t*>(
+        nospeech_slice_size_data.data()), nospeech_slice_size_data.size() * sizeof(int32_t));
+    auto nospeech_slice_begin_buffer = tflite::CreateBuffer(_builder, nospeech_slice_begin_buffer_data);
+    auto nospeech_slice_size_buffer = tflite::CreateBuffer(_builder, nospeech_slice_size_buffer_data);
+
+    // Axis 
+    std::vector<int32_t> reduction_axis_data = {0};
+    auto reduction_axis_buffer_data = _builder.CreateVector(reinterpret_cast<const uint8_t*>(
+        reduction_axis_data.data()), reduction_axis_data.size() * sizeof(int32_t));
+    auto reduction_axis_buffer = tflite::CreateBuffer(_builder, reduction_axis_buffer_data);
+    
+    // Constant Tensors
+    // Text
+    auto text_slice_begin_tensor = tflite::CreateTensor(
+        _builder,
+        _builder.CreateVector<int32_t>({1}),  // shape
+        tflite::TensorType_INT32,            // type
+        1,                                   // buffer index
+        _builder.CreateString("text_slice_begin"));
+    auto text_slice_size_tensor = tflite::CreateTensor(
+        _builder,
+        _builder.CreateVector<int32_t>({1}),  // shape
+        tflite::TensorType_INT32,            // type
+        2,                                   // buffer index
+        _builder.CreateString("text_slice_size"));
+
+    // Timestamp
+    auto timestamp_slice_begin_tensor = tflite::CreateTensor(
+        _builder,
+        _builder.CreateVector<int32_t>({1}),  // shape
+        tflite::TensorType_INT32,            // type
+        3,                                   // buffer index
+        _builder.CreateString("timestamp_slice_begin"));
+    auto timestamp_slice_size_tensor = tflite::CreateTensor(
+        _builder,
+        _builder.CreateVector<int32_t>({1}),  // shape
+        tflite::TensorType_INT32,            // type
+        4,                                   // buffer index
+        _builder.CreateString("timestamp_slice_size"));
+
+    // No speech
+    auto nospeech_slice_begin_tensor = tflite::CreateTensor(
+        _builder,
+        _builder.CreateVector<int32_t>({1}),  // shape
+        tflite::TensorType_INT32,            // type
+        5,                                   // buffer index
+        _builder.CreateString("nospeech_slice_begin"));
+    auto nospeech_slice_size_tensor = tflite::CreateTensor(
+        _builder,
+        _builder.CreateVector<int32_t>({1}),  // shape
+        tflite::TensorType_INT32,            // type
+        6,                                   // buffer index
+        _builder.CreateString("nospeech_slice_size"));
+
+    // Reduction Axis
+    auto reduction_axis_tensor = tflite::CreateTensor(
+        _builder,
+        _builder.CreateVector<int32_t>({1}),  // shape
+        tflite::TensorType_INT32,            // type
+        7,                                   // buffer index
+        _builder.CreateString("reduction_axis"));
+    
+    // Holds results of max reduction operation on the timestamp slice
+    auto timestamp_max_tensor = tflite::CreateTensor(_builder, _builder.CreateVector<int32_t>(unary_shape.data(), unary_shape.size()),
+                                                    tflite::TensorType_FLOAT32, 0, _builder.CreateString("timestamp_max_tensor"));
+    // Holds results of timestamp logprobs 'normalized' by max timestamp logprob
+    auto timestamp_norm_tensor = tflite::CreateTensor(_builder, _builder.CreateVector<int32_t>(timestamp_slice_shape.data(), timestamp_slice_shape.size()),
+                                                    tflite::TensorType_FLOAT32, 0, _builder.CreateString("timestamp_norm_tensor"));
+    auto timestamp_add_tensor = tflite::CreateTensor(_builder, _builder.CreateVector<int32_t>(unary_shape.data(), unary_shape.size()),
+                                                    tflite::TensorType_FLOAT32, 0, _builder.CreateString("timestamp_logprob"));
+
+
+    // Operators
+    // Log probabilities calc
+    auto log_softmax_op = tflite::CreateOperator(_builder, 
+                                                0, /* op_code index */
+                                                _builder.CreateVector<int32_t>({0}), /* input indices */
+                                                _builder.CreateVector<int32_t>({1}) /* output indices */
+                                            );
+    // Slice operations
+    auto text_slice_op = tflite::CreateOperator(_builder, 
+                                                1, /* op_code index */
+                                                _builder.CreateVector<int32_t>({1, 2, 3}), /* input indices */
+                                                _builder.CreateVector<int32_t>({4}) /* output indices */
+                                            );
+    auto timestamp_slice_op = tflite::CreateOperator(_builder, 
+                                                1, /* op_code index */
+                                                _builder.CreateVector<int32_t>({1, 5, 6}), /* input indices */
+                                                _builder.CreateVector<int32_t>({7}) /* output indices */
+                                            );
+    auto nospeech_slice_op = tflite::CreateOperator(_builder, 
+                                                1, /* op_code index */
+                                                _builder.CreateVector<int32_t>({1, 8, 9}), /* input indices */
+                                                _builder.CreateVector<int32_t>({10}) /* output indices */
+                                            );
+    // Max reduction
+    auto text_max_op = tflite::CreateOperator(_builder, 
+                                                5, /* op_code index */
+                                                _builder.CreateVector<int32_t>({4, 11}), /* input indices */
+                                                _builder.CreateVector<int32_t>({12}) /* output indices */
+                                            );
+
+    auto timestamp_max_op = tflite::CreateOperator(_builder, 
+                                                    5, /* op_code index */
+                                                    _builder.CreateVector<int32_t>({7, 11}), /* input indices */
+                                                    _builder.CreateVector<int32_t>({13}) /* output indices */
+                                            );
+
+    // Log sum exp
+    auto timestamp_sub_op = tflite::CreateOperator(_builder, 
+                                                    6, /* op_code index */
+                                                    _builder.CreateVector<int32_t>({7, 13}), /* input indices */
+                                                    _builder.CreateVector<int32_t>({14}) /* output indices */
+                                            );
+    auto timestamp_exp_op = tflite::CreateOperator(_builder, 
+                                                    2, /* op_code index */
+                                                    _builder.CreateVector<int32_t>({14}), /* input indices */
+                                                    _builder.CreateVector<int32_t>({15}) /* output indices */
+                                            );
+    auto timestamp_sum_op = tflite::CreateOperator(_builder, 
+                                                        3, /* op_code index */
+                                                        _builder.CreateVector<int32_t>({15, 11}), /* input indices */
+                                                        _builder.CreateVector<int32_t>({16}) /* output indices */
+                                            );
+    auto timestamp_log_op = tflite::CreateOperator(_builder, 
+                                                        4, /* op_code index */
+                                                        _builder.CreateVector<int32_t>({16}), /* input indices */
+                                                        _builder.CreateVector<int32_t>({17}) /* output indices */
+                                            );
+    auto timestamp_add_op = tflite::CreateOperator(_builder, 
+                                                        7, /* op_code index */
+                                                        _builder.CreateVector<int32_t>({17, 13}), /* input indices */
+                                                        _builder.CreateVector<int32_t>({18}) /* output indices */
+                                            );
+    
+
+    // Create graph
+    auto graph = tflite::CreateSubGraph(_builder, 
+        // Tensors
+        _builder.CreateVector({
+            input_tensor,
+            logsoftmax_tensor, 
+            // Text Slice tensors
+            text_slice_begin_tensor,
+            text_slice_size_tensor,
+            text_slice_tensor,
+            // Timestamp slice tensors
+            timestamp_slice_begin_tensor,
+            timestamp_slice_size_tensor,
+            timestamp_slice_tensor,
+            // No speech slice tensors
+            nospeech_slice_begin_tensor,
+            nospeech_slice_size_tensor,
+            nospeech_slice_tensor, // output[2]
+            // Reduction axis
+            reduction_axis_tensor,
+            // Max reduction tensors
+            text_max_tensor,
+            timestamp_max_tensor, // output[1]
+            // Log timestamp probability calc tensors
+            timestamp_exp_tensor,
+            timestamp_sum_tensor,
+            timestamp_log_tensor,
+            timestamp_norm_tensor, // output[0]
+            timestamp_add_tensor
+        }),
+        // Input Indices
+        _builder.CreateVector<int32_t>({0}),
+        // Output Indices
+        _builder.CreateVector<int32_t>({18, 12, 10}),
+        // Operations
+        _builder.CreateVector({log_softmax_op,
+                              text_slice_op,
+                              timestamp_slice_op,
+                              nospeech_slice_op,
+                              text_max_op,
+                              timestamp_max_op,
+                              timestamp_sub_op,
+                              timestamp_exp_op,
+                              timestamp_sum_op,
+                              timestamp_log_op,
+                              timestamp_add_op
+                            })
+    );
+
+    auto model = tflite::CreateModel(_builder, TFLITE_SCHEMA_VERSION,
+        // Operation Codes
+        _builder.CreateVector({op_code_log_softmax,
+                              op_code_slice,
+                              op_code_exp,
+                              op_code_sum,
+                              op_code_log,
+                              op_code_reduce_max,
+                              op_code_sub,
+                              op_code_add}),
+        _builder.CreateVector({graph}),
+        _builder.CreateString("Post Process Model"),
+        // Buffers
+        _builder.CreateVector({empty_buffer,
+                            text_slice_begin_buffer,
+                            text_slice_size_buffer,
+                            timestamp_slice_begin_buffer,
+                            timestamp_slice_size_buffer,
+                            nospeech_slice_begin_buffer,
+                            nospeech_slice_size_buffer,
+                            reduction_axis_buffer}));
+    
+    _builder.Finish(model, tflite::ModelIdentifier());
+
+    // Wrap in FlatBufferModel object
+    _model = tflite::FlatBufferModel::BuildFromBuffer(
+                 reinterpret_cast<const char*>(_builder.GetBufferPointer()), _builder.GetSize());
+
+    if (!_model) {
+        std::cerr << "Failed to build TFLite model in memory!" << std::endl;
+        return false;
+    }
+
+    // Build an interpreter
+    tflite::ops::builtin::BuiltinOpResolver resolver;
+    tflite::InterpreterBuilder interpreter_builder(*_model, resolver);
+    interpreter_builder(&_interpreter);
+
+    if (!_interpreter) {
+        std::cerr << "Failed to create TFLite interpreter!" << std::endl;
+        return false;
+    }
+
+    // Allocate memory for tensors (see other default initializer method, we put here instead of initializeModelInMemory)
+    if (_interpreter->AllocateTensors() != kTfLiteOk) {
+        std::cerr << "Failed to allocate tensors!" << std::endl;
+        return false;
+    }
+
+    return true;
+
 }
 
 void TFLiteModel::uninitialize() {
