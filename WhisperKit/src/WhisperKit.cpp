@@ -46,14 +46,6 @@ whisperkit_status_t whisperkit_configuration_set_text_decoder(whisperkit_configu
     return WHISPERKIT_STATUS_SUCCESS;
 };
 
-whisperkit_status_t whisperkit_configuration_set_voice_activity_detector(whisperkit_configuration_t *config, const char* voice_activity_detector) {
-    if(config == nullptr || voice_activity_detector == nullptr) {
-        return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
-    }
-    config->set_voice_activity_detector(voice_activity_detector);
-    return WHISPERKIT_STATUS_SUCCESS;
-};
-
 whisperkit_status_t whisperkit_configuration_set_tokenizer(whisperkit_configuration_t *config, const char* tokenizer) {
     if(config == nullptr || tokenizer == nullptr) {
         return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
@@ -67,14 +59,6 @@ whisperkit_status_t whisperkit_configuration_set_melspectrogram_model(whisperkit
         return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
     }
     config->set_melspectrogram_model(melspectrogram_model);
-    return WHISPERKIT_STATUS_SUCCESS;
-};
-
-whisperkit_status_t whisperkit_configuration_set_postproc(whisperkit_configuration_t *config, const char* postproc) {
-    if(config == nullptr || postproc == nullptr) {
-        return WHISPERKIT_STATUS_ERROR_INVALID_ARGUMENT;
-    }
-    config->set_postproc(postproc);
     return WHISPERKIT_STATUS_SUCCESS;
 };
 

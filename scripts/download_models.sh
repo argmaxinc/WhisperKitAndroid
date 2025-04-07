@@ -32,20 +32,14 @@ HF_ARGMAX_URL="https://huggingface.co/argmaxinc/whisperkit-android/resolve/main"
 if [ ! -f $TINY_MODELS_DIR/converted_vocab.json ]; then
     aria2c $ARIA_OPTIONS -d "$TINY_MODELS_DIR" -o converted_vocab.json $HF_ARGMAX_URL/converted_vocab.json
     aria2c $ARIA_OPTIONS -d "$TINY_MODELS_DIR" -o MelSpectrogram.tflite $HF_ARGMAX_URL/melspectrogram.tflite
-    aria2c $ARIA_OPTIONS -d "$TINY_MODELS_DIR" -o postproc.tflite $HF_ARGMAX_URL/postproc.tflite
-    aria2c $ARIA_OPTIONS -d "$TINY_MODELS_DIR" -o voice_activity_detection.tflite $HF_ARGMAX_URL/voice_activity_detection.tflite
 fi
 if [ ! -f $BASE_MODELS_DIR/converted_vocab.json ]; then
     cp $TINY_MODELS_DIR/converted_vocab.json $BASE_MODELS_DIR/.
     cp $TINY_MODELS_DIR/MelSpectrogram.tflite $BASE_MODELS_DIR/.
-    cp $TINY_MODELS_DIR/postproc.tflite $BASE_MODELS_DIR/.
-    cp $TINY_MODELS_DIR/voice_activity_detection.tflite $BASE_MODELS_DIR/.
 fi
 if [ ! -f $SMALL_MODELS_DIR/converted_vocab.json ]; then
     cp $TINY_MODELS_DIR/converted_vocab.json $SMALL_MODELS_DIR/.
     cp $TINY_MODELS_DIR/MelSpectrogram.tflite $SMALL_MODELS_DIR/.
-    cp $TINY_MODELS_DIR/postproc.tflite $SMALL_MODELS_DIR/.
-    cp $TINY_MODELS_DIR/voice_activity_detection.tflite $SMALL_MODELS_DIR/.
 fi
 
 # Download Qualcomm models
