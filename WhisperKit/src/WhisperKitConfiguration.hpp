@@ -11,10 +11,8 @@ struct whisperkit_configuration_t {
 
         void set_audio_encoder(const char* audio_encoder) noexcept;
         void set_text_decoder(const char* text_decoder) noexcept;
-        void set_voice_activity_detector(const char* voice_activity_detector) noexcept;
         void set_tokenizer(const char* tokenizer) noexcept;
         void set_melspectrogram_model(const char* melspectrogram_model) noexcept;
-        void set_postproc(const char* postproc) noexcept;
         void set_lib_dir(const char* lib_dir) noexcept;
         void set_cache_dir(const char* cache_dir) noexcept;
         void set_verbose(bool verbose) noexcept;
@@ -26,7 +24,6 @@ struct whisperkit_configuration_t {
 
         const std::string get_audio_encoder() const noexcept;
         const std::string get_text_decoder() const noexcept;
-        const std::string get_voice_activity_detector() const noexcept;
         const std::string get_tokenizer() const noexcept;
         const std::string get_melspectrogram_model() const noexcept;
         const std::string get_postproc() const noexcept;
@@ -45,7 +42,6 @@ struct whisperkit_configuration_t {
 
         std::string audio_encoder;
         std::string text_decoder;
-        std::string voice_activity_detector;
         std::string tokenizer;
         std::string melspectrogram_model;
         std::string postproc;

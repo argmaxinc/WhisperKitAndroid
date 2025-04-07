@@ -13,20 +13,12 @@ void whisperkit_configuration_t::set_text_decoder(const char* text_decoder) noex
         this->text_decoder = text_decoder;
 }
 
-void whisperkit_configuration_t::set_voice_activity_detector(const char* voice_activity_detector) noexcept  {
-        this->voice_activity_detector = voice_activity_detector;
-}
-
 void whisperkit_configuration_t::set_tokenizer(const char* tokenizer) noexcept  {
         this->tokenizer = tokenizer;
 }
 
 void whisperkit_configuration_t::set_melspectrogram_model(const char* melspectrogram_model) noexcept  {
         this->melspectrogram_model = melspectrogram_model;
-}
-
-void whisperkit_configuration_t::set_postproc(const char* postproc) noexcept  {
-        this->postproc = postproc;
 }
 
 void whisperkit_configuration_t::set_model_path(const char* model_path) noexcept  {
@@ -66,9 +58,6 @@ const std::string whisperkit_configuration_t::get_audio_encoder() const noexcept
 }
 const std::string whisperkit_configuration_t::get_text_decoder() const noexcept  {
         return this->text_decoder;
-}
-const std::string whisperkit_configuration_t::get_voice_activity_detector() const noexcept  {
-        return this->voice_activity_detector;
 }
 const std::string whisperkit_configuration_t::get_tokenizer() const noexcept  {
         return this->tokenizer;
