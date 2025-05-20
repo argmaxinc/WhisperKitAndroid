@@ -1,11 +1,12 @@
 //  For licensing see accompanying LICENSE.md file.
 //  Copyright © 2024 Argmax, Inc. All rights reserved.
 
-#include <iostream>
-#include <string>
 #include "whisperkit_cli.h"
 
-WhisperKitConfig::WhisperKitConfig()  {
+#include <iostream>
+#include <string>
+
+WhisperKitConfig::WhisperKitConfig() {
     audioPath = "";
     modelPath = "";
     audioEncoderComputeUnits = "";
@@ -24,6 +25,13 @@ WhisperKitConfig::WhisperKitConfig()  {
     reportPath = ".";
     concurrentWorkerCount = 4;
     verbose = false;
+#if QNN_DELEGATE
+    encoder_backend = WHISPERKIT_COMPUTE_BACKEND_NPU;
+    decoder_backend = WHISPERKIT_COMPUTE_BACKEND_NPU;
+#else
+    encoder_backend = WHISPERKIT_COMPUTE_BACKEND_GPU;
+    decoder_backend = WHISPERKIT_COMPUTE_BACKEND_GPU;
+#endif
 };
 
 void CHECK_WHISPERKIT_STATUS(whisperkit_status_t status) {
@@ -33,7 +41,6 @@ void CHECK_WHISPERKIT_STATUS(whisperkit_status_t status) {
 }
 
 WhisperKitRunner::WhisperKitRunner(WhisperKitConfig& config) : config(config) {
-
     whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
     status = whisperkit_configuration_create(&configuration);
     CHECK_WHISPERKIT_STATUS(status);
@@ -41,16 +48,17 @@ WhisperKitRunner::WhisperKitRunner(WhisperKitConfig& config) : config(config) {
     status = whisperkit_pipeline_create(&pipeline);
     CHECK_WHISPERKIT_STATUS(status);
 
+    status = whisperkit_configuration_set_backends(configuration, config.encoder_backend, config.decoder_backend);
+    CHECK_WHISPERKIT_STATUS(status);
 }
 
 void WhisperKitRunner::buildPipeline() {
-
     whisperkit_status_t status = WHISPERKIT_STATUS_SUCCESS;
 
     status = whisperkit_configuration_set_model_path(configuration, config.modelPath.c_str());
     CHECK_WHISPERKIT_STATUS(status);
 
-    if (config.report){
+    if (config.report) {
         status = whisperkit_configuration_set_report_path(configuration, config.reportPath.c_str());
         CHECK_WHISPERKIT_STATUS(status);
     }
@@ -62,7 +70,6 @@ void WhisperKitRunner::buildPipeline() {
 
     status = whisperkit_pipeline_build(pipeline);
     CHECK_WHISPERKIT_STATUS(status);
-
 }
 
 void WhisperKitRunner::transcribe() {
@@ -75,16 +82,12 @@ void WhisperKitRunner::transcribe() {
     CHECK_WHISPERKIT_STATUS(status);
 
     char* transcription = nullptr;
-    status = whisperkit_transcription_result_get_transcription(transcriptionResult, &transcription);
+    status = whisperkit_transcription_result_get_all_transcription(transcriptionResult, &transcription);
     CHECK_WHISPERKIT_STATUS(status);
 
-    std::string transcriptionString(transcription);
-    std::cout << "Transcription: " << transcriptionString.c_str() << std::endl;
-
-    if(transcription != nullptr) {
+    if (transcription != nullptr) {
         free((void*)transcription);
     }
-
 }
 
 WhisperKitRunner::~WhisperKitRunner() {
@@ -99,23 +102,23 @@ WhisperKitRunner::~WhisperKitRunner() {
     }
 }
 
-
-
-
 int main(int argc, char* argv[]) {
-
     WhisperKitConfig config;
 
     try {
         cxxopts::Options options("whisperkit-cli", "WhisperKit CLI for Android & Linux");
 
-        options.add_options("transcribe")
-            ("h,help", "Print help")
-            ("audio-path", "Path to audio file", cxxopts::value<std::string>())
-            ("model-path", "Path of model files", cxxopts::value<std::string>())
-            ("report","Output a report of the results", cxxopts::value<bool>()->default_value("false"))
-            ("report-path", "Directory to save the report", cxxopts::value<std::string>()->default_value("."))
-            ("v,verbose", "Verbose mode for debug", cxxopts::value<bool>()->default_value("false"));
+        options.add_options("transcribe")("h,help", "Print help")(
+            "a,audio-path", "Path to audio file", cxxopts::value<std::string>())("m,model-path", "Path of model files",
+                                                                                 cxxopts::value<std::string>())(
+            "r,report", "Output a report of the results", cxxopts::value<bool>()->default_value("false"))(
+            "p,report-path", "Directory to save the report", cxxopts::value<std::string>()->default_value("."))(
+            "v,verbose", "Verbose mode for debug", cxxopts::value<bool>()->default_value("false"))
+#if QNN_DELEGATE
+            ("c,compute-unit", "CPU/GPU/NPU", cxxopts::value<std::string>()->default_value("NPU"));
+#else
+            ("c,compute-unit", "CPU/GPU", cxxopts::value<std::string>()->default_value("GPU"));
+#endif
 
         auto result = options.parse(argc, argv);
 
@@ -140,8 +143,20 @@ int main(int argc, char* argv[]) {
             config.verbose = true;
             std::cout << "Verbose mode is ON." << std::endl;
         }
-        
 
+        if (result.count("compute-unit")) {
+            auto unit = result["compute-unit"].as<std::string>();
+            if (unit == "CPU") {
+                config.encoder_backend = WHISPERKIT_COMPUTE_BACKEND_CPU;
+                config.decoder_backend = WHISPERKIT_COMPUTE_BACKEND_CPU;
+            } else if (unit == "NPU") {
+                config.encoder_backend = WHISPERKIT_COMPUTE_BACKEND_NPU;
+                config.decoder_backend = WHISPERKIT_COMPUTE_BACKEND_NPU;
+            } else {
+                config.encoder_backend = WHISPERKIT_COMPUTE_BACKEND_GPU;
+                config.decoder_backend = WHISPERKIT_COMPUTE_BACKEND_GPU;
+            }
+        }
     } catch (const cxxopts::exceptions::exception& e) {
         std::cerr << "Error parsing options: " << e.what() << std::endl;
         return 1;
@@ -159,5 +174,3 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
-
-

@@ -6,7 +6,6 @@
 ARG=$1
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
-SDL3_DIR="$SOURCE_DIR/.source/SDL"
 
 case $ARG in
     "clean")
@@ -30,7 +29,7 @@ case $ARG in
         PLATFORM="android" ;;
 
     "jni" )
-        echo "  ${0} jni : building for arm64 Android (in build/android)" 
+        echo "  ${0} jni : building for arm64 Android JNI (in build/android)" 
         PLATFORM="android" ;;
 
     *)
@@ -57,22 +56,22 @@ if [ ! -d $SOURCE_DIR/external/inc ]; then
 fi
 
 # check if libtensorflowlite.so and its headers are built and installed
-if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libtensorflowlite.so ]; then
+if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libtensorflowlite.so ] \
+    || [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libtensorflowlite_gpu_delegate.so ] \
+    || [ ! -d $SOURCE_DIR/external/inc/flatbuffers ]; then
     $SOURCE_DIR/scripts/build_tensorflow.sh $PLATFORM
-elif [ ! -d $SOURCE_DIR/external/inc/flatbuffers ]; then
-    $SOURCE_DIR/scripts/build_tensorflow.sh $PLATFORM
-fi
-
-# check if libSDL3.so is built and exists
-if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libSDL3.so ]; then
-    echo "SDL3 libs are not found, building it now.."
-    $SOURCE_DIR/scripts/build_SDL.sh $PLATFORM
 fi
 
 # check if ffmpeg libs is built and exists
 if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libavcodec.so ]; then
     echo "ffmpeg libs are not found, building it now.."
     $SOURCE_DIR/scripts/build_ffmpeg.sh $PLATFORM
+fi
+
+# check if libtokenizers_sys.so is built and exists
+if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libtokenizers_sys.so ]; then
+    echo "tokenizer libs are not found, building it now.."
+    $SOURCE_DIR/scripts/build_tokenizers.sh $PLATFORM
 fi
 
 if [ -d "$SOURCE_DIR/$BUILD_DIR" ]; then
@@ -88,7 +87,8 @@ if [ "$ARG" = "linux" ]; then
     -DCMAKE_BUILD_TYPE=release \
     -B$SOURCE_DIR/$BUILD_DIR \
     -GNinja \
-    -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR}
+    -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR} \
+    -DTOKENIZER_SDK_ROOT=${TOKENIZER_SDK_ROOT}
 else
     find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ \
         -name libtensorflowlite_gpu_delegate.so -exec cp {} $SOURCE_DIR/external/libs/android/ \;
@@ -105,11 +105,9 @@ else
         QNN_DELEGATE="-DQNN_DELEGATE=1"
     fi
 
-    if [ "$ARG" = "jni" ]; then # embed SDL3 in .so
-        SDL3_FLAG="-DSDL3_DIR=${SDL3_DIR}"
+    if [ "$ARG" = "jni" ]; then
         JNI_FLAG="-DJNI=1"
     else 
-        SDL3_FLAG=""
         JNI_FLAG="-DJNI=0"
     fi
 
@@ -131,7 +129,6 @@ else
     -B$SOURCE_DIR/$BUILD_DIR \
     -GNinja \
     -DTENSORFLOW_SOURCE_DIR=${TENSORFLOW_SOURCE_DIR} \
-    ${SDL3_FLAG} \
     ${JNI_FLAG} \
     ${QNN_DELEGATE}
 fi
@@ -147,3 +144,5 @@ if [ ! -d "${SOURCE_DIR}/${BUILD_DIR}" ]; then
 fi
 cd ${SOURCE_DIR}/${BUILD_DIR}
 ninja -j 12
+
+$SOURCE_DIR/scripts/copy_libraries.sh $ARG

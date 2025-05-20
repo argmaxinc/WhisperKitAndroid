@@ -5,12 +5,13 @@ FROM ubuntu:22.04 AS build-env
 RUN apt-get update && apt-get install -y \
     openjdk-17-jre-headless build-essential cmake git \
     python3 python3-pip apt-transport-https \
-    curl wget vim g++ unzip clang libdrm-dev \
+    curl wget vim g++ unzip libdrm-dev \
     pkg-config gnome-desktop-testing libasound2-dev libpulse-dev \
     libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev \
-    libxkbcommon-dev libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev \
+    libxkbcommon-dev libgbm-dev libgl-dev libgles2-mesa-dev \
     libegl1-mesa-dev libdbus-1-dev libibus-1.0-dev libudev-dev fcitx-libs-dev \
-    libpipewire-0.3-dev libwayland-dev libdecor-0-dev nasm yasm \
+    libpipewire-0.3-dev libwayland-dev libdecor-0-dev nasm yasm libssl-dev \
+    lsb-release software-properties-common gnupg \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -38,8 +39,8 @@ ENV AXIE_ROOT=/src/AXIE
 ARG ANDROID_NDK_ZIP=$ANDROID_NDK_VERSION-linux.zip
 ARG BAZEL_INSTALLER=bazel-6.5.0-installer-linux-x86_64.sh
 ARG BAZEL_DIR=/opt/bazel
-ARG QNN_RUNTIME=qnn-runtime-2.27.0.aar
-ARG QNN_TFLITE_DELEGATE=qnn-tflite-delegate-2.27.0.aar
+ARG QNN_RUNTIME=qnn-runtime-2.33.0.aar
+ARG QNN_TFLITE_DELEGATE=qnn-litert-delegate-2.33.0.aar
 ARG ANDROID_COMMAND_LINE_TOOLS=commandlinetools-linux-11076708_latest.zip
 
 # Copy build dependencies
@@ -48,6 +49,10 @@ ADD .source/$BAZEL_INSTALLER $BAZEL_DIR/$BAZEL_INSTALLER
 ADD .source/$QNN_RUNTIME $QNN_RUNTIME_ROOT/
 ADD .source/$QNN_TFLITE_DELEGATE $QNN_SDK_ROOT/
 ADD .source/$ANDROID_COMMAND_LINE_TOOLS $ANDROID_SDK_HOME/
+
+# install clang-18
+RUN wget -qO- https://apt.llvm.org/llvm.sh | bash -s -- 18 && \
+    ln -s /usr/bin/clang-18 /usr/bin/clang
 
 # Unzip and install dependencies
 RUN cd $QNN_RUNTIME_ROOT && unzip $QNN_RUNTIME && rm $QNN_RUNTIME && \

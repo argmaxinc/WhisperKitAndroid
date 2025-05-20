@@ -45,23 +45,31 @@ if ! $(docker image inspect $IMAGE_NAME > /dev/null 2>&1) || $FORCE_REBUILD; the
     aria2c $ARIA_OPTIONS -d $BUILD_DIR https://github.com/bazelbuild/bazel/releases/download/6.5.0/bazel-6.5.0-installer-linux-x86_64.sh
     aria2c $ARIA_OPTIONS -d $BUILD_DIR https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
     aria2c $ARIA_OPTIONS -d $BUILD_DIR https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-    aria2c $ARIA_OPTIONS -d $BUILD_DIR https://repo1.maven.org/maven2/com/qualcomm/qti/qnn-runtime/2.27.0/qnn-runtime-2.27.0.aar
-    aria2c $ARIA_OPTIONS -d $BUILD_DIR https://repo1.maven.org/maven2/com/qualcomm/qti/qnn-tflite-delegate/2.27.0/qnn-tflite-delegate-2.27.0.aar
+    aria2c $ARIA_OPTIONS -d $BUILD_DIR https://repo1.maven.org/maven2/com/qualcomm/qti/qnn-runtime/2.33.0/qnn-runtime-2.33.0.aar
+    aria2c $ARIA_OPTIONS -d $BUILD_DIR https://repo1.maven.org/maven2/com/qualcomm/qti/qnn-litert-delegate/2.33.0/qnn-litert-delegate-2.33.0.aar
   else
     echo "Missing aria2c. Install using 'brew install aria2'. See https://formulae.brew.sh/formula/aria2"
     exit 0
   fi
   if [ ! -d "$BUILD_DIR/tensorflow" ]; then
     echo "Cloning tensorflow..."
-    git clone --depth 1 --branch v2.16.2 https://github.com/tensorflow/tensorflow.git "$BUILD_DIR/tensorflow"
+    NIGHTLY_TF_PIN=e2ccfb8b4e0
+    git clone --no-checkout --filter=blob:none https://github.com/tensorflow/tensorflow.git "$BUILD_DIR/tensorflow"
+    cd $BUILD_DIR/tensorflow
+    git fetch --depth=365 origin nightly
+    git checkout $NIGHTLY_TF_PIN
+    cd -
   fi
   if [ ! -d "$BUILD_DIR/ffmpeg" ]; then
     echo "Cloning ffmpeg..."
     git clone --branch release/7.1 https://github.com/FFmpeg/FFmpeg.git "$BUILD_DIR/ffmpeg"
   fi
-  if [ ! -d "$BUILD_DIR/SDL" ]; then
-    echo "Cloning SDL3..."
-    git clone https://github.com/libsdl-org/SDL.git "$BUILD_DIR/SDL"
+  if [ ! -d "$BUILD_DIR/tokenizers-sys" ]; then
+    echo "Cloning tokenizers-sys..."
+    git clone git@github.com:FL33TW00D/tokenizers-sys.git $BUILD_DIR/tokenizers-sys
+    cd $BUILD_DIR/tokenizers-sys
+    git checkout 686f9341517ecac0d4afcdf48e4863242a3d3cde
+    cd -
   fi
 
   echo "Building Docker image: $IMAGE_NAME"

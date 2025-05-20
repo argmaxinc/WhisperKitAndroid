@@ -3,11 +3,12 @@
 
 #include <iostream>
 #include <string>
-#include "cxxopts.hpp"
+
 #include "WhisperKit.h"
+#include "cxxopts.hpp"
 
 struct WhisperKitConfig {
-public:
+   public:
     std::string audioPath;
     std::string modelPath;
     std::string audioEncoderComputeUnits;
@@ -26,6 +27,8 @@ public:
     std::string reportPath;
     int concurrentWorkerCount;
     bool verbose;
+    whisperkit_backend_t encoder_backend;
+    whisperkit_backend_t decoder_backend;
 
     WhisperKitConfig();
 };
@@ -33,18 +36,17 @@ public:
 void CHECK_WHISPERKIT_STATUS(whisperkit_status_t status);
 
 class WhisperKitRunner {
-public:
+   public:
     explicit WhisperKitRunner(WhisperKitConfig& config);
     ~WhisperKitRunner();
     void buildPipeline();
     void transcribe();
     whisperkit_transcription_result_t* transcriptionResult;
 
-private:
+   private:
     WhisperKitConfig& config;
     whisperkit_pipeline_t* pipeline;
     whisperkit_configuration_t* configuration;
-    
 };
 
-#endif // WHISPERKIT_CLI_H
+#endif  // WHISPERKIT_CLI_H

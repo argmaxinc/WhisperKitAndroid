@@ -4,7 +4,7 @@
 SCRIPTS_DIR = ./scripts
 
 # Define targets for each script
-.PHONY: setup env ci-env clean rebuild-env download-models build test adb-push help
+.PHONY: setup env ci-env clean rebuild-env download-models build test adb-push format help
 
 args = `arg="$(filter-out $@,$(MAKECMDGOALS))" && echo $${arg:-${1}}`
 
@@ -21,6 +21,7 @@ help:
 	@echo "    [qnn|gpu|linux|jni] 	Build for each target: QNN or GPU for Android, or Linux"
 	@echo "  adb-push          		Push axie_tflite CLI and other dependencies to the Android device. Run this on host."
 	@echo "  test              		Builds and install test dependencies."
+	@echo "  format            		Run spotlessApply to format code."
 
 
 setup:
@@ -33,6 +34,8 @@ setup:
 	@which adb > /dev/null || (echo "Error: Android Debug Bridge (adb) is not installed. Install it using 'brew install --cask android-platform-tools' or by installing Android Studio and try again." && exit 1)
 	@echo "Checking for expect ..."
 	@which expect > /dev/null || (echo "Error: expect is not installed. Install using 'brew install expect' or other method from https://core.tcl-lang.org/expect/index and try again" && exit 1)
+	@echo "Checking for clang-format ..."
+	@which clang-format > /dev/null || (echo "Error: clang-format is not installed. Install using 'brew install clang-format' or other methods from https://clang.llvm.org/docs/ClangFormat.html and try again" && exit 1)
 	@echo "Done 🚀"
 
 download-models:
@@ -76,3 +79,7 @@ jni:	# do nothing - sub target of build/test
 
 forced:	# do nothing - sub target of adb-push
 	@echo ""
+
+format:
+	@echo "Running code formatting..."
+	./gradlew :spotlessApply

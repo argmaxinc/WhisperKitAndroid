@@ -1,0 +1,62 @@
+# Gradle files
+.gradle/
+build/
+app/build/
+!app/src/main/res/raw/  # Allow raw resources
+!app/src/main/res/xml/  # Allow XML resources
+app/.cxx/
+local.properties
+*.hprof
+
+# Android Studio files
+.idea/
+*.iml
+*.ipr
+*.iws
+*.idea/workspace.xml
+*.idea/libraries
+*.idea/dictionaries
+*.idea/misc.xml
+*.idea/modules.xml
+*.idea/vcs.xml
+
+# Android specific files
+*.apk
+*.ap_
+*.dex
+*.class
+*.keystore
+*.jks
+*.log
+*.csv
+*.dat
+
+# Generated files
+captures/
+outputs/
+gradle-app.setting
+**/build/
+**/captures/
+**/outputs/
+android/app/release/
+
+# Coverage reports
+*/coverage/
+*.html
+
+# Miscellaneous
+.DS_Store
+*.orig
+*.tmp
+*.swp
+*.swo
+*.stacktrace
+*.trace
+*.stack
+*.user
+*.war
+*.ear
+*.lock
+*.sqlite
+*.db
+*.out
