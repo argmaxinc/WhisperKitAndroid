@@ -16,12 +16,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(COMPILE_WARNING_AS_ERROR ON)
 set(CMAKE_BUILD_TYPE Release)
 
-set(WHISPERKIT_SRC_DIR ${CMAKE_SOURCE_DIR}/WhisperKit/src/)
+set(WHISPERKIT_SRC_DIR ${CMAKE_SOURCE_DIR}/cpp/src/)
 set(EXT_INC_DIR ${CMAKE_SOURCE_DIR}/external/inc)
 set(WHISPERKIT_CLI_DIR ${CMAKE_SOURCE_DIR}/cli)
 set(WHISPERKIT_JNI_DIR ${CMAKE_SOURCE_DIR}/jni)
-set(WHISPERKIT_PUBLIC_HEADERS ${CMAKE_SOURCE_DIR}/WhisperKit/)
-set(WHISPERKIT_EXTERNAL_HEADERS ${CMAKE_SOURCE_DIR}/WhisperKit/external/)
+set(WHISPERKIT_PUBLIC_HEADERS ${CMAKE_SOURCE_DIR}/cpp/)
+set(WHISPERKIT_EXTERNAL_HEADERS ${CMAKE_SOURCE_DIR}/cpp/external/)
 
 file(GLOB_RECURSE WHISPERKIT_SOURCES ${WHISPERKIT_SRC_DIR}/*.cpp)
 
@@ -102,14 +102,11 @@ target_include_directories(whisperkit
 
 if (${JNI})
   message(NOTICE "Building for JNI")
-  add_subdirectory(${SDL3_DIR})
-  add_library(native-whisper SHARED
-    ${WHISPERKIT_JNI_DIR}/NativeWhisperKit.cpp
-    ${WHISPERKIT_CLI_DIR}/whisperkit_cli.cpp
-
+  add_library(whisperkit_jni SHARED
+    ${WHISPERKIT_JNI_DIR}/whisperkit_jni.cpp
   )
 
-  target_include_directories(native-whisper
+  target_include_directories(whisperkit_jni
     PUBLIC ${WHISPERKIT_PUBLIC_HEADERS}
     PRIVATE ${WHISPERKIT_CLI_DIR}/external/
     PRIVATE ${WHISPERKIT_CLI_DIR}
@@ -117,13 +114,11 @@ if (${JNI})
 endif()
 
 
+set(TOKENIZER_LIBRARIES tokenizers_sys)
+
 set(AUDIO_CODEC_LIBRARIES avformat avcodec avutil swresample)
-if (${JNI})
-  set(BASE_LIBRARIES tensorflowlite SDL3::SDL3-shared)
-else()
-  set(BASE_LIBRARIES tensorflowlite SDL3)
-endif()
-set(ALL_LINKED_LIBRARIES ${BASE_LIBRARIES} ${AUDIO_CODEC_LIBRARIES})
+set(BASE_LIBRARIES tensorflowlite)
+set(ALL_LINKED_LIBRARIES ${BASE_LIBRARIES} ${AUDIO_CODEC_LIBRARIES} ${TOKENIZER_LIBRARIES})
 
 if(${ANDROID})
 
@@ -147,8 +142,9 @@ ADD_DEFINITIONS(-DGPU_DELEGATE=${GPU_DELEGATE} -DQNN_DELEGATE=${QNN_DELEGATE} -D
 target_link_libraries(whisperkit PRIVATE ${ALL_LINKED_LIBRARIES})
 
 if(${JNI})
-  target_link_libraries(native-whisper PRIVATE whisperkit)
-  target_compile_definitions(native-whisper PRIVATE ANDROID_JNI)
+  target_link_libraries(whisperkit_jni PRIVATE whisperkit log)
+  target_compile_definitions(whisperkit_jni PRIVATE ANDROID_JNI)
+  ADD_DEFINITIONS(-DANDROID_JNI=1)
 endif()
 
 

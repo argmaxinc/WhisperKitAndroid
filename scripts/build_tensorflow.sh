@@ -17,8 +17,14 @@ export PYTHON_LIB_PATH=/usr/lib/python3/dist-packages
 export TF_NEED_ROCM=0
 export TF_NEED_CUDA=0
 export TF_NEED_CLANG=1
-export CLANG_COMPILER_PATH=/usr/bin/clang
+export CLANG_COMPILER_PATH=/usr/bin/clang-18
 export CC_OPT_FLAGS=-Wno-sign-compare
+
+# nightly tf commit needs bazel 7.4.1
+USING_NIGHTLY_TF_COMMIT=1
+if [ "$USING_NIGHTLY_TF_COMMIT" = "1" ]; then
+    cd "/usr/local/lib/bazel/bin" && curl -fLO https://releases.bazel.build/7.4.1/release/bazel-7.4.1-linux-x86_64 && chmod +x bazel-7.4.1-linux-x86_64
+fi
 
 if [ "$PLATFORM" = "android" ]; then
     export TF_SET_ANDROID_WORKSPACE=1
@@ -43,7 +49,7 @@ if [ "$PLATFORM" = "android" ]; then
         find "$TENSORFLOW_SOURCE_DIR/" $TENSORFLOW_SOURCE_DIR/bazel-bin/ \
             -name libtensorflowlite.so -exec cp {} $SOURCE_DIR/external/libs/$PLATFORM/ \;
     fi
-else 
+else
     export TF_SET_ANDROID_WORKSPACE=0
     if [ ! -f $SOURCE_DIR/external/libs/$PLATFORM/libtensorflowlite.so ]; then
         cd $TENSORFLOW_SOURCE_DIR && ./configure

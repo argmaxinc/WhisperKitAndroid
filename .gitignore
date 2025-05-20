@@ -1,4 +1,3 @@
-
 # Ignore build folders
 .source/
 build/
@@ -7,10 +6,40 @@ models/
 cache/
 external/
 test/dataset/
+test/logs/
+android/app/release/
+.idea
 
 # Never exclude src files
-!WhisperKit/**
+!cpp/**
 !cli/**
 
 # MacOS specific
 .DS_Store
+**/.DS_Store
+
+# Binary files
+*.so
+*.bin
+*.apk
+*.aar
+*.jar
+*.tflite
+
+# Gradle and Android
+.gradle/
+local.properties
+**/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/

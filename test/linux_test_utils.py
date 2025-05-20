@@ -21,8 +21,7 @@ class TestRunLinux:
 
     def __init__(
         self,
-        config,
-        tokenizer
+        config
     ):
         self.config = config
         self.root = os.path.dirname(os.path.abspath(__file__)) + "/.."
@@ -30,7 +29,6 @@ class TestRunLinux:
         self.lib_path = self.config['docker']['rootdir'] + "/external/libs/linux"
         self.output_json = {}
         self.report_json = {}
-        self.tokenizer = tokenizer
         self.text_normalizer = EnglishTextNormalizer()
         self.container = docker.from_env()\
                             .containers.get(self.config['docker']['container'])
@@ -92,8 +90,7 @@ class TestRunLinux:
                 reference = data['text']
                 break
 
-        prediction_token = self.output_json["testInfo"]["prediction"]
-        prediction_text = self.tokenizer.decode(prediction_token)
+        prediction_text = self.output_json["testInfo"]["prediction"]
         normalized = self.text_normalizer(prediction_text)
         
         file = self.output_json["testInfo"]["audioFile"]
@@ -164,7 +161,7 @@ class LinuxTestsMixin(unittest.TestCase):
         self.test_path = f"{test_path}/dataset/{self.config['test']['datasets'][0]}"
 
     def run_test(self):
-        host = TestRunLinux(self.config, self.tokenizer)
+        host = TestRunLinux(self.config)
     
         outputs_json = {"results": []}
         for file in self.files:

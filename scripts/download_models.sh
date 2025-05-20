@@ -5,8 +5,8 @@
 command -v aria2c &> /dev/null || { echo >&2 ""Missing aria2c. Install using 'brew install aria2'. See https://formulae.brew.sh/formula/aria2""; exit 1; }
 
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
-SOURCE_DIR="$CURRENT_DIR/../"
-MODELS_DIR="$SOURCE_DIR/models/"
+SOURCE_DIR="$CURRENT_DIR/.."
+MODELS_DIR="$SOURCE_DIR/models"
 # Set Aria options to download using 8 connections
 ARIA_OPTIONS="-x 8 -s 8 --continue --file-allocation=none"
 
@@ -27,25 +27,20 @@ SAFE_MODEL_DIRECTORY $BASE_MODELS_DIR
 SAFE_MODEL_DIRECTORY $SMALL_MODELS_DIR
 
 # Download Whisper auxiliary models
-HF_ARGMAX_URL="https://huggingface.co/argmaxinc/whisperkit-android/resolve/main"
+HF_ARGMAX_URL="https://huggingface.co/argmaxinc/whisperkit-litert/resolve/main"
+HF_OPENAI_TINY_URL="https://huggingface.co/openai/whisper-tiny.en/resolve/main"
 
-if [ ! -f $TINY_MODELS_DIR/converted_vocab.json ]; then
-    aria2c $ARIA_OPTIONS -d "$TINY_MODELS_DIR" -o converted_vocab.json $HF_ARGMAX_URL/converted_vocab.json
-    aria2c $ARIA_OPTIONS -d "$TINY_MODELS_DIR" -o MelSpectrogram.tflite $HF_ARGMAX_URL/melspectrogram.tflite
-    aria2c $ARIA_OPTIONS -d "$TINY_MODELS_DIR" -o postproc.tflite $HF_ARGMAX_URL/postproc.tflite
-    aria2c $ARIA_OPTIONS -d "$TINY_MODELS_DIR" -o voice_activity_detection.tflite $HF_ARGMAX_URL/voice_activity_detection.tflite
+if [ ! -f $TINY_MODELS_DIR/tokenizer.json ]; then
+    aria2c $ARIA_OPTIONS -d "$TINY_MODELS_DIR" -o tokenizer.json $HF_OPENAI_TINY_URL/tokenizer.json
+    aria2c $ARIA_OPTIONS -d "$TINY_MODELS_DIR" -o MelSpectrogram.tflite $HF_ARGMAX_URL/quic_openai_whisper-tiny.en/MelSpectrogram.tflite
 fi
-if [ ! -f $BASE_MODELS_DIR/converted_vocab.json ]; then
-    cp $TINY_MODELS_DIR/converted_vocab.json $BASE_MODELS_DIR/.
+if [ ! -f $BASE_MODELS_DIR/tokenizer.json ]; then
+    cp $TINY_MODELS_DIR/tokenizer.json $BASE_MODELS_DIR/.
     cp $TINY_MODELS_DIR/MelSpectrogram.tflite $BASE_MODELS_DIR/.
-    cp $TINY_MODELS_DIR/postproc.tflite $BASE_MODELS_DIR/.
-    cp $TINY_MODELS_DIR/voice_activity_detection.tflite $BASE_MODELS_DIR/.
 fi
-if [ ! -f $SMALL_MODELS_DIR/converted_vocab.json ]; then
-    cp $TINY_MODELS_DIR/converted_vocab.json $SMALL_MODELS_DIR/.
+if [ ! -f $SMALL_MODELS_DIR/tokenizer.json ]; then
+    cp $TINY_MODELS_DIR/tokenizer.json $SMALL_MODELS_DIR/.
     cp $TINY_MODELS_DIR/MelSpectrogram.tflite $SMALL_MODELS_DIR/.
-    cp $TINY_MODELS_DIR/postproc.tflite $SMALL_MODELS_DIR/.
-    cp $TINY_MODELS_DIR/voice_activity_detection.tflite $SMALL_MODELS_DIR/.
 fi
 
 # Download Qualcomm models

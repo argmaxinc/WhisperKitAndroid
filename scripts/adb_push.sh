@@ -88,9 +88,8 @@ do
     adb -s $DEVICE shell "chmod 777 $DEVICE_SDROOT_DIR/run_on_android.sh"
     adb -s $DEVICE shell "chmod 777 $DEVICE_BIN_DIR/whisperkit-cli"
    
-
-    push_if_not_exists "$LOCAL_TINY_DIR" "$DEVICE_TINY_DIR"
-    push_if_not_exists "$LOCAL_BASE_DIR" "$DEVICE_BASE_DIR"
-    push_if_not_exists "$LOCAL_SMALL_DIR" "$DEVICE_SMALL_DIR"
+    push_if_not_exists "$LOCAL_TINY_DIR" "$DEVICE_TINY_DIR" $FORCED
+    push_if_not_exists "$LOCAL_BASE_DIR" "$DEVICE_BASE_DIR" $FORCED
+    push_if_not_exists "$LOCAL_SMALL_DIR" "$DEVICE_SMALL_DIR" $FORCED
 
 done

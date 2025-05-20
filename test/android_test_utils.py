@@ -23,7 +23,6 @@ class TestRunADB:
         self,
         config,
         root_path,
-        tokenizer,
         serial
     ):
         """
@@ -45,7 +44,6 @@ class TestRunADB:
         self.curr_cmd = None
         self.output_json = None
         self.probe_thread = None
-        self.tokenizer = tokenizer
         self.text_normalizer = EnglishTextNormalizer()
         self.serial = serial
         self.delegate_file = None
@@ -253,8 +251,7 @@ class TestRunADB:
         self.output_json["testInfo"]["datasetDir"] = data_set
         self.output_json["testInfo"]["reference"] = reference
         
-        prediction_token = self.output_json["testInfo"]["prediction"]
-        prediction_text = self.tokenizer.decode(prediction_token)
+        prediction_text = self.output_json["testInfo"]["prediction"]
         normalized = self.text_normalizer(prediction_text)
         wer = self._get_wer(reference, normalized)
 
@@ -323,8 +320,7 @@ class AndroidTestsMixin(unittest.TestCase):
         self.test_path = f"{test_path}/dataset/{self.config['test']['datasets'][0]}"
 
     def run_test(self, device):
-        adb = TestRunADB(self.config, self.root_path, 
-                         self.tokenizer, device)
+        adb = TestRunADB(self.config, self.root_path, device)
     
         outputs_json = []
         idx = 0

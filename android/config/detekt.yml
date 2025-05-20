@@ -1,0 +1,64 @@
+build:
+  maxIssues: 0
+  weights:
+    complexity: 2
+    style: 1
+    LongParameterList: 1
+    comments: 1
+
+complexity:
+  TooManyFunctions:
+    thresholdInFiles: 20
+    thresholdInClasses: 15
+    thresholdInInterfaces: 10
+    thresholdInObjects: 10
+  LongParameterList:
+    functionThreshold: 8
+    constructorThreshold: 7
+  CyclomaticComplexMethod:
+    threshold: 20
+  NestedBlockDepth:
+    threshold: 5
+  ComplexCondition:
+    threshold: 5
+  LongMethod:
+    active: true
+    threshold: 80
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/*Test.kt'
+
+style:
+  MagicNumber:
+    active: true
+    ignoreNumbers: ['-1', '0', '1', '2', '100', '1000']
+    ignoreHashCodeFunction: true
+    ignorePropertyDeclaration: true
+    ignoreAnnotation: true
+  MaxLineLength:
+    maxLineLength: 120
+  NewLineAtEndOfFile:
+    active: true
+  TrailingWhitespace:
+    active: true
+
+empty-blocks:
+  EmptyFunctionBlock:
+    active: true
+  EmptyClassBlock:
+    active: true
+  EmptyIfBlock:
+    active: true
+  EmptyWhileBlock:
+    active: true
+  EmptyForBlock:
+    active: true
+  EmptyTryBlock:
+    active: true
+  EmptyCatchBlock:
+    active: true
+  EmptyFinallyBlock:
+    active: true
+  EmptyDoWhileBlock:
+    active: true 

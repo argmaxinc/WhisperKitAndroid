@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ThrowsCount:WhisperKit.kt$WhisperKit.Builder$@Throws(WhisperKitException::class) fun build(): WhisperKit</ID>
+    <ID>TooGenericExceptionCaught:KtorHuggingFaceApiImpl.kt$KtorHuggingFaceApiImpl$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:WhisperKitImpl.kt$WhisperKitImpl$e: Exception</ID>
+  </CurrentIssues>
+</SmellBaseline>
