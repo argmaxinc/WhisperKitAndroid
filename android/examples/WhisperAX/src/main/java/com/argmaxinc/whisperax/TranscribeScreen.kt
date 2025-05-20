@@ -202,7 +202,7 @@ fun TranscribeScreen(
     }
 
     val readStoragePermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
+        ActivityResultContracts.RequestPermission(),
     ) { isGranted ->
         if (isGranted) {
             audioFilePicker.launch("audio/*")
