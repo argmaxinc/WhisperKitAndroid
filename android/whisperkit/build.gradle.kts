@@ -73,7 +73,7 @@ dependencies {
 
 mavenPublishing {
 
-    coordinates("com.argmaxinc", "whisperkit", "0.0.1")
+    coordinates("com.argmaxinc", "whisperkit", "0.3.0")
     pom {
         name.set("WhisperKit")
         description.set("On-device Speech Recognition for Android")
