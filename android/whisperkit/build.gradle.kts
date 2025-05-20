@@ -19,13 +19,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
-
-        // Configure cmake arguments
-        externalNativeBuild {
-            cmake {
-                arguments("-DJNI=1", "-DTENSORFLOW_SOURCE_DIR=${rootProject.projectDir}/external/tensorflow")
-            }
-        }
     }
 
     buildTypes {

@@ -177,7 +177,7 @@ Then run:
 make build jni
 ```
 
-To get the models on device, just copy them from WhisperKitAndroid/models and into the WhisperKitAndroid/android/app/src/main/assets directory.
+To get the models on device, just copy them from WhisperKitAndroid/models and into the WhisperKitAndroid/android/examples/WhisperAX/src/main/assets directory.
 
 ## Using WhisperKit in Your Android App
 

@@ -7,7 +7,7 @@ cache/
 external/
 test/dataset/
 test/logs/
-android/app/release/
+android/examples/WhisperAX/release/
 .idea
 
 # Never exclude src files
