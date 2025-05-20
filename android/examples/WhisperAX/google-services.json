@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1006674928426",
+    "project_id": "whisperkit-987e9",
+    "storage_bucket": "whisperkit-987e9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1006674928426:android:cc33f62e99bb108d763453",
+        "android_client_info": {
+          "package_name": "com.argmaxinc.whisperax"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_QRAJK31aUTR3ZAu3XjyUJfR_tXxP5dI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.crashlytics)
 }
 
 android {
@@ -84,6 +86,10 @@ dependencies {
     // JSON serialization (for your existing app)
     implementation(libs.kotlinx.serialization.json)
 
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analysis)
+    implementation(libs.firebase.crashlytics)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
@@ -95,7 +101,7 @@ dependencies {
 
     // 1 - WhisperKit API
     implementation(project(":android:whisperkit"))
-    // 2 - dependencies to accelerate inference where QNN hardware is avaiable
+    // 2 - dependencies to accelerate inference where QNN hardware is available
     implementation(libs.qnn.runtime)
     implementation(libs.qnn.litert.delegate)
 }

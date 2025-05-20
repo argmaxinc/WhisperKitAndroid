@@ -1,5 +1,5 @@
 [versions]
-agp = "8.9.2"
+agp = "8.10.0"
 kotlin = "2.0.21"
 coreKtx = "1.16.0"
 lifecycleRuntimeKtx = "2.9.0"
@@ -17,11 +17,14 @@ espressoCore = "3.6.1"
 coroutines = "1.10.1"
 mockk = "1.14.2"
 turbine = "1.2.0"
-ktor="3.1.0"
-qnn = "2.33.2"
-vanniktech-maven-publish = "0.32.0"
+ktor = "3.1.0"
+qnn = "2.34.0"
+vanniktechMavenPublish = "0.32.0"
 detekt = "1.23.8"
 spotless = "6.25.0"
+googleServices = "4.4.2"
+firebase = "33.13.0"
+crashlytics = "3.0.3"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -59,8 +62,12 @@ ktor-client-mock = { group = "io.ktor", name = "ktor-client-mock", version.ref =
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 
-qnn-runtime           = { group = "com.qualcomm.qti", name = "qnn-runtime",           version.ref = "qnn" }
-qnn-litert-delegate   = { group = "com.qualcomm.qti", name = "qnn-litert-delegate",  version.ref = "qnn" }
+qnn-runtime = { group = "com.qualcomm.qti", name = "qnn-runtime", version.ref = "qnn" }
+qnn-litert-delegate = { group = "com.qualcomm.qti", name = "qnn-litert-delegate", version.ref = "qnn" }
+
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebase" }
+firebase-analysis = { group = "com.google.firebase", name = "firebase-analytics" }
+firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -69,5 +76,7 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
-vanniktech-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktech-maven-publish"}
+vanniktech-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktechMavenPublish" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlytics" }
