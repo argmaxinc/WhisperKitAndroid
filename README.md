@@ -10,22 +10,122 @@
 
 # WhisperKit Android (Beta)
 
+
+[![Maven Central](https://img.shields.io/maven-central/v/com.argmaxinc/whisperkit?color=32d058)](https://central.sonatype.com/artifact/com.argmaxinc/whisperkit)
 </div>
 
-WhisperKit Android brings Foundation Models On Device for Automatic Speech Recognition. It extends the performance and feature set of [WhisperKit](https://github.com/argmaxinc/WhisperKit) from Apple platforms to Android and Linux.  The current feature set is a subset of the iOS counterpart, 
+WhisperKit Android brings Foundation Models On Device for Automatic Speech Recognition. It extends the performance and feature set of [WhisperKit](https://github.com/argmaxinc/WhisperKit) from Apple platforms to Android and Linux.  The current feature set is a subset of the iOS counterpart,
 but we are continuing to invest in Android and now welcome contributions from the community.
 
 [Example App (Coming Soon)] [[Blog Post]](https://takeargmax.com/blog/android) [[Python Tools Repo]](https://github.com/argmaxinc/whisperkittools)
 
 ## Table of Contents
 
-- [App](#app)
-- [Using WhisperKit in Your Android App](#using-whisperkit-in-your-android-app)
+- [Getting Started](#getting-started)
+- [Build From Source](#build-from-source)
 - [Contributing](#contributing)
 - [License](#license)
 - [Citation](#citation)
 
-# Installation
+# Getting Started
+
+WhisperKit API is currently experimental and requires explicit opt-in using `@OptIn(ExperimentalWhisperKit::class)`. This indicates that the API may change in future releases. Use with caution in production code.
+
+To use WhisperKit in your Android app, you need to:
+
+1. Add the following dependencies to your app's `build.gradle.kts`:
+
+```kotlin
+dependencies {
+   // 1. WhisperKit SDK
+   implementation("com.argmaxinc:whisperkit:0.3.0")  // Check badge above for latest version
+
+   // 2. QNN dependencies for hardware acceleration
+   implementation("com.qualcomm.qnn:qnn-runtime:2.34.0")
+   implementation("com.qualcomm.qnn:qnn-litert-delegate:2.34.0")
+}
+```
+
+2. Configure JNI library packaging in your app's `build.gradle.kts`:
+
+```kotlin
+android {
+   // ...
+   packaging {
+      jniLibs {
+         useLegacyPackaging = true
+      }
+   }
+}
+```
+
+3. Use WhisperKit in your code:
+
+```kotlin
+@OptIn(ExperimentalWhisperKit::class)
+class YourActivity : AppCompatActivity() {
+   private lateinit var whisperKit: WhisperKit
+
+   override fun onCreate(savedInstanceState: Bundle?) {
+      super.onCreate(savedInstanceState)
+
+      // Initialize WhisperKit
+      // Note: Always use applicationContext to avoid memory leaks and ensure proper lifecycle management
+      whisperKit = WhisperKit.Builder()
+         .setModel(WhisperKit.OPENAI_TINY_EN)
+         .setApplicationContext(applicationContext)
+         .setCallback { what, timestamp, msg ->
+            // Handle transcription output
+            when (what) {
+               WhisperKit.TextOutputCallback.MSG_INIT -> {
+                  // Model initialized successfully
+               }
+               WhisperKit.TextOutputCallback.MSG_TEXT_OUT -> {
+                  // New transcription available
+                  val text = msg
+                  val time = timestamp
+                  // Process the transcribed text as it becomes available
+                  // This callback will be called multiple times as more audio is processed
+               }
+               WhisperKit.TextOutputCallback.MSG_CLOSE -> {
+                  // Cleanup complete
+               }
+            }
+         }
+         .build()
+
+      // Load the model
+      lifecycleScope.launch {
+         whisperKit.loadModel().collect { progress ->
+            // Handle download progress
+         }
+
+         // Initialize with audio parameters
+         whisperKit.init(frequency = 16000, channels = 1, duration = 0)
+
+         // Transcribe audio data in chunks
+         // You can call transcribe() multiple times with different chunks of audio data
+         // Results will be delivered through the callback as they become available
+         val audioChunk1: ByteArray = // First chunk of audio data
+            whisperKit.transcribe(audioChunk1)
+
+         val audioChunk2: ByteArray = // Second chunk of audio data
+            whisperKit.transcribe(audioChunk2)
+
+         // Continue processing more chunks as needed...
+      }
+   }
+
+   override fun onDestroy() {
+      super.onDestroy()
+      whisperKit.deinitialize()
+   }
+}
+```
+
+Note: The WhisperKit API is currently experimental and may change in future releases. Make sure to handle the `@OptIn(ExperimentalWhisperKit::class)` annotation appropriately in your code.
+
+# Build From Source
 
 <details>
   <summary> (Click to expand) </summary>
@@ -34,7 +134,7 @@ The following setup was tested on macOS 15.1.
 
 ## Common Setup Steps
 
-These steps are required for both CLI and Android app development:
+These steps are required for both Android app development and CLI:
 
 1. Install required build tools:
 ```bash
@@ -53,7 +153,7 @@ If you need to rebuild the Docker image:
 make rebuild-env
 ```
 
-## Android App Development Path
+### Android App Development Path
 
 1. Build and enter the Docker environment:
 ```bash
@@ -70,7 +170,7 @@ make build jni
    - Navigate to `android/examples/WhisperAX`
    - Build and run the app
 
-## CLI Development Path
+### CLI Development Path
 
 1. Build and enter the Docker environment:
 ```bash
@@ -116,116 +216,18 @@ With `all` option, it will conduct deep clean including open source components.
 
 </details>
 
-# Using WhisperKit in Your Own Android App
-
-WhisperKit API is currently experimental and requires explicit opt-in using `@OptIn(ExperimentalWhisperKit::class)`. This indicates that the API may change in future releases. Use with caution in production code.
-
-To use WhisperKit in your Android app, you need to:
-
-1. Add the following dependencies to your app's `build.gradle.kts`:
-
-```kotlin
-dependencies {
-    // 1. WhisperKit SDK
-    implementation("com.argmaxinc:whisperkit:0.3.0")
-    
-    // 2. QNN dependencies for hardware acceleration
-    implementation("com.qualcomm.qnn:qnn-runtime:2.34.0")
-    implementation("com.qualcomm.qnn:qnn-litert-delegate:2.34.0")
-}
-```
-
-2. Configure JNI library packaging in your app's `build.gradle.kts`:
-
-```kotlin
-android {
-    // ...
-    packaging {
-        jniLibs {
-            useLegacyPackaging = true
-        }
-    }
-}
-```
-
-3. Use WhisperKit in your code:
-
-```kotlin
-@OptIn(ExperimentalWhisperKit::class)
-class YourActivity : AppCompatActivity() {
-    private lateinit var whisperKit: WhisperKit
-    
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        
-        // Initialize WhisperKit
-        // Note: Always use applicationContext to avoid memory leaks and ensure proper lifecycle management
-        whisperKit = WhisperKit.Builder()
-            .setModel(WhisperKit.OPENAI_TINY_EN)
-            .setApplicationContext(applicationContext)
-            .setCallback { what, timestamp, msg ->
-                // Handle transcription output
-                when (what) {
-                    WhisperKit.TextOutputCallback.MSG_INIT -> {
-                        // Model initialized successfully
-                    }
-                    WhisperKit.TextOutputCallback.MSG_TEXT_OUT -> {
-                        // New transcription available
-                        val text = msg
-                        val time = timestamp
-                        // Process the transcribed text as it becomes available
-                        // This callback will be called multiple times as more audio is processed
-                    }
-                    WhisperKit.TextOutputCallback.MSG_CLOSE -> {
-                        // Cleanup complete
-                    }
-                }
-            }
-            .build()
-            
-        // Load the model
-        lifecycleScope.launch {
-            whisperKit.loadModel().collect { progress ->
-                // Handle download progress
-            }
-            
-            // Initialize with audio parameters
-            whisperKit.init(frequency = 16000, channels = 1, duration = 0)
-            
-            // Transcribe audio data in chunks
-            // You can call transcribe() multiple times with different chunks of audio data
-            // Results will be delivered through the callback as they become available
-            val audioChunk1: ByteArray = // First chunk of audio data
-            whisperKit.transcribe(audioChunk1)
-            
-            val audioChunk2: ByteArray = // Second chunk of audio data
-            whisperKit.transcribe(audioChunk2)
-            
-            // Continue processing more chunks as needed...
-        }
-    }
-    
-    override fun onDestroy() {
-        super.onDestroy()
-        whisperKit.deinitialize()
-    }
-}
-```
-
-Note: The WhisperKit API is currently experimental and may change in future releases. Make sure to handle the `@OptIn(ExperimentalWhisperKit::class)` annotation appropriately in your code.
-
-## Contributing
+# Contributing
 
 WhisperKit Android is currently in the beta stage. We are actively developing the project and welcome contributions from the community.
 
-## License
+# License
 
 - We release WhisperKit Android under [MIT License](LICENSE).
 - FFmpeg open-source (audio decompressing) is released under [LGPL](https://github.com/FFmpeg/FFmpeg/blob/master/LICENSE.md)
 - OpenAI Whisper model open-source checkpoints were released under the [MIT License](https://github.com/openai/whisper/blob/main/LICENSE).
 - Qualcomm AI Hub `.tflite` models and QNN libraries for NPU deployment are released under the [Qualcomm AI Model & Software License](https://qaihub-public-assets.s3.us-west-2.amazonaws.com/qai-hub-models/Qualcomm+AI+Hub+Proprietary+License.pdf).
 
-## Citation
+# Citation
 If you use WhisperKit for something cool or just find it useful, please drop us a note at [info@argmaxinc.com](mailto:info@argmaxinc.com)!
 
 If you are looking for managed enterprise deployment with Argmax, please drop us a note at [info+sales@argmaxinc.com](mailto:info+sales@argmaxinc.com).
