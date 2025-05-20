@@ -9,6 +9,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -198,6 +199,33 @@ fun TranscribeScreen(
         ActivityResultContracts.GetContent(),
     ) { uri: Uri? ->
         uri?.let { viewModel.transcribeFile(context, it) }
+    }
+
+    val readStoragePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            audioFilePicker.launch("audio/*")
+        } else {
+            Toast.makeText(context, "Storage read permission is required to select audio files", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun checkAndRequestReadPermission() {
+        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+
+        when {
+            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED -> {
+                audioFilePicker.launch("audio/*")
+            }
+            else -> {
+                readStoragePermissionLauncher.launch(permission)
+            }
+        }
     }
 
     if (showErrorDialog && errorMessage != null) {
@@ -411,7 +439,7 @@ fun TranscribeScreen(
                             if (isTranscribing) {
                                 viewModel.stopTranscription()
                             } else if (modelState == ModelState.LOADED) {
-                                audioFilePicker.launch("audio/*")
+                                checkAndRequestReadPermission()
                             }
                         },
                         enabled = (modelState == ModelState.LOADED && !isRecording && errorMessage == null && !isInitializing) || (isTranscribing && !isInitializing),

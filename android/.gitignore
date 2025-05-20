@@ -1,10 +1,11 @@
 # Gradle files
 .gradle/
 build/
-app/build/
-!app/src/main/res/raw/  # Allow raw resources
-!app/src/main/res/xml/  # Allow XML resources
-app/.cxx/
+examples/WhisperAX/build/
+!examples/WhisperAX/src/main/res/raw/  # Allow raw resources
+!examples/WhisperAX/src/main/res/xml/  # Allow XML resources
+examples/WhisperAX/.cxx/
+examples/WhisperAX/.cxx/
 local.properties
 *.hprof
 
@@ -38,7 +39,7 @@ gradle-app.setting
 **/build/
 **/captures/
 **/outputs/
-android/app/release/
+examples/WhisperAX/release/
 
 # Coverage reports
 */coverage/

@@ -2,13 +2,9 @@
 //  Copyright © 2025 Argmax, Inc. All rights reserved.
 package com.argmaxinc.whisperax
 
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -26,10 +22,8 @@ class MainActivity : ComponentActivity() {
         const val TAG = "com.argmaxinc.whisperax"
     }
 
-    private lateinit var manageExternalStorageLauncher: ActivityResultLauncher<android.content.Intent>
     private lateinit var viewModel: WhisperViewModel
 
-    @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -37,18 +31,6 @@ class MainActivity : ComponentActivity() {
 
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
-
-        manageExternalStorageLauncher = registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult(),
-        ) {
-            if (!android.os.Environment.isExternalStorageManager()) {
-                android.widget.Toast.makeText(
-                    this,
-                    "Storage permission is required for full functionality",
-                    android.widget.Toast.LENGTH_LONG,
-                ).show()
-            }
-        }
 
         viewModel = WhisperViewModel()
         viewModel.initContext(this)
