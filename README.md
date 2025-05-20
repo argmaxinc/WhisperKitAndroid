@@ -10,7 +10,6 @@
 
 # WhisperKit Android (Beta)
 
-
 [![Maven Central](https://img.shields.io/maven-central/v/com.argmaxinc/whisperkit?color=32d058)](https://central.sonatype.com/artifact/com.argmaxinc/whisperkit)
 </div>
 
@@ -41,8 +40,8 @@ dependencies {
    implementation("com.argmaxinc:whisperkit:0.3.0")  // Check badge above for latest version
 
    // 2. QNN dependencies for hardware acceleration
-   implementation("com.qualcomm.qnn:qnn-runtime:2.34.0")
-   implementation("com.qualcomm.qnn:qnn-litert-delegate:2.34.0")
+   implementation("com.qualcomm.qnn:qnn-runtime:2.33.2")
+   implementation("com.qualcomm.qnn:qnn-litert-delegate:2.33.2")
 }
 ```
 
@@ -137,11 +136,13 @@ The following setup was tested on macOS 15.1.
 These steps are required for both Android app development and CLI:
 
 1. Install required build tools:
+
 ```bash
 make setup
 ```
 
 2. Build development environment in Docker with all development tools:
+
 ```bash
 make env
 ```
@@ -156,11 +157,13 @@ make rebuild-env
 ### Android App Development Path
 
 1. Build and enter the Docker environment:
+
 ```bash
 make env
 ```
 
 2. Build the required native libraries:
+
 ```bash
 make build jni
 ```
@@ -173,19 +176,23 @@ make build jni
 ### CLI Development Path
 
 1. Build and enter the Docker environment:
+
 ```bash
 make env
 ```
 
 2. Build the CLI app:
+
 ```bash
 make build [linux | qnn | gpu]
 ```
+
 - `linux`: CPU-only build for Linux
 - `qnn`: Android build with Qualcomm NPU support
 - `gpu`: Android build with GPU support
 
 3. Push dependencies to Android device (skip for Linux):
+
 ```bash
 make adb-push
 ```
@@ -193,6 +200,7 @@ make adb-push
 4. Run the CLI app:
 
 For Android:
+
 ```bash
 adb shell
 cd /sdcard/argmax/tflite
@@ -202,6 +210,7 @@ whisperkit-cli transcribe --model-path /path/to/openai_whisper-base --audio-path
 ```
 
 For Linux:
+
 ```bash
 ./build/linux/whisperkit-cli transcribe --model-path /path/to/my/whisper_model --audio-path /path/to/my/audio_file.m4a --report --report-path /path/to/dump/report.json
 ```
@@ -209,6 +218,7 @@ For Linux:
 For all options, run `whisperkit-cli --help`
 
 5. Clean build files when needed:
+
 ```bash
 make clean [all]
 ```
@@ -228,6 +238,7 @@ WhisperKit Android is currently in the beta stage. We are actively developing th
 - Qualcomm AI Hub `.tflite` models and QNN libraries for NPU deployment are released under the [Qualcomm AI Model & Software License](https://qaihub-public-assets.s3.us-west-2.amazonaws.com/qai-hub-models/Qualcomm+AI+Hub+Proprietary+License.pdf).
 
 # Citation
+
 If you use WhisperKit for something cool or just find it useful, please drop us a note at [info@argmaxinc.com](mailto:info@argmaxinc.com)!
 
 If you are looking for managed enterprise deployment with Argmax, please drop us a note at [info+sales@argmaxinc.com](mailto:info+sales@argmaxinc.com).
