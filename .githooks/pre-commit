@@ -10,7 +10,7 @@ if [ -n "$KT_FILES" ]; then
     echo "Running spotlessKotlinCheck..."
     ./gradlew spotlessKotlinCheck
     if [ $? -ne 0 ]; then
-        echo "❌ Kotlin files need formatting. Please run './gradlew spotlessKotlinApply' and commit again."
+        echo "❌ Kotlin files need formatting. Please run './gradlew spotlessKotlinApply' or 'make format' and commit again."
         exit 1
     fi
 fi
@@ -19,7 +19,7 @@ if [ -n "$GRADLE_FILES" ]; then
     echo "Running spotlessKotlinGradleCheck..."
     ./gradlew spotlessKotlinGradleCheck
     if [ $? -ne 0 ]; then
-        echo "❌ Gradle files need formatting. Please run './gradlew spotlessKotlinGradleApply' and commit again."
+        echo "❌ Gradle files need formatting. Please run './gradlew spotlessKotlinGradleApply' or 'make format' and commit again."
         exit 1
     fi
 fi
@@ -28,7 +28,7 @@ if [ -n "$CPP_FILES" ]; then
     echo "Running spotlessCppCheck..."
     ./gradlew spotlessCppCheck
     if [ $? -ne 0 ]; then
-        echo "❌ C++ files need formatting. Please run './gradlew spotlessCppApply' and commit again."
+        echo "❌ C++ files need formatting. Please run './gradlew spotlessCppApply' or 'make format' and commit again."
         exit 1
     fi
 fi 
