@@ -1,16 +1,23 @@
 #!/bin/sh
 
-echo "Running spotlessApply..."
-./gradlew spotlessApply
+# Get list of files that are staged for commit
+FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^(android/.*\.kt|.*\.gradle\.kts|jni/.*\.(cpp|h|c|hpp|cc)|cli/.*\.(cpp|h|c|hpp|cc)|cpp/.*\.(cpp|h|c|hpp|cc))$' || true)
 
-# Check if spotlessApply was successful
-if [ $? -ne 0 ]; then
-    echo "❌ spotlessApply failed. Please fix the formatting issues and try again."
-    exit 1
-fi
+# Only run spotlessApply if there are matching files
+if [ -n "$FILES" ]; then
+    echo "Running spotlessApply for matching files..."
+    echo "Files to be formatted:"
+    echo "$FILES"
+    ./gradlew spotlessApply
 
-# Add the changes made by spotlessApply
-git add .
+    # Check if spotlessApply was successful
+    if [ $? -ne 0 ]; then
+        echo "❌ spotlessApply failed. Please fix the formatting issues and try again."
+        exit 1
+    fi
 
-echo "✅ spotlessApply completed successfully"
-exit 0 
+    # Add the changes made by spotlessApply
+    git add .
+
+    echo "✅ spotlessApply completed successfully"
+fi 
