@@ -27,15 +27,16 @@ jobs:
           path: /usr/local/clang-20.1.5
           key: clang-format-20.1.5
           
-      - name: Install clang-format 20.1.5
+      - name: Install clang-format 20.1.5 (via apt.llvm.org)
         run: |
           sudo apt update
-          sudo apt install -y wget gnupg
+          sudo apt install -y wget gnupg software-properties-common
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 20
-          sudo ln -sf /usr/bin/clang-format-20 /usr/bin/clang-format
-          clang-format --version  # optional sanity check
+          sudo apt install -y clang-format-20
+          sudo ln -sf /usr/bin/clang-format-20 /usr/local/bin/clang-format
+          clang-format --version
           
       - name: Verify clang-format installation
         run: |
