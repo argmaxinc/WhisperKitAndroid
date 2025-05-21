@@ -1,23 +1,66 @@
 #!/bin/sh
 
 # Get list of files that are staged for commit
-FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^(android/.*\.kt|.*\.gradle\.kts|jni/.*\.(cpp|h|c|hpp|cc)|cli/.*\.(cpp|h|c|hpp|cc)|cpp/.*\.(cpp|h|c|hpp|cc))$' || true)
+KT_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^android/.*\.kt$' || true)
+GRADLE_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '.*\.gradle\.kts$' || true)
+CPP_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^(jni/.*\.(cpp|h|c|hpp|cc)|cli/.*\.(cpp|h|c|hpp|cc)|cpp/.*\.(cpp|h|c|hpp|cc))$' || true)
 
-# Only run spotlessApply if there are matching files
-if [ -n "$FILES" ]; then
-    echo "Running spotlessApply for matching files..."
+# Run spotlessKotlinApply if there are Kotlin files
+if [ -n "$KT_FILES" ]; then
+    echo "Running spotlessKotlinApply for Kotlin files..."
     echo "Files to be formatted:"
-    echo "$FILES"
-    ./gradlew spotlessApply
+    echo "$KT_FILES"
+    ./gradlew spotlessKotlinApply
 
-    # Check if spotlessApply was successful
+    # Check if spotlessKotlinApply was successful
     if [ $? -ne 0 ]; then
-        echo "❌ spotlessApply failed. Please fix the formatting issues and try again."
+        echo "❌ spotlessKotlinApply failed. Please fix the formatting issues and try again."
         exit 1
     fi
+fi
 
-    # Add the changes made by spotlessApply
-    git add .
+# Run spotlessKotlinGradleApply if there are Gradle files
+if [ -n "$GRADLE_FILES" ]; then
+    echo "Running spotlessKotlinGradleApply for Gradle files..."
+    echo "Files to be formatted:"
+    echo "$GRADLE_FILES"
+    ./gradlew spotlessKotlinGradleApply
 
-    echo "✅ spotlessApply completed successfully"
+    # Check if spotlessKotlinGradleApply was successful
+    if [ $? -ne 0 ]; then
+        echo "❌ spotlessKotlinGradleApply failed. Please fix the formatting issues and try again."
+        exit 1
+    fi
+fi
+
+# Run spotlessCppApply if there are C++ files
+if [ -n "$CPP_FILES" ]; then
+    echo "Running spotlessCppApply for C++ files..."
+    echo "Files to be formatted:"
+    echo "$CPP_FILES"
+    ./gradlew spotlessCppApply
+
+    # Check if spotlessCppApply was successful
+    if [ $? -ne 0 ]; then
+        echo "❌ spotlessCppApply failed. Please fix the formatting issues and try again."
+        exit 1
+    fi
+fi
+
+# Refresh staged state after spotless runs
+git add .
+
+# Check if there are any staged files after spotless
+if [ -n "$KT_FILES" ] || [ -n "$GRADLE_FILES" ] || [ -n "$CPP_FILES" ]; then
+    # Get all files that are still staged
+    STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+    
+    if [ -z "$STAGED_FILES" ]; then
+        echo "All changes were reverted by formatting. Aborting commit."
+        exit 1
+    fi
+    
+    echo "Files still staged after formatting:"
+    echo "$STAGED_FILES"
+    echo "✅ Formatting completed successfully"
 fi 
