@@ -28,13 +28,14 @@ jobs:
           key: clang-format-20.1.5
           
       - name: Install clang-format 20.1.5
-        if: steps.clang-cache.outputs.cache-hit != 'true'
         run: |
-          echo "Installing clang-format 20.1.5..."
-          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.5/clang+llvm-20.1.5-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-          tar xf clang+llvm-20.1.5-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-          sudo mv clang+llvm-20.1.5-x86_64-linux-gnu-ubuntu-22.04 /usr/local/clang-20.1.5
-          echo "/usr/local/clang-20.1.5/bin" >> $GITHUB_PATH
+          sudo apt update
+          sudo apt install -y wget gnupg
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 20
+          sudo ln -sf /usr/bin/clang-format-20 /usr/bin/clang-format
+          clang-format --version  # optional sanity check
           
       - name: Verify clang-format installation
         run: |
