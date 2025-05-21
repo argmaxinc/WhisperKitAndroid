@@ -230,6 +230,32 @@ With `all` option, it will conduct deep clean including open source components.
 
 WhisperKit Android is currently in the beta stage. We are actively developing the project and welcome contributions from the community.
 
+## Git Hooks
+
+This project uses Git hooks to maintain code quality. These hooks help ensure consistent code formatting and quality standards.
+
+### Setup
+
+To use the Git hooks, run the following command in your repository root:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+### Available Hooks
+
+#### pre-commit
+- Runs `spotlessApply` to automatically fix code formatting issues
+- If formatting fixes are applied, they are automatically staged
+- The commit will be blocked if `spotlessApply` fails
+
+### Troubleshooting
+
+If you need to bypass the hooks temporarily (not recommended), you can use:
+```bash
+git commit --no-verify
+```
+
 # License
 
 - We release WhisperKit Android under [MIT License](LICENSE).

@@ -1,0 +1,16 @@
+#!/bin/sh
+
+echo "Running spotlessApply..."
+./gradlew spotlessApply
+
+# Check if spotlessApply was successful
+if [ $? -ne 0 ]; then
+    echo "❌ spotlessApply failed. Please fix the formatting issues and try again."
+    exit 1
+fi
+
+# Add the changes made by spotlessApply
+git add .
+
+echo "✅ spotlessApply completed successfully"
+exit 0 
