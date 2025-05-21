@@ -21,15 +21,11 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Install clang-format 11 (via apt.llvm.org)
+      - name: Install clang-format 14 (native)
         run: |
           sudo apt update
-          sudo apt install -y wget gnupg software-properties-common
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 11
-          sudo apt install -y clang-format-11
-          sudo ln -sf /usr/bin/clang-format-11 /usr/local/bin/clang-format
+          sudo apt install -y clang-format-14
+          sudo ln -sf /usr/bin/clang-format-14 /usr/local/bin/clang-format
           clang-format --version
 
       - name: Verify clang-format installation
