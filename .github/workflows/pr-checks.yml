@@ -10,9 +10,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -20,16 +21,28 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Install clang-format 11
+      - name: Install clang-format 11 (via apt.llvm.org)
         run: |
           sudo apt update
+          sudo apt install -y wget gnupg software-properties-common
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 11
           sudo apt install -y clang-format-11
           sudo ln -sf /usr/bin/clang-format-11 /usr/local/bin/clang-format
           clang-format --version
 
+      - name: Verify clang-format installation
+        run: |
+          if ! command -v clang-format >/dev/null; then
+            echo "❌ clang-format not found"
+            exit 1
+          fi
+          clang-format --version
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-        
+
       - name: Run spotlessCheck
         run: |
           echo "Running spotlessCheck..."
@@ -38,7 +51,7 @@ jobs:
             echo "❌ spotlessCheck failed. Please run './gradlew spotlessApply' locally to fix formatting issues."
             exit 1
           fi
-        
+
       - name: Run detekt
         run: |
           echo "Running detekt..."
