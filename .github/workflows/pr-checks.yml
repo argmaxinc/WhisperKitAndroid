@@ -8,7 +8,7 @@ on:
       - main
 
 jobs:
-  build:
+  spotless-detekt-unittests:
     runs-on: ubuntu-latest
 
     steps:
@@ -64,4 +64,4 @@ jobs:
           if [ $? -ne 0 ]; then
             echo "❌ Unit tests failed. Please fix the failing tests locally."
             exit 1
-          fi
+          fi 
