@@ -14,7 +14,7 @@ constexpr const uint32_t SAMPLE_BEGIN = 1;
 class PostProcModel : public MODEL_SUPER_CLASS {
    public:
     PostProcModel(Tokenizer* tokenizer, bool timestamp_text = false);
-    virtual ~PostProcModel() {};
+    virtual ~PostProcModel(){};
 
     bool initialize(bool debug = false);
     virtual void invoke(bool measure_time = false);
