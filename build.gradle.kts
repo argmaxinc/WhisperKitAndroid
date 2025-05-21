@@ -37,6 +37,6 @@ spotless {
             "cpp/**/*.cpp", "cpp/**/*.h", "cpp/**/*.c", "cpp/**/*.hpp", "cpp/**/*.cc",
         )
         targetExclude("**/build/**", "**/external/**")
-        clangFormat("20.1.5")
+        clangFormat("14.0.6")
     }
 }

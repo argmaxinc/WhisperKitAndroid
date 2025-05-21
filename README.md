@@ -230,6 +230,64 @@ With `all` option, it will conduct deep clean including open source components.
 
 WhisperKit Android is currently in the beta stage. We are actively developing the project and welcome contributions from the community.
 
+## Development Setup
+
+### Installing clang-format
+
+The project uses clang-format 14 for C++ code formatting. You'll need to install it based on your operating system:
+
+#### macOS
+```bash
+# Install LLVM 14
+brew install llvm@14
+
+# Create symlink for clang-format
+sudo ln -sf /opt/homebrew/opt/llvm@14/bin/clang-format /opt/homebrew/bin/clang-format
+```
+
+#### Linux (Ubuntu/Debian)
+```bash
+sudo apt update
+sudo apt install -y clang-format-14
+sudo ln -sf /usr/bin/clang-format-14 /usr/local/bin/clang-format
+```
+
+Verify the installation:
+```bash
+clang-format --version
+```
+
+To check C++ code formatting:
+```bash
+./gradlew spotlessCppCheck
+```
+
+## Git Hooks
+
+This project uses Git hooks to maintain code quality. These hooks help ensure consistent code formatting and quality standards.
+
+### Setup
+
+To use the Git hooks, run the following command in your repository root:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+### Available Hooks
+
+#### pre-commit
+- Runs `spotlessApply` to automatically fix code formatting issues
+- If formatting fixes are applied, they are automatically staged
+- The commit will be blocked if `spotlessApply` fails
+
+### Troubleshooting
+
+If you need to bypass the hooks temporarily (not recommended), you can use:
+```bash
+git commit --no-verify
+```
+
 # License
 
 - We release WhisperKit Android under [MIT License](LICENSE).

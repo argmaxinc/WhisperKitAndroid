@@ -4,7 +4,7 @@
 #include "WhisperKitPipeline.hpp"
 #include "backend_class.hpp"
 
-whisperkit_configuration_t::whisperkit_configuration_t() {};
+whisperkit_configuration_t::whisperkit_configuration_t(){};
 
 void whisperkit_configuration_t::set_audio_encoder(const char* audio_encoder) noexcept {
     this->audio_encoder = audio_encoder;

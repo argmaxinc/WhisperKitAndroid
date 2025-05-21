@@ -1,0 +1,81 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+
+jobs:
+  check-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Install clang-format 14 (native)
+        run: |
+          sudo apt update
+          sudo apt install -y clang-format-14
+          sudo ln -sf /usr/bin/clang-format-14 /usr/local/bin/clang-format
+          clang-format --version
+
+      - name: Verify clang-format installation
+        run: |
+          if ! command -v clang-format >/dev/null; then
+            echo "❌ clang-format not found"
+            exit 1
+          fi
+          clang-format --version
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run spotlessCheck
+        run: |
+          echo "Running spotlessCheck..."
+          ./gradlew spotlessCheck
+          if [ $? -ne 0 ]; then
+            echo "❌ spotlessCheck failed. Please run './gradlew spotlessApply' locally to fix formatting issues."
+            exit 1
+          fi
+
+  build-test-kotlin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run detekt
+        run: |
+          echo "Running detekt..."
+          ./gradlew detekt
+          if [ $? -ne 0 ]; then
+            echo "❌ detekt found code style issues. Please fix them locally."
+            exit 1
+          fi
+
+      - name: Run unit tests
+        run: |
+          echo "Running unit tests..."
+          ./gradlew testDebugUnitTest
+          if [ $? -ne 0 ]; then
+            echo "❌ Unit tests failed. Please fix the failing tests locally."
+            exit 1
+          fi 

@@ -5,7 +5,7 @@
 #define LOGITS_TO_NEG_INF(start, end) \
     for (auto iter = (start); iter != (end); iter++) *iter = -1e9;
 
-#define DEC_2_ROUND(x) (round((x) * 100.0) / 100.0)
+#define DEC_2_ROUND(x) (round((x)*100.0) / 100.0)
 
 using namespace std;
 using json = nlohmann::json;

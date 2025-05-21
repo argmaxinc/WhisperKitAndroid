@@ -101,15 +101,15 @@ bool is_exact_match_for_separate_kv_cache_no_alignment_heads(const tflite::Model
     }
 
     /* helper functions to calculate the number of inputs and outputs for a given number of layers */
-    auto calculate_num_inputs_for_variant_with_layers = [=](const int num_layers) -> auto {
+    auto calculate_num_inputs_for_variant_with_layers = [=](const int num_layers) -> auto{
         return num_shared_inputs + num_layers * kv_factor;
     };
 
-    auto calculate_num_outputs_for_variant_with_layers = [=](const int num_layers) -> auto {
+    auto calculate_num_outputs_for_variant_with_layers = [=](const int num_layers) -> auto{
         return kv_factor * num_layers + 1;
     };
 
-    auto output_names_for_variant_with_layers = [=](const int num_layers) -> auto {
+    auto output_names_for_variant_with_layers = [=](const int num_layers) -> auto{
         std::unordered_set<std::string> output_names;
         output_names.insert(std::string("logits"));
         for (int i = 0; i < num_layers; ++i) {
@@ -119,7 +119,7 @@ bool is_exact_match_for_separate_kv_cache_no_alignment_heads(const tflite::Model
         return output_names;
     };
 
-    auto input_names_for_variant_with_layers = [](const int num_layers) -> auto {
+    auto input_names_for_variant_with_layers = [](const int num_layers) -> auto{
         std::unordered_set<std::string> input_names;
         input_names.insert(std::string("x"));
         input_names.insert(std::string("index"));
