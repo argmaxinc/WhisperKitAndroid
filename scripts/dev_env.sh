@@ -42,7 +42,7 @@ if ! $(docker image inspect $IMAGE_NAME > /dev/null 2>&1) || $FORCE_REBUILD; the
   BUILD_DIR="$SOURCE_DIR/.source"
   echo "Checking and retrieving dependencies..."
   if command -v aria2c &> /dev/null; then
-    aria2c $ARIA_OPTIONS -d $BUILD_DIR https://github.com/bazelbuild/bazel/releases/download/6.5.0/bazel-6.5.0-installer-linux-x86_64.sh
+    aria2c $ARIA_OPTIONS -d $BUILD_DIR https://github.com/bazelbuild/bazel/releases/download/7.4.1/bazel-7.4.1-installer-linux-x86_64.sh
     aria2c $ARIA_OPTIONS -d $BUILD_DIR https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
     aria2c $ARIA_OPTIONS -d $BUILD_DIR https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
     aria2c $ARIA_OPTIONS -d $BUILD_DIR https://repo1.maven.org/maven2/com/qualcomm/qti/qnn-runtime/2.33.0/qnn-runtime-2.33.0.aar
@@ -53,10 +53,11 @@ if ! $(docker image inspect $IMAGE_NAME > /dev/null 2>&1) || $FORCE_REBUILD; the
   fi
   if [ ! -d "$BUILD_DIR/tensorflow" ]; then
     echo "Cloning tensorflow..."
-    NIGHTLY_TF_PIN=e2ccfb8b4e0
-    git clone --no-checkout --filter=blob:none https://github.com/tensorflow/tensorflow.git "$BUILD_DIR/tensorflow"
+    NIGHTLY_TF_PIN=e2ccfb8b4e03baee112efbcfe824dbac995afb38
+    # Use shallow clone to reduce size
+    git clone --depth 1 --branch=nightly https://github.com/tensorflow/tensorflow.git "$BUILD_DIR/tensorflow"
     cd $BUILD_DIR/tensorflow
-    git fetch --depth=365 origin nightly
+    git fetch origin $NIGHTLY_TF_PIN --depth=1
     git checkout $NIGHTLY_TF_PIN
     cd -
   fi

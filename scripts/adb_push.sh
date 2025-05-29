@@ -2,22 +2,32 @@
 # For licensing see accompanying LICENSE file.
 # Copyright © 2024 Argmax, Inc. All rights reserved.
 
+# This script is used to push the files and folders to all connected Android devices
+#
+# whisperkit-cli: CLI app to run transcription on Android device, with files input.
+# libwhisperkit.so: main whisperkit lib
+# models: all models for whisperkit in models/ folder
+# test/jfk_441khz.m4a: sample test audio file for whisperkit
+# scripts/run_on_android.sh: script to run the app on Android device
+
+# Usage: make adb-push [forced]
+#        or ./adb_push.sh [forced]
+# If forced is provided, the script will push the files and folders to 
+#   the Android device even if they already exist. Otherwise, it will
+#   skip the push if the files already exist.
+
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 SOURCE_DIR="$CURRENT_DIR/.."
 
 WHISPERKIT_CLI="$SOURCE_DIR/build/android/whisperkit-cli"
 AXIE_TFLITE_LIB="$SOURCE_DIR/build/android/libwhisperkit.so"
 LOCAL_LIBS="$SOURCE_DIR/external/libs/android"
-LOCAL_TINY_DIR="$SOURCE_DIR/models/openai_whisper-tiny"
-LOCAL_BASE_DIR="$SOURCE_DIR/models/openai_whisper-base"
-LOCAL_SMALL_DIR="$SOURCE_DIR/models/openai_whisper-small"
+LOCAL_MODELS_DIR="$SOURCE_DIR/models"
 
 DEVICE_BIN_DIR="/data/local/tmp/bin"
 DEVICE_LIB_DIR="/data/local/tmp/lib"
 DEVICE_SDROOT_DIR="/sdcard/argmax/tflite"
-DEVICE_TINY_DIR="${DEVICE_SDROOT_DIR}/models/openai_whisper-tiny"
-DEVICE_BASE_DIR="${DEVICE_SDROOT_DIR}/models/openai_whisper-base"
-DEVICE_SMALL_DIR="${DEVICE_SDROOT_DIR}/models/openai_whisper-small"
+DEVICE_MODELS_DIR="${DEVICE_SDROOT_DIR}/models"
 DEVICE_INPUTS_DIR="${DEVICE_SDROOT_DIR}/inputs"
 
 EXEC_SCRIPT="$SOURCE_DIR/scripts/run_on_android.sh"
@@ -88,8 +98,6 @@ do
     adb -s $DEVICE shell "chmod 777 $DEVICE_SDROOT_DIR/run_on_android.sh"
     adb -s $DEVICE shell "chmod 777 $DEVICE_BIN_DIR/whisperkit-cli"
    
-    push_if_not_exists "$LOCAL_TINY_DIR" "$DEVICE_TINY_DIR" $FORCED
-    push_if_not_exists "$LOCAL_BASE_DIR" "$DEVICE_BASE_DIR" $FORCED
-    push_if_not_exists "$LOCAL_SMALL_DIR" "$DEVICE_SMALL_DIR" $FORCED
+    push_if_not_exists "$LOCAL_MODELS_DIR" "$DEVICE_MODELS_DIR" $FORCED
 
 done

@@ -8,6 +8,23 @@ import com.argmaxinc.whisperkit.huggingface.HuggingFaceApi
 import kotlinx.coroutines.flow.Flow
 
 /**
+ * Contains the complete transcription result.
+ * The result includes both the full text and individual segments of the transcription.
+ */
+data class TranscriptionResult(
+    val text: String,
+    val segments: List<TranscriptionSegment>,
+)
+
+/**
+ * Represents a single segment of transcribed text.
+ * Each segment contains the text content of a portion of the transcription.
+ */
+data class TranscriptionSegment(
+    val text: String,
+)
+
+/**
  * WhisperKit is a speech recognition library that provides real-time transcription capabilities.
  * It supports both OpenAI and Qualcomm Whisper models, with various size options and compute backend configurations.
  *
@@ -138,16 +155,11 @@ interface WhisperKit {
          *             - MSG_INIT (0): init() succeeded, model is ready
          *             - MSG_TEXT_OUT (1): transcription results from previous transcribe() call
          *             - MSG_CLOSE (2): deinitialize() succeeded, cleanup complete
-         * @param timestamp The timestamp of the transcribed segment (only valid for MSG_TEXT_OUT)
-         * @param msg The transcribed text or status message:
-         *           - For MSG_INIT: initialization status
-         *           - For MSG_TEXT_OUT: transcribed text
-         *           - For MSG_CLOSE: cleanup status
+         * @param result The transcription result containing with raw text and segments
          */
         fun onTextOutput(
             what: Int,
-            timestamp: Float,
-            msg: String,
+            result: TranscriptionResult,
         )
     }
 
@@ -160,15 +172,27 @@ interface WhisperKit {
             // Model variants
             const val OPENAI_TINY_EN = "whisperkit-litert/openai_whisper-tiny.en"
             const val OPENAI_BASE_EN = "whisperkit-litert/openai_whisper-base.en"
-            const val OPENAI_SMALL_EN = "whisperkit-litert/openai_whisper-small.en"
+            const val OPENAI_TINY = "whisperkit-litert/openai_whisper-tiny"
+            const val OPENAI_BASE = "whisperkit-litert/openai_whisper-base"
             const val QUALCOMM_TINY_EN = "qualcomm/Whisper_Tiny_En"
             const val QUALCOMM_BASE_EN = "qualcomm/Whisper_Base_En"
-            const val QUALCOMM_SMALL_EN = "qualcomm/Whisper_Small_En"
+
+            // Small models are not supported yet
+            internal const val OPENAI_SMALL_EN = "whisperkit-litert/openai_whisper-small.en"
+            internal const val QUALCOMM_SMALL_EN = "qualcomm/Whisper_Small_En"
 
             // Compute units used for encoder/decoder backend
             const val CPU_ONLY = 1
             const val CPU_AND_GPU = 2
             const val CPU_AND_NPU = 3
+            val SUPPORTED_MODELS = listOf(
+                OPENAI_TINY_EN,
+                OPENAI_BASE_EN,
+                OPENAI_TINY,
+                OPENAI_BASE,
+                QUALCOMM_TINY_EN,
+                QUALCOMM_BASE_EN,
+            )
         }
 
         private var model: String? = null
@@ -185,17 +209,8 @@ interface WhisperKit {
          */
         @Throws(WhisperKitException::class)
         fun setModel(model: String): Builder {
-            if (model !in
-                listOf(
-                    OPENAI_TINY_EN,
-                    OPENAI_BASE_EN,
-                    OPENAI_SMALL_EN,
-                    QUALCOMM_TINY_EN,
-                    QUALCOMM_BASE_EN,
-                    QUALCOMM_SMALL_EN,
-                )
-            ) {
-                throw WhisperKitException("Model must be one of the predefined variants")
+            if (model !in SUPPORTED_MODELS) {
+                throw WhisperKitException("Model must be one of the predefined variants: $SUPPORTED_MODELS")
             }
             this.model = model
             return this

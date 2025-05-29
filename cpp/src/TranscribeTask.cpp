@@ -211,11 +211,22 @@ void Runtime::init() {
     LOGI("SoC: \tgeneric CPU (x86, arm64, etc) \n");
 #endif
 
-    // TODO: this should be using std::filesystem..
     std::string tokenizer_json = config.get_model_path() + "/tokenizer.json";
+    std::string tokenizer_config_json = config.get_model_path() + "/config.json";
     std::string melspectro_model = config.get_model_path() + "/MelSpectrogram.tflite";
     std::string encoder_model = config.get_model_path() + "/AudioEncoder.tflite";
     std::string decoder_model = config.get_model_path() + "/TextDecoder.tflite";
+
+    std::vector<std::string> required_files = {tokenizer_json, tokenizer_config_json, melspectro_model, encoder_model,
+                                               decoder_model};
+    for (const auto& file : required_files) {
+        if (!std::filesystem::exists(file)) {
+            LOGE("File does not exist: %s", file.c_str());
+            std::stringstream ss;
+            ss << file << " : required file not found";
+            throw std::runtime_error(ss.str());
+        }
+    }
 
     melspectro = make_unique<MODEL_SUPER_CLASS>("mel_spectrogram");
     encoder = make_unique<MODEL_SUPER_CLASS>("whisper_encoder");
@@ -223,7 +234,8 @@ void Runtime::init() {
     decoder = TextDecoderFactory::CreateFromFile(decoder_model);
 
     // TODO move this to somewhere user accessible.
-    tokenizer = tokenizer_init_from_file(tokenizer_json.c_str());
+    tokenizer = tokenizer_init_from_file(tokenizer_json.c_str(), tokenizer_config_json.c_str());
+
     postproc = make_unique<PostProcModel>(tokenizer);
 
     lib_dir = std::string(TRANSCRIBE_TASK_DEFAULT_LIB_DIR);
@@ -344,14 +356,25 @@ void Runtime::encode_decode_postproc(float timestamp) {
     encoder->get_mutex()->lock();
     encoder->read_input_data(melspectro_outputs[0].first, 0);
     encoder->get_mutex()->unlock();
-    // Perform encoder inference
     encoder->invoke(true);
 
-    const auto& k_cache_cross = encoder_outputs[0].first;
-    const auto& v_cache_cross = encoder_outputs[1].first;
+    auto k_cache_cross = encoder->get_output_with_name("k_cache_cross");
+    if (k_cache_cross.first == nullptr) {
+        k_cache_cross = encoder->get_output_with_name("k_cache");
+    }
+    auto v_cache_cross = encoder->get_output_with_name("v_cache_cross");
+    if (v_cache_cross.first == nullptr) {
+        v_cache_cross = encoder->get_output_with_name("v_cache");
+    }
 
-    decoder->bind_input_tensor(k_cache_cross, "k_cache_cross");
-    decoder->bind_input_tensor(v_cache_cross, "v_cache_cross");
+    if (k_cache_cross.first == nullptr || v_cache_cross.first == nullptr) {
+        LOGE("Failed to get k_cache_cross or v_cache_cross");
+        return;
+    }
+
+    decoder->bind_input_tensor(k_cache_cross.first, "k_cache_cross");
+    decoder->bind_input_tensor(v_cache_cross.first, "v_cache_cross");
+
     decoder->initialize_kv_cache();
 
     constexpr const int MAX_DECODING_STEPS = 224;

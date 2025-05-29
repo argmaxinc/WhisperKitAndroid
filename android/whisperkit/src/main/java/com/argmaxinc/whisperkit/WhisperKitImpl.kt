@@ -9,6 +9,8 @@ import com.argmaxinc.whisperkit.huggingface.HuggingFaceApi
 import com.argmaxinc.whisperkit.network.ArgmaxModel
 import com.argmaxinc.whisperkit.network.ArgmaxModelDownloader
 import com.argmaxinc.whisperkit.network.ArgmaxModelDownloaderImpl
+import com.argmaxinc.whisperkit.util.MessageProcessor
+import com.argmaxinc.whisperkit.util.SegmentTextOnlyMessageProcessor
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.mapLatest
@@ -22,6 +24,7 @@ internal class WhisperKitImpl(
     decoderBackend: Int,
     private val callback: WhisperKit.TextOutputCallback,
     private val argmaxModelDownloader: ArgmaxModelDownloader = ArgmaxModelDownloaderImpl(),
+    private val messageProcessor: MessageProcessor = SegmentTextOnlyMessageProcessor(),
 ) : WhisperKit {
     companion object {
         private const val TAG = "WhisperKitImpl"
@@ -144,14 +147,17 @@ internal class WhisperKitImpl(
         }
     }
 
-    // Callback from JNI native code
+    // Callback from JNI native code, note at the moment timestamp is always 0
     private fun onTextOutput(
         what: Int,
         timestamp: Float,
         msg: String,
     ) {
         try {
-            callback.onTextOutput(what, timestamp, msg)
+            callback.onTextOutput(
+                what,
+                messageProcessor.process(msg),
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Callback execution failed: ${e.message}")
             throw WhisperKitException("Callback execution failed: ${e.message}", e)

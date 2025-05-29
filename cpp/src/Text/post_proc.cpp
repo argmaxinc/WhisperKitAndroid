@@ -70,11 +70,16 @@ int PostProcModel::process(int idx, float* logits, int logits_size, vector<int>&
         logits[_tokenizer->specialTokens.endOfTranscriptToken] = -1e9;
         logits[_tokenizer->specialTokens.blankToken] = -1e9;
     }
-    for (int i = 0; i < _tokenizer->numNonSpeechTokens; i++) {
-        auto token = _tokenizer->nonSpeechTokens[i];
-        logits[token] = -1e9;
+
+    // TODO: unblocking multilingual models
+    if (!tokenizer_is_multilingual(_tokenizer)) {
+        for (int i = 0; i < _tokenizer->numNonSpeechTokens; i++) {
+            auto token = _tokenizer->nonSpeechTokens[i];
+            logits[token] = -1e9;
+        }
+
+        apply_timestamp_rules(logits, logits_size, decoded_tokens);
     }
-    apply_timestamp_rules(logits, logits_size, decoded_tokens);
     // logits
     read_input_data(reinterpret_cast<char*>(logits), 0);
     auto inputs = get_input_ptrs();

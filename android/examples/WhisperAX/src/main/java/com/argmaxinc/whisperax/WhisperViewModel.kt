@@ -14,6 +14,8 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.argmaxinc.whisperkit.ExperimentalWhisperKit
+import com.argmaxinc.whisperkit.TranscriptionResult
+import com.argmaxinc.whisperkit.TranscriptionSegment
 import com.argmaxinc.whisperkit.WhisperKit
 import com.argmaxinc.whisperkit.WhisperKit.TextOutputCallback
 import com.argmaxinc.whisperkit.WhisperKitException
@@ -33,22 +35,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-data class TranscriptionSegment(
-    val text: String,
-    val start: Float,
-    val end: Float,
-    val tokens: List<Int> = emptyList(),
-)
-
-data class TranscriptionResult(
-    val text: String = "",
-    val segments: List<TranscriptionSegment> = emptyList(),
-)
-
 @OptIn(ExperimentalWhisperKit::class)
 class WhisperViewModel : ViewModel() {
     companion object {
         const val TAG = "WhisperViewModel"
+
+        // Models currently supporting NPU backend, don't enable NPU for other models
+        val MODELS_SUPPORTING_NPU = listOf(WhisperKit.Builder.QUALCOMM_TINY_EN, WhisperKit.Builder.QUALCOMM_BASE_EN)
     }
 
     private lateinit var appContext: Context
@@ -190,10 +183,11 @@ class WhisperViewModel : ViewModel() {
         cacheDir = context.cacheDir.absolutePath
     }
 
-    fun onTextOutput(what: Int, timestamp: Float, msg: String) {
+    fun onTextOutput(what: Int, result: TranscriptionResult) {
+        val segments = result.segments
         when (what) {
             TextOutputCallback.MSG_INIT -> {
-                Log.i(MainActivity.TAG, "TFLite initialized: $msg")
+                Log.i(MainActivity.TAG, "TFLite initialized: ${result.text}")
                 startTime = System.currentTimeMillis()
                 _pipelineStart.value = startTime.toDouble() / 1000.0
                 _isInitializing.value = false
@@ -201,14 +195,13 @@ class WhisperViewModel : ViewModel() {
 
             TextOutputCallback.MSG_TEXT_OUT -> {
                 Log.i(MainActivity.TAG, "TEXT OUT THREAD")
-                if (msg.isNotEmpty()) {
+                if (segments.isNotEmpty()) {
                     if (!firstTokenReceived) {
                         firstTokenReceived = true
                         firstTokenTimestamp = System.currentTimeMillis()
                         _firstTokenTime.value = (firstTokenTimestamp - startTime).toDouble() / 1000.0
                     }
-
-                    val newTokens = msg.length / 4
+                    val newTokens = segments.joinToString("") { it.text }.length / 4
                     totalTokens += newTokens
 
                     val currentTime = System.currentTimeMillis()
@@ -220,14 +213,14 @@ class WhisperViewModel : ViewModel() {
                     }
 
                     lastTokenTimestamp = currentTime
-                    updateTranscript(msg)
+                    updateTranscript(segments)
                 }
             }
 
             TextOutputCallback.MSG_CLOSE -> {
                 Log.i(MainActivity.TAG, "Transcription completed.")
-                if (msg.isNotEmpty()) {
-                    val newTokens = msg.length / 4
+                if (segments.isNotEmpty()) {
+                    val newTokens = segments.joinToString("") { it.text }.length / 4
                     totalTokens += newTokens
 
                     val totalTime = (System.currentTimeMillis() - startTime).toDouble() / 1000.0
@@ -236,8 +229,7 @@ class WhisperViewModel : ViewModel() {
 
                         updateRealtimeMetrics(totalTime)
                     }
-
-                    updateTranscript(msg)
+                    updateTranscript(segments)
                 }
             }
 
@@ -247,25 +239,8 @@ class WhisperViewModel : ViewModel() {
         }
     }
 
-    private fun updateTranscript(chunkText: String, withTimestamps: Boolean = false) {
-        var processedText = chunkText
-
-        val timestamps = if (withTimestamps) {
-            val timestampPattern = "<\\|(\\d+\\.\\d+)\\|>".toRegex()
-            val timestampMatches = timestampPattern.findAll(chunkText).toList()
-            timestampMatches.map { it.groupValues[1].toFloat() }
-        } else {
-            emptyList()
-        }
-
-        if (!withTimestamps) {
-            processedText = processedText
-                .replace("<\\|[^>]*\\|>".toRegex(), "")
-                .trim()
-        } else {
-            processedText = processedText.trim()
-        }
-
+    private fun updateTranscript(segments: List<TranscriptionSegment>) {
+        val processedText = segments.joinToString("") { it.text }
         if (processedText.isNotEmpty()) {
             if (allText.isNotEmpty()) {
                 allText.append("\n")
@@ -284,13 +259,12 @@ class WhisperViewModel : ViewModel() {
     fun listModels() {
         viewModelScope.launch {
             val modelDirs = listOf(
-                // TODO: enable when models are ready
-                // WhisperKit.Builder.OPENAI_TINY_EN,
-                // WhisperKit.Builder.OPENAI_BASE_EN,
-                // WhisperKit.Builder.OPENAI_SMALL_EN,
                 WhisperKit.Builder.QUALCOMM_TINY_EN,
                 WhisperKit.Builder.QUALCOMM_BASE_EN,
-                // WhisperKit.Builder.QUALCOMM_SMALL_EN
+                WhisperKit.Builder.OPENAI_TINY_EN,
+                WhisperKit.Builder.OPENAI_BASE_EN,
+                WhisperKit.Builder.OPENAI_TINY,
+                WhisperKit.Builder.OPENAI_BASE,
             )
             availableModels.clear()
             availableModels.addAll(modelDirs)
@@ -364,6 +338,21 @@ class WhisperViewModel : ViewModel() {
 
     fun selectModel(model: String) {
         _selectedModel.value = model
+        if (model in MODELS_SUPPORTING_NPU) {
+            _encoderComputeUnits.update {
+                ComputeUnits.CPU_AND_NPU
+            }
+            _decoderComputeUnits.update {
+                ComputeUnits.CPU_AND_NPU
+            }
+        } else {
+            _encoderComputeUnits.update {
+                ComputeUnits.CPU_ONLY
+            }
+            _decoderComputeUnits.update {
+                ComputeUnits.CPU_ONLY
+            }
+        }
         _modelState.value = ModelState.UNLOADED
         _encoderState.value = ModelState.UNLOADED
         _decoderState.value = ModelState.UNLOADED

@@ -58,7 +58,7 @@ class AndroidHuggingFaceLogger(private val tag: String) : HuggingFaceLogger {
  * This class provides functionality to download required model files for a specific variant using
  * HuggingFaceApi, supporting automatic retries and progress reporting during downloads.
  */
-class ArgmaxModelDownloaderImpl(
+internal class ArgmaxModelDownloaderImpl(
     private val huggingFaceApi: HuggingFaceApi =
         KtorHuggingFaceApiImpl(
             config =
@@ -69,6 +69,7 @@ class ArgmaxModelDownloaderImpl(
 ) : ArgmaxModelDownloader {
     companion object {
         private const val TOKENIZER_REPO = "TOKENIZER_REPO"
+        private const val CONFIG_REPO = "TOKENIZER_REPO"
         private const val ENCODER_DECODER_REPO = "ENCODER_DECODER_REPO"
 
         // dir path under argmaxinc/whisperkit-litert to look up for MelSpectrogram.tflite
@@ -79,36 +80,56 @@ class ArgmaxModelDownloaderImpl(
             mapOf(
                 WhisperKit.Builder.OPENAI_TINY_EN to
                     mapOf(
+                        CONFIG_REPO to "openai/whisper-tiny.en",
                         TOKENIZER_REPO to "openai/whisper-tiny.en",
                         ENCODER_DECODER_REPO to "openai_whisper-tiny.en",
                         FEATURE_EXTRACTOR_PATH to "openai_whisper-tiny.en",
                     ),
                 WhisperKit.Builder.OPENAI_BASE_EN to
                     mapOf(
+                        CONFIG_REPO to "openai/whisper-base.en",
                         TOKENIZER_REPO to "openai/whisper-base.en",
                         ENCODER_DECODER_REPO to "openai_whisper-base.en",
                         FEATURE_EXTRACTOR_PATH to "openai_whisper-base.en",
                     ),
+                WhisperKit.Builder.OPENAI_TINY to
+                    mapOf(
+                        CONFIG_REPO to "openai/whisper-tiny",
+                        TOKENIZER_REPO to "openai/whisper-tiny",
+                        ENCODER_DECODER_REPO to "openai_whisper-tiny",
+                        FEATURE_EXTRACTOR_PATH to "openai_whisper-tiny",
+                    ),
+                WhisperKit.Builder.OPENAI_BASE to
+                    mapOf(
+                        CONFIG_REPO to "openai/whisper-base",
+                        TOKENIZER_REPO to "openai/whisper-base",
+                        ENCODER_DECODER_REPO to "openai_whisper-base",
+                        FEATURE_EXTRACTOR_PATH to "openai_whisper-base",
+                    ),
                 WhisperKit.Builder.OPENAI_SMALL_EN to
                     mapOf(
+                        CONFIG_REPO to "openai/whisper-small.en",
                         TOKENIZER_REPO to "openai/whisper-small.en",
                         ENCODER_DECODER_REPO to "openai_whisper-small.en",
                         FEATURE_EXTRACTOR_PATH to "openai_whisper-small.en",
                     ),
                 WhisperKit.Builder.QUALCOMM_TINY_EN to
                     mapOf(
+                        CONFIG_REPO to "openai/whisper-tiny.en",
                         TOKENIZER_REPO to "openai/whisper-tiny.en",
                         ENCODER_DECODER_REPO to "qualcomm/Whisper-Tiny-En",
                         FEATURE_EXTRACTOR_PATH to "quic_openai_whisper-tiny.en",
                     ),
                 WhisperKit.Builder.QUALCOMM_BASE_EN to
                     mapOf(
+                        CONFIG_REPO to "openai/whisper-base.en",
                         TOKENIZER_REPO to "openai/whisper-base.en",
                         ENCODER_DECODER_REPO to "qualcomm/Whisper-Base-En",
                         FEATURE_EXTRACTOR_PATH to "quic_openai_whisper-base.en",
                     ),
                 WhisperKit.Builder.QUALCOMM_SMALL_EN to
                     mapOf(
+                        CONFIG_REPO to "openai/whisper-small.en",
                         TOKENIZER_REPO to "openai/whisper-small.en",
                         ENCODER_DECODER_REPO to "qualcomm/Whisper-Small-En",
                         FEATURE_EXTRACTOR_PATH to "quic_openai_whisper-small.en",
@@ -120,12 +141,12 @@ class ArgmaxModelDownloaderImpl(
      * Downloads model files for a specific variant and returns a flow of download progress.
      *
      * For OpenAI models (whisperkit-litert/openai_*):
-     * - Downloads tokenizer.json from openai/whisper-*.en
+     * - Downloads config.json and tokenizer.json from openai/whisper-*
      * - Downloads AudioEncoder.tflite and TextDecoder.tflite from argmaxinc/whisperkit-litert/openai_whisper-*
      * - Downloads MelSpectrogram.tflite from argmaxinc/whisperkit-litert/openai_whisper-*
      *
      * For Qualcomm models (qualcomm/Whisper_*_En):
-     * - Downloads tokenizer.json from openai/whisper-*.en
+     * - Downloads config.json and tokenizer.json from openai/whisper-*.en
      * - Downloads WhisperEncoder.tflite and WhisperDecoder.tflite from qualcomm/Whisper-*-En
      *   and renames them to AudioEncoder.tflite and TextDecoder.tflite respectively
      * - Downloads MelSpectrogram.tflite from argmaxinc/whisperkit-litert/quic_openai_whisper-*
@@ -133,6 +154,8 @@ class ArgmaxModelDownloaderImpl(
      * @param variant The model variant to download. Must be one of:
      *   - [WhisperKit.Builder.OPENAI_TINY_EN]
      *   - [WhisperKit.Builder.OPENAI_BASE_EN]
+     *   - [WhisperKit.Builder.OPENAI_TINY]
+     *   - [WhisperKit.Builder.OPENAI_BASE]
      *   - [WhisperKit.Builder.OPENAI_SMALL_EN]
      *   - [WhisperKit.Builder.QUALCOMM_TINY_EN]
      *   - [WhisperKit.Builder.QUALCOMM_BASE_EN]
@@ -147,20 +170,53 @@ class ArgmaxModelDownloaderImpl(
     ): Flow<HuggingFaceApi.Progress> {
         val config =
             modelConfigs[variant] ?: throw IllegalArgumentException("Invalid variant: $variant")
-
         return combine(
+            downloadConfig(config, root),
             downloadTokenizer(config, root),
             downloadEncoderDecoder(variant, config, root),
             downloadFeatureExtractor(config, root),
-        ) { tokenizer, encoderDecoder, featureExtractor ->
-            // Each flow contributes 1/3 to the total progress
+        ) { config, tokenizer, encoderDecoder, featureExtractor ->
+            // Each flow contributes 1/4 to the total progress
             HuggingFaceApi.Progress(
-                fractionCompleted =
-                (
-                    tokenizer.fractionCompleted + encoderDecoder.fractionCompleted +
-                        featureExtractor.fractionCompleted
-                    ) / 3.0f,
+                fractionCompleted = (
+                    config.fractionCompleted + tokenizer.fractionCompleted +
+                        encoderDecoder.fractionCompleted + featureExtractor.fractionCompleted
+                    ) / 4.0f,
             )
+        }.onCompletion {
+            // Clean up model directories after all downloads are complete
+            if (!variant.startsWith("qualcomm/")) {
+                // For OpenAI models, clean up the model directory
+                File(root, config[ENCODER_DECODER_REPO]!!).deleteRecursively()
+            }
+            // Clean up feature extractor directory
+            File(root, config[FEATURE_EXTRACTOR_PATH]!!).deleteRecursively()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun downloadConfig(
+        config: Map<String, String>,
+        root: File,
+    ): Flow<HuggingFaceApi.Progress> {
+        return flow {
+            emit(
+                huggingFaceApi.getFileMetadata(
+                    from = Repo(config[CONFIG_REPO]!!, RepoType.MODELS),
+                    filename = "config.json",
+                ),
+            )
+        }.flatMapLatest { tokenizerMetadata ->
+            val cachedTokenizerFile = File(root, "config.json")
+            if (cachedTokenizerFile.exists() && cachedTokenizerFile.length() == tokenizerMetadata.size) {
+                flowOf(HuggingFaceApi.Progress(1.0f))
+            } else {
+                huggingFaceApi.snapshot(
+                    from = Repo(config[CONFIG_REPO]!!, RepoType.MODELS),
+                    globFilters = listOf("config.json"),
+                    baseDir = root,
+                )
+            }
         }
     }
 
@@ -314,7 +370,6 @@ class ArgmaxModelDownloaderImpl(
                             "MelSpectrogram.tflite",
                         ),
                     )
-                    File(root, modelDir).deleteRecursively()
                 }
             }
         }

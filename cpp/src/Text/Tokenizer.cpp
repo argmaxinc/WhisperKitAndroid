@@ -54,103 +54,19 @@ void init_special_tokens(Tokenizer *tokenizer) {
     tokenizer->specialTokens = special_tokens;
 }
 
-void init_non_speech_tokens(Tokenizer *tokenizer) {
-    std::vector<std::string> non_speech_tokens{"!",
-                                               "\"",
-                                               "#",
-                                               "(",
-                                               ")",
-                                               "*",
-                                               "+",
-                                               "/",
-                                               ":",
-                                               ";",
-                                               "<",
-                                               "=",
-                                               ">",
-                                               "@",
-                                               "[",
-                                               "\\",
-                                               "]",
-                                               "^",
-                                               "_",
-                                               "`",
-                                               "{",
-                                               "|",
-                                               "}",
-                                               "~",
-                                               " (",
-                                               " \"",
-                                               "--",
-                                               " -",
-                                               " [",
-                                               " '",
-                                               " =",
-                                               " |",
-                                               " :",
-                                               " /",
-                                               " )",
-                                               " <",
-                                               " #",
-                                               " +",
-                                               " --",
-                                               " {",
-                                               " *",
-                                               " }",
-                                               " >",
-                                               " ;",
-                                               " ]",
-                                               " @",
-                                               " \\",
-                                               "))",
-                                               ">>",
-                                               " `",
-                                               " _",
-                                               " ~",
-                                               " (\"",
-                                               "---",
-                                               "(\"",
-                                               " >>",
-                                               " <<",
-                                               " ^",
-                                               "('",
-                                               " ---",
-                                               "}}",
-                                               "]]",
-                                               " >>>",
-                                               "「",
-                                               "」",
-                                               " ((",
-                                               " ))",
-                                               " [[",
-                                               "<<",
-                                               "�",
-                                               " (\'",
-                                               "((",
-                                               " �",
-                                               ")))",
-                                               " {{",
-                                               "{{",
-                                               "[[",
-                                               "-(",
-                                               ">>>",
-                                               " }}",
-                                               " 「",
-                                               "『",
-                                               "』",
-                                               " )))",
-                                               "-[",
-                                               "<|startoftranscript|>",
-                                               "<|translate|>",
-                                               "<|transcribe|>",
-                                               "<|startoflm|>",
-                                               "<|startofprev|>",
-                                               "<|nocaptions|>"};
-    tokenizer->numNonSpeechTokens = non_speech_tokens.size();
+void init_non_speech_tokens(Tokenizer *tokenizer, const std::unique_ptr<json> &config) {
+    std::vector<int> non_speech_token_ids = config->at("suppress_tokens");
+
+    tokenizer->numNonSpeechTokens = non_speech_token_ids.size();
     tokenizer->nonSpeechTokens = (int *)malloc(sizeof(int) * tokenizer->numNonSpeechTokens);
     for (auto i = 0; i < tokenizer->numNonSpeechTokens; i++) {
-        tokenizer->nonSpeechTokens[i] = tokenizer_convert_token_to_id(tokenizer, non_speech_tokens[i].c_str());
+        tokenizer->nonSpeechTokens[i] = non_speech_token_ids[i];
     }
+}
+
+bool tokenizer_is_multilingual(const Tokenizer *tokenizer) {
+    constexpr const int ENGLISH_VOCAB_SIZE = 51864;
+    return tokenizer->vocabSize != ENGLISH_VOCAB_SIZE;
 }
 
 int tokenizer_convert_token_to_id(const Tokenizer *tokenizer, const char *token_string) {
@@ -168,7 +84,7 @@ int tokenizer_convert_token_to_id(const Tokenizer *tokenizer, const char *token_
     return static_cast<int>(id);
 }
 
-Tokenizer *tokenizer_init_from_file(const char *path) {
+Tokenizer *tokenizer_init_from_file(const char *path, const char *config_path) {
     // Dynamically allocate tokenizer memory
     Tokenizer *tokenizer = (Tokenizer *)malloc(sizeof(Tokenizer));
     if (!tokenizer) {
@@ -178,6 +94,7 @@ Tokenizer *tokenizer_init_from_file(const char *path) {
 
     // Load file to check existence and get vocabulary size.
     std::ifstream file(path);
+    std::ifstream config_file(config_path);
     if (!file) {
         LOGE("Error loading provided tokenizer JSON. File may not exist!\n");
         return NULL;
@@ -189,8 +106,13 @@ Tokenizer *tokenizer_init_from_file(const char *path) {
         LOGE("Error parsing the provided tokenizer JSON!");
         return NULL;
     }
-    tokenizer->vocabSize = (*json_file)["model"]["vocab"].size();
-    LOGI("postproc vocab size: %d\n", tokenizer->vocabSize);
+
+    auto json_config = std::make_unique<json>(json::parse(config_file));
+    if (!json_config) {
+        LOGE("Error parsing the provided tokenizer config JSON!");
+        return NULL;
+    }
+    tokenizer->vocabSize = (*json_config)["vocab_size"];
 
     // Load vocabulary from tokenizer file
     tokenizer->handle = tokenizer_from_file(path);
@@ -200,7 +122,7 @@ Tokenizer *tokenizer_init_from_file(const char *path) {
     }
 
     init_special_tokens(tokenizer);
-    init_non_speech_tokens(tokenizer);
+    init_non_speech_tokens(tokenizer, json_config);
     return tokenizer;
 }
 

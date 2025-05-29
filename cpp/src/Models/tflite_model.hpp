@@ -54,6 +54,7 @@ class TFLiteModel {
     void read_input_data(char* input_data, int idx);
     std::vector<std::pair<char*, int>> get_input_ptrs();
     std::vector<std::pair<char*, int>> get_output_ptrs();
+    std::pair<char*, int> get_output_with_name(const std::string& name);
 
     void print_tensor_dims();
     std::unique_ptr<json> get_latency_json();
@@ -66,10 +67,12 @@ class TFLiteModel {
 
     std::vector<float> _latencies;
 
+    std::unique_ptr<tflite::Interpreter> _interpreter;
+
    protected:
     std::mutex _mutex;
     std::unique_ptr<tflite::FlatBufferModel> _model;
-    std::unique_ptr<tflite::Interpreter> _interpreter;
+
     flatbuffers::FlatBufferBuilder _builder;
     TfLiteDelegate* _delegate = nullptr;
     std::string _model_name;

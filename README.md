@@ -8,15 +8,19 @@
   <img src="https://github.com/user-attachments/assets/1be5e31c-de42-40ab-9b85-790cb911ed47" alt="WhisperKit" width="20%" />
 </a>
 
-# WhisperKit Android (Beta)
+# WhisperKit Android
 
-[![Maven Central](https://img.shields.io/maven-central/v/com.argmaxinc/whisperkit?color=32d058)](https://central.sonatype.com/artifact/com.argmaxinc/whisperkit)
+[![Tests](https://github.com/argmaxinc/whisperkitandroid/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/argmaxinc/whisperkitandroid/actions/workflows/pr-checks.yml)
+[![License](https://img.shields.io/github/license/argmaxinc/whisperkitandroid?logo=github&logoColor=969da4&label=License&labelColor=353a41&color=32d058)](LICENSE.md)
+[![Maven Central](https://img.shields.io/maven-central/v/com.argmaxinc/whisperkit?logo=sonatype&logoColor=969da4&label=Maven%20Central&labelColor=353a41&color=32d058)](https://central.sonatype.com/artifact/com.argmaxinc/whisperkit)
+[![Discord](https://img.shields.io/discord/1171912382512115722?style=flat&logo=discord&logoColor=969da4&label=Discord&labelColor=353a41&color=32d058&link=https%3A%2F%2Fdiscord.gg%2FG5F5GZGecC)](https://discord.gg/G5F5GZGecC)
+
 </div>
 
 WhisperKit Android brings Foundation Models On Device for Automatic Speech Recognition. It extends the performance and feature set of [WhisperKit](https://github.com/argmaxinc/WhisperKit) from Apple platforms to Android and Linux.  The current feature set is a subset of the iOS counterpart,
 but we are continuing to invest in Android and now welcome contributions from the community.
 
-[Example App (Coming Soon)] [[Blog Post]](https://takeargmax.com/blog/android) [[Python Tools Repo]](https://github.com/argmaxinc/whisperkittools)
+[[Example App]](https://play.google.com/store/apps/details?id=com.argmaxinc.whisperax) [[Blog Post]](https://takeargmax.com/blog/android) [[Python Tools Repo]](https://github.com/argmaxinc/whisperkittools)
 
 ## Table of Contents
 
@@ -37,7 +41,7 @@ To use WhisperKit in your Android app, you need to:
 ```kotlin
 dependencies {
    // 1. WhisperKit SDK
-   implementation("com.argmaxinc:whisperkit:0.3.0")  // Check badge above for latest version
+   implementation("com.argmaxinc:whisperkit:0.3.2")  // Check badge above for latest version
 
    // 2. QNN dependencies for hardware acceleration
    implementation("com.qualcomm.qnn:qnn-runtime:2.34.0")
@@ -73,7 +77,7 @@ class YourActivity : AppCompatActivity() {
       whisperKit = WhisperKit.Builder()
          .setModel(WhisperKit.OPENAI_TINY_EN)
          .setApplicationContext(applicationContext)
-         .setCallback { what, timestamp, msg ->
+         .setCallback { what, result ->
             // Handle transcription output
             when (what) {
                WhisperKit.TextOutputCallback.MSG_INIT -> {
@@ -81,10 +85,14 @@ class YourActivity : AppCompatActivity() {
                }
                WhisperKit.TextOutputCallback.MSG_TEXT_OUT -> {
                   // New transcription available
-                  val text = msg
-                  val time = timestamp
+                  val fullText = result.text
+                  val segments = result.segments
                   // Process the transcribed text as it becomes available
                   // This callback will be called multiple times as more audio is processed
+                  segments.forEach { segment ->
+                     // Process each segment
+                     val segmentText = segment.text
+                  }
                }
                WhisperKit.TextOutputCallback.MSG_CLOSE -> {
                   // Cleanup complete

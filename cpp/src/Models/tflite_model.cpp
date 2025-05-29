@@ -502,6 +502,9 @@ vector<pair<char*, int>> TFLiteModel::get_input_ptrs() {
             case kTfLiteInt32:
                 input_ptr = _interpreter->typed_input_tensor<int>(idx);
                 break;
+            case kTfLiteInt64:
+                input_ptr = _interpreter->typed_input_tensor<int64_t>(idx);
+                break;
             default:
                 fprintf(stderr, "Error: unsupported tensor type: %d\n", tensor->type);
                 exit(-1);
@@ -533,6 +536,16 @@ vector<pair<char*, int>> TFLiteModel::get_output_ptrs() {
         _output_ptrs.push_back(make_pair(reinterpret_cast<char*>(output_ptr), tensor->bytes));
     }
     return _output_ptrs;
+}
+
+std::pair<char*, int> TFLiteModel::get_output_with_name(const std::string& name) {
+    for (int idx = 0; idx < _interpreter->outputs().size(); idx++) {
+        auto* tensor = _interpreter->tensor(_interpreter->outputs()[idx]);
+        if (strcmp(tensor->name, name.c_str()) == 0) {
+            return make_pair(reinterpret_cast<char*>(tensor->data.f), tensor->bytes);
+        }
+    }
+    return make_pair(nullptr, 0);
 }
 
 void TFLiteModel::invoke(bool measure_time) {

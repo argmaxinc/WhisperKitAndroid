@@ -31,6 +31,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
+import com.argmaxinc.whisperax.WhisperViewModel.Companion.MODELS_SUPPORTING_NPU
 import com.argmaxinc.whisperkit.ExperimentalWhisperKit
 import com.argmaxinc.whisperkit.WhisperKit
 
@@ -50,11 +52,18 @@ enum class ComputeUnits(val displayName: String, val backendValue: Int) {
     CPU_AND_NPU("NPU", WhisperKit.Builder.CPU_AND_NPU),
 }
 
+@OptIn(ExperimentalWhisperKit::class)
 @Composable
 fun ComputeUnitsView(viewModel: WhisperViewModel) {
     val modelState by viewModel.modelState.collectAsState()
     val encoderState by viewModel.encoderState.collectAsState()
     val decoderState by viewModel.decoderState.collectAsState()
+    val selectedModel by viewModel.selectedModel.collectAsState()
+    val shouldEnableNPUForEncoderDecoder by remember {
+        derivedStateOf {
+            selectedModel in MODELS_SUPPORTING_NPU
+        }
+    }
     val isEnabled = modelState == ModelState.LOADED || modelState == ModelState.UNLOADED
 
     var whisperKitExpanded by remember { mutableStateOf(true) }
@@ -75,6 +84,7 @@ fun ComputeUnitsView(viewModel: WhisperViewModel) {
                     currentState = encoderState,
                     currentUnit = viewModel.encoderComputeUnits.collectAsState().value,
                     onUnitSelected = { viewModel.setEncoderComputeUnits(it) },
+                    shouldEnableNPU = shouldEnableNPUForEncoderDecoder,
                     enabled = isEnabled,
                 )
 
@@ -85,6 +95,7 @@ fun ComputeUnitsView(viewModel: WhisperViewModel) {
                     currentState = decoderState,
                     currentUnit = viewModel.decoderComputeUnits.collectAsState().value,
                     onUnitSelected = { viewModel.setDecoderComputeUnits(it) },
+                    shouldEnableNPU = shouldEnableNPUForEncoderDecoder,
                     enabled = isEnabled,
                 )
             }
@@ -185,6 +196,7 @@ fun ComputeUnitRow(
     currentState: ModelState,
     currentUnit: ComputeUnits,
     onUnitSelected: (ComputeUnits) -> Unit,
+    shouldEnableNPU: Boolean = true,
     enabled: Boolean = true,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "loading animation")
@@ -248,7 +260,11 @@ fun ComputeUnitRow(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
             ) {
-                ComputeUnits.values().forEach { unit ->
+                if (shouldEnableNPU) {
+                    listOf(ComputeUnits.CPU_ONLY, ComputeUnits.CPU_AND_GPU, ComputeUnits.CPU_AND_NPU)
+                } else {
+                    listOf(ComputeUnits.CPU_ONLY, ComputeUnits.CPU_AND_GPU)
+                }.forEach { unit ->
                     DropdownMenuItem(
                         text = { Text(unit.displayName) },
                         onClick = {
