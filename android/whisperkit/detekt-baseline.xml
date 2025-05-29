@@ -2,8 +2,10 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
+    <ID>LargeClass:ArgmaxModelDownloaderImplTest.kt$ArgmaxModelDownloaderImplTest</ID>
     <ID>ThrowsCount:WhisperKit.kt$WhisperKit.Builder$@Throws(WhisperKitException::class) fun build(): WhisperKit</ID>
     <ID>TooGenericExceptionCaught:KtorHuggingFaceApiImpl.kt$KtorHuggingFaceApiImpl$e: Exception</ID>
     <ID>TooGenericExceptionCaught:WhisperKitImpl.kt$WhisperKitImpl$e: Exception</ID>
+    <ID>UnusedParameter:WhisperKitImpl.kt$WhisperKitImpl$timestamp: Float</ID>
   </CurrentIssues>
 </SmellBaseline>

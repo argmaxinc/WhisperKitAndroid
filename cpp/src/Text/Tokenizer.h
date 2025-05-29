@@ -32,10 +32,12 @@ typedef struct {
 } Tokenizer;
 
 // Initialize the tokenizer
-Tokenizer* tokenizer_init_from_file(const char* path);
+Tokenizer* tokenizer_init_from_file(const char* path, const char* config_path);
 
 // Decode token IDs into a string
 char* tokenizer_decode(const Tokenizer* tokenizer, const int* tokens, int tokenCount, bool skipSpecialTokens);
+
+bool tokenizer_is_multilingual(const Tokenizer* tokenizer);
 
 // Convert token string to ID
 int tokenizer_convert_token_to_id(const Tokenizer* tokenizer, const char* tokenString);

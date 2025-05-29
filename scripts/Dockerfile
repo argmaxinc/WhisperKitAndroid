@@ -37,7 +37,7 @@ ENV QNN_RUNTIME_ROOT=/opt/qnn-runtime
 ENV AXIE_ROOT=/src/AXIE
 
 ARG ANDROID_NDK_ZIP=$ANDROID_NDK_VERSION-linux.zip
-ARG BAZEL_INSTALLER=bazel-6.5.0-installer-linux-x86_64.sh
+ARG BAZEL_INSTALLER=bazel-7.4.1-installer-linux-x86_64.sh
 ARG BAZEL_DIR=/opt/bazel
 ARG QNN_RUNTIME=qnn-runtime-2.33.0.aar
 ARG QNN_TFLITE_DELEGATE=qnn-litert-delegate-2.33.0.aar

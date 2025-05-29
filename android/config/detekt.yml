@@ -14,7 +14,7 @@ complexity:
     thresholdInObjects: 10
   LongParameterList:
     functionThreshold: 8
-    constructorThreshold: 7
+    constructorThreshold: 8
   CyclomaticComplexMethod:
     threshold: 20
   NestedBlockDepth:

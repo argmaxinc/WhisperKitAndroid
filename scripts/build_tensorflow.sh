@@ -22,8 +22,22 @@ export CC_OPT_FLAGS=-Wno-sign-compare
 
 # nightly tf commit needs bazel 7.4.1
 USING_NIGHTLY_TF_COMMIT=1
+REQUIRED_BAZEL_VERSION="7.4.1"
+BAZEL_BIN_DIR="/usr/local/lib/bazel/bin"
+BAZEL_FILENAME="bazel-${REQUIRED_BAZEL_VERSION}-linux-x86_64"
+BAZEL_PATH="${BAZEL_BIN_DIR}/${BAZEL_FILENAME}"
+
 if [ "$USING_NIGHTLY_TF_COMMIT" = "1" ]; then
-    cd "/usr/local/lib/bazel/bin" && curl -fLO https://releases.bazel.build/7.4.1/release/bazel-7.4.1-linux-x86_64 && chmod +x bazel-7.4.1-linux-x86_64
+    if [ -f "$BAZEL_PATH" ]; then
+        echo "Bazel $REQUIRED_BAZEL_VERSION already exists at $BAZEL_PATH. Skipping download."
+    else
+        echo "Downloading Bazel $REQUIRED_BAZEL_VERSION..."
+        mkdir -p "$BAZEL_BIN_DIR"
+        cd "$BAZEL_BIN_DIR" || exit 1
+        curl -fLO "https://releases.bazel.build/${REQUIRED_BAZEL_VERSION}/release/${BAZEL_FILENAME}"
+        chmod +x "$BAZEL_FILENAME"
+        echo "Bazel $REQUIRED_BAZEL_VERSION downloaded to $BAZEL_PATH."
+    fi
 fi
 
 if [ "$PLATFORM" = "android" ]; then

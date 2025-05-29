@@ -45,6 +45,14 @@ class ArgmaxModelDownloaderImplTest {
     ) {
         val qualcommModel = modelVariant.startsWith("qualcomm/")
 
+        // Mock config metadata
+        coEvery {
+            huggingFaceApi.getFileMetadata(
+                from = eq(Repo(expectedTokenizerRepo, RepoType.MODELS)),
+                filename = eq("config.json"),
+            )
+        } returns HuggingFaceApi.FileMetadata(500L, "config.json")
+
         // Mock tokenizer metadata
         coEvery {
             huggingFaceApi.getFileMetadata(
@@ -115,7 +123,16 @@ class ArgmaxModelDownloaderImplTest {
         expectedMelSpectrogramPath: String,
     ) {
         // Create cached files upfront
-        // 1. Create tokenizer.json
+        // 1. Create config.json
+        val configFile = File(root, "config.json")
+        configFile.createNewFile()
+        configFile.setWritable(true)
+        configFile.setReadable(true)
+        configFile.setExecutable(true)
+        configFile.setLastModified(System.currentTimeMillis())
+        configFile.writeBytes(ByteArray(500))
+
+        // 2. Create tokenizer.json
         val tokenizerFile = File(root, "tokenizer.json")
         tokenizerFile.createNewFile()
         tokenizerFile.setWritable(true)
@@ -124,7 +141,7 @@ class ArgmaxModelDownloaderImplTest {
         tokenizerFile.setLastModified(System.currentTimeMillis())
         tokenizerFile.writeBytes(ByteArray(1000)) // Set size to match metadata
 
-        // 2. Create encoder/decoder files
+        // 3. Create encoder/decoder files
         val audioEncoderFile = File(root, "AudioEncoder.tflite")
         val textDecoderFile = File(root, "TextDecoder.tflite")
         audioEncoderFile.createNewFile()
@@ -132,7 +149,7 @@ class ArgmaxModelDownloaderImplTest {
         audioEncoderFile.writeBytes(ByteArray(2000)) // Set size to match metadata
         textDecoderFile.writeBytes(ByteArray(3000)) // Set size to match metadata
 
-        // 3. Create MelSpectrogram.tflite
+        // 4. Create MelSpectrogram.tflite
         val melSpectrogramFile = File(root, "MelSpectrogram.tflite")
         melSpectrogramFile.createNewFile()
         melSpectrogramFile.writeBytes(ByteArray(4000)) // Set size to match metadata
@@ -197,6 +214,13 @@ class ArgmaxModelDownloaderImplTest {
                 "MelSpectrogram.tflite",
             ).exists(),
         ) { "MelSpectrogram.tflite should exist in root directory" }
+
+        // Add directory deletion verification
+        if (!qualcommModel) {
+            assert(!File(root, expectedMelSpectrogramPath).exists()) {
+                "Model directory should be deleted after download"
+            }
+        }
     }
 
     private fun testNonCached(
@@ -207,6 +231,15 @@ class ArgmaxModelDownloaderImplTest {
         expectedEncoderDecoderRepo: String,
         expectedEncoderDecoderGlobFilters: List<String>,
     ) {
+        // Mock config snapshot
+        every {
+            huggingFaceApi.snapshot(
+                from = eq(Repo(expectedTokenizerRepo, RepoType.MODELS)),
+                globFilters = eq(listOf("config.json")),
+                baseDir = eq(root),
+            )
+        } returns flowOf(HuggingFaceApi.Progress(1.0f))
+
         // Mock tokenizer snapshot
         every {
             huggingFaceApi.snapshot(
@@ -264,7 +297,14 @@ class ArgmaxModelDownloaderImplTest {
             downloader.download(ArgmaxModel.WHISPER, modelVariant, root).collect {}
         }
 
-        // Verify snapshot was called exactly 3 times for each component
+        // Verify snapshot was called exactly 4 times for each component
+        verify(exactly = 1) {
+            huggingFaceApi.snapshot(
+                from = eq(Repo(expectedTokenizerRepo, RepoType.MODELS)),
+                globFilters = eq(listOf("config.json")),
+                baseDir = eq(root),
+            )
+        }
         verify(exactly = 1) {
             huggingFaceApi.snapshot(
                 from = eq(Repo(expectedTokenizerRepo, RepoType.MODELS)),
@@ -346,6 +386,13 @@ class ArgmaxModelDownloaderImplTest {
                 "MelSpectrogram.tflite",
             ).exists(),
         ) { "MelSpectrogram.tflite should exist in root directory" }
+
+        // Add directory deletion verification
+        if (!qualcommModel) {
+            assert(!File(root, expectedMelSpectrogramPath).exists()) {
+                "Model directory should be deleted after download"
+            }
+        }
     }
 
     @Test
@@ -363,6 +410,20 @@ class ArgmaxModelDownloaderImplTest {
         )
 
     @Test
+    fun `download creates correct flows for OpenAI tiny multilingual model`() =
+        testDownload(
+            modelVariant = WhisperKit.Builder.OPENAI_TINY,
+            expectedTokenizerRepo = "openai/whisper-tiny",
+            expectedEncoderDecoderRepo = "argmaxinc/whisperkit-litert",
+            expectedEncoderDecoderGlobFilters =
+            listOf(
+                "openai_whisper-tiny/AudioEncoder.tflite",
+                "openai_whisper-tiny/TextDecoder.tflite",
+            ),
+            expectedMelSpectrogramPath = "openai_whisper-tiny",
+        )
+
+    @Test
     fun `download creates correct flows for OpenAI base model`() =
         testDownload(
             modelVariant = WhisperKit.Builder.OPENAI_BASE_EN,
@@ -374,6 +435,20 @@ class ArgmaxModelDownloaderImplTest {
                 "openai_whisper-base.en/TextDecoder.tflite",
             ),
             expectedMelSpectrogramPath = "openai_whisper-base.en",
+        )
+
+    @Test
+    fun `download creates correct flows for OpenAI base multilingual model`() =
+        testDownload(
+            modelVariant = WhisperKit.Builder.OPENAI_BASE,
+            expectedTokenizerRepo = "openai/whisper-base",
+            expectedEncoderDecoderRepo = "argmaxinc/whisperkit-litert",
+            expectedEncoderDecoderGlobFilters =
+            listOf(
+                "openai_whisper-base/AudioEncoder.tflite",
+                "openai_whisper-base/TextDecoder.tflite",
+            ),
+            expectedMelSpectrogramPath = "openai_whisper-base",
         )
 
     @Test
@@ -448,6 +523,21 @@ class ArgmaxModelDownloaderImplTest {
         )
 
     @Test
+    fun `download uses cached files when available for OpenAI tiny multilingual model`() =
+        testDownload(
+            modelVariant = WhisperKit.Builder.OPENAI_TINY,
+            expectedTokenizerRepo = "openai/whisper-tiny",
+            expectedEncoderDecoderRepo = "argmaxinc/whisperkit-litert",
+            expectedEncoderDecoderGlobFilters =
+            listOf(
+                "openai_whisper-tiny/AudioEncoder.tflite",
+                "openai_whisper-tiny/TextDecoder.tflite",
+            ),
+            expectedMelSpectrogramPath = "openai_whisper-tiny",
+            cached = true,
+        )
+
+    @Test
     fun `download uses cached files when available for OpenAI base model`() =
         testDownload(
             modelVariant = WhisperKit.Builder.OPENAI_BASE_EN,
@@ -459,6 +549,21 @@ class ArgmaxModelDownloaderImplTest {
                 "openai_whisper-base.en/TextDecoder.tflite",
             ),
             expectedMelSpectrogramPath = "openai_whisper-base.en",
+            cached = true,
+        )
+
+    @Test
+    fun `download uses cached files when available for OpenAI base multilingual model`() =
+        testDownload(
+            modelVariant = WhisperKit.Builder.OPENAI_BASE,
+            expectedTokenizerRepo = "openai/whisper-base",
+            expectedEncoderDecoderRepo = "argmaxinc/whisperkit-litert",
+            expectedEncoderDecoderGlobFilters =
+            listOf(
+                "openai_whisper-base/AudioEncoder.tflite",
+                "openai_whisper-base/TextDecoder.tflite",
+            ),
+            expectedMelSpectrogramPath = "openai_whisper-base",
             cached = true,
         )
 
@@ -531,11 +636,20 @@ class ArgmaxModelDownloaderImplTest {
     @Test
     fun `download combines progress from all flows correctly`() =
         runTest {
+            val configProgress = 0.2f
             val tokenizerProgress = 0.3f
             val encoderDecoderProgress = 0.6f
             val melSpectrogramProgress = 0.9f
             val expectedProgress =
-                (tokenizerProgress + encoderDecoderProgress + melSpectrogramProgress) / 3.0f
+                (configProgress + tokenizerProgress + encoderDecoderProgress + melSpectrogramProgress) / 4.0f
+
+            // Mock config metadata
+            coEvery {
+                huggingFaceApi.getFileMetadata(
+                    from = eq(Repo("openai/whisper-tiny.en", RepoType.MODELS)),
+                    filename = eq("config.json"),
+                )
+            } returns HuggingFaceApi.FileMetadata(500L, "config.json")
 
             // Mock tokenizer metadata
             coEvery {
@@ -570,6 +684,15 @@ class ArgmaxModelDownloaderImplTest {
                 )
 
             // Mock tokenizer snapshot
+            every {
+                huggingFaceApi.snapshot(
+                    from = eq(Repo("openai/whisper-tiny.en", RepoType.MODELS)),
+                    globFilters = eq(listOf("config.json")),
+                    baseDir = eq(root),
+                )
+            } returns flowOf(HuggingFaceApi.Progress(configProgress))
+
+            // Mock encoder/decoder snapshot
             every {
                 huggingFaceApi.snapshot(
                     from = eq(Repo("openai/whisper-tiny.en", RepoType.MODELS)),
