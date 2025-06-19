@@ -67,7 +67,7 @@ if ! $(docker image inspect $IMAGE_NAME > /dev/null 2>&1) || $FORCE_REBUILD; the
   fi
   if [ ! -d "$BUILD_DIR/tokenizers-sys" ]; then
     echo "Cloning tokenizers-sys..."
-    git clone git@github.com:FL33TW00D/tokenizers-sys.git $BUILD_DIR/tokenizers-sys
+    git clone https://github.com/FL33TW00D/tokenizers-sys.git $BUILD_DIR/tokenizers-sys
     cd $BUILD_DIR/tokenizers-sys
     git checkout 686f9341517ecac0d4afcdf48e4863242a3d3cde
     cd -
