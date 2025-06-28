@@ -236,7 +236,7 @@ With `all` option, it will conduct deep clean including open source components.
 
 # Contributing
 
-WhisperKit Android is currently in the beta stage. We are actively developing the project and welcome contributions from the community.
+We are actively developing the project and welcome contributions from the community.
 
 ## Development Setup
 
