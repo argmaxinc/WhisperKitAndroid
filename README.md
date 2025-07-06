@@ -75,7 +75,7 @@ class YourActivity : AppCompatActivity() {
       // Initialize WhisperKit
       // Note: Always use applicationContext to avoid memory leaks and ensure proper lifecycle management
       whisperKit = WhisperKit.Builder()
-         .setModel(WhisperKit.OPENAI_TINY_EN)
+         .setModel(WhisperKit.Builder.OPENAI_TINY_EN)
          .setApplicationContext(applicationContext)
          .setCallback { what, result ->
             // Handle transcription output
