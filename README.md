@@ -44,8 +44,8 @@ dependencies {
    implementation("com.argmaxinc:whisperkit:0.3.2")  // Check badge above for latest version
 
    // 2. QNN dependencies for hardware acceleration
-   implementation("com.qualcomm.qnn:qnn-runtime:2.34.0")
-   implementation("com.qualcomm.qnn:qnn-litert-delegate:2.34.0")
+   implementation("com.qualcomm.qti:qnn-runtime:2.34.0")
+   implementation("com.qualcomm.qti:qnn-litert-delegate:2.34.0")
 }
 ```
 
