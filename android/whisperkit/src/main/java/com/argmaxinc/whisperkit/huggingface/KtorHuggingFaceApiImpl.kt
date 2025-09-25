@@ -61,14 +61,27 @@ internal class KtorHuggingFaceApiImpl(
         require(from.type == RepoType.MODELS) {
             "$from needs to have type RepoType.MODELS"
         }
-        return getHuggingFaceModel("/api/${from.type.typeName}/${from.id}")
+        var url = "/api/${from.type.typeName}/${from.id}"
+        if (from.revision != "") {
+            url += "/revision/${from.revision}"
+        }
+        logger.info("Calling HF API at url '${url}'")
+        val result = getHuggingFaceModel(url)
+        logger.info("Got model info: $result")
+        return result
     }
 
     override suspend fun getFileMetadata(
         from: Repo,
         filename: String,
     ): FileMetadata {
-        val response = client.httpClient.head("/${from.id}/resolve/main/$filename")
+        var revision : String
+        if (from.revision == "") { 
+            revision = "main" 
+        } else { 
+            revision = from.revision 
+        }
+        val response = client.httpClient.head("/${from.id}/resolve/$revision/$filename")
         val size =
             response.headers["X-Linked-Size"]?.toLongOrNull()
                 ?: response.headers["Content-Length"]?.toLongOrNull() ?: 0L
@@ -120,7 +133,7 @@ internal class KtorHuggingFaceApiImpl(
             baseDir.mkdirs()
             getFileNames(from, globFilters).let { filesToDownload ->
                 if (filesToDownload.isEmpty()) {
-                    logger.info("No files to download, finish immediately")
+                    logger.info("No files to download, finish immediately, for Repo(${from.id}, ${from.revision}) and glob filters: $globFilters")
                     emit(Progress(1.0f))
                 } else {
                     downloadFilesWithRetry(from, filesToDownload, baseDir)
@@ -154,10 +167,17 @@ internal class KtorHuggingFaceApiImpl(
             val targetFile = File(baseDir, file)
             targetFile.parentFile?.mkdirs()
             var retryCount = 0
+            var revision : String
+            if (from.revision == "") { 
+                revision = "main" 
+            } else { 
+                revision = from.revision 
+            }
+            val url = "/${from.id}/resolve/$revision/$file"
             while (true) {
                 try {
                     logger.info("Retry attempt $retryCount for $file")
-                    client.httpClient.prepareGet("/${from.id}/resolve/main/$file")
+                    client.httpClient.prepareGet(url)
                         .execute { response ->
                             val channel = response.bodyAsChannel()
                             targetFile.outputStream().use { output ->
