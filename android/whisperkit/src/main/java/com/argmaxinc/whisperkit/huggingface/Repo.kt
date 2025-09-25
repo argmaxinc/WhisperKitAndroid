@@ -12,7 +12,6 @@ package com.argmaxinc.whisperkit.huggingface
 data class Repo(
     val id: String,
     val type: RepoType,
-    val revision: String = ""
 )
 
 /**
