@@ -52,20 +52,21 @@ internal class KtorHuggingFaceApiImpl(
 
     override suspend fun getFileNames(
         from: Repo,
+        revision: String,
         globFilters: List<String>,
     ): List<String> {
-        return getModelInfo(from).fileNames(globFilters)
+        return getModelInfo(from, revision).fileNames(globFilters)
     }
 
-    override suspend fun getModelInfo(from: Repo): ModelInfo {
+    override suspend fun getModelInfo(from: Repo, revision: String): ModelInfo {
         require(from.type == RepoType.MODELS) {
             "$from needs to have type RepoType.MODELS"
         }
         var url = "/api/${from.type.typeName}/${from.id}"
-        if (from.revision != "") {
-            url += "/revision/${from.revision}"
+        if (revision != "main") {
+            url += "/revision/$revision"
         }
-        logger.info("Calling HF API at url '${url}'")
+        logger.info("Calling HF API at url '$url'")
         val result = getHuggingFaceModel(url)
         logger.info("Got model info: $result")
         return result
@@ -73,14 +74,9 @@ internal class KtorHuggingFaceApiImpl(
 
     override suspend fun getFileMetadata(
         from: Repo,
+        revision: String,
         filename: String,
     ): FileMetadata {
-        var revision : String
-        if (from.revision == "") { 
-            revision = "main" 
-        } else { 
-            revision = from.revision 
-        }
         val response = client.httpClient.head("/${from.id}/resolve/$revision/$filename")
         val size =
             response.headers["X-Linked-Size"]?.toLongOrNull()
@@ -95,11 +91,12 @@ internal class KtorHuggingFaceApiImpl(
 
     override suspend fun getFileMetadata(
         from: Repo,
+        revision: String,
         globFilters: List<String>,
     ): List<FileMetadata> {
-        val files = getFileNames(from, globFilters)
+        val files = getFileNames(from, revision, globFilters)
         return files.map { filename ->
-            getFileMetadata(from, filename)
+            getFileMetadata(from, revision, filename)
         }
     }
 
@@ -126,17 +123,18 @@ internal class KtorHuggingFaceApiImpl(
      */
     override fun snapshot(
         from: Repo,
+        revision: String,
         globFilters: List<String>,
         baseDir: File,
     ): Flow<Progress> {
         return flow {
             baseDir.mkdirs()
-            getFileNames(from, globFilters).let { filesToDownload ->
+            getFileNames(from, revision, globFilters).let { filesToDownload ->
                 if (filesToDownload.isEmpty()) {
-                    logger.info("No files to download, finish immediately, for Repo(${from.id}, ${from.revision}) and glob filters: $globFilters")
+                    logger.info("No files to download, finish immediately, for Repo(${from.id}, $revision) and glob filters: $globFilters")
                     emit(Progress(1.0f))
                 } else {
-                    downloadFilesWithRetry(from, filesToDownload, baseDir)
+                    downloadFilesWithRetry(from, revision, filesToDownload, baseDir)
                 }
             }
         }.flowOn(ioDispatcher)
@@ -144,6 +142,7 @@ internal class KtorHuggingFaceApiImpl(
 
     private suspend fun FlowCollector<Progress>.downloadFilesWithRetry(
         from: Repo,
+        revision: String,
         files: List<String>,
         baseDir: File,
     ) {
@@ -152,7 +151,7 @@ internal class KtorHuggingFaceApiImpl(
         var totalBytes = 0L
         val fileSizes = mutableMapOf<String, Long>()
         files.forEach { file ->
-            val metadata = getFileMetadata(from, file)
+            val metadata = getFileMetadata(from, revision, file)
             fileSizes[file] = metadata.size
             totalBytes += metadata.size
         }
@@ -167,12 +166,6 @@ internal class KtorHuggingFaceApiImpl(
             val targetFile = File(baseDir, file)
             targetFile.parentFile?.mkdirs()
             var retryCount = 0
-            var revision : String
-            if (from.revision == "") { 
-                revision = "main" 
-            } else { 
-                revision = from.revision 
-            }
             val url = "/${from.id}/resolve/$revision/$file"
             while (true) {
                 try {

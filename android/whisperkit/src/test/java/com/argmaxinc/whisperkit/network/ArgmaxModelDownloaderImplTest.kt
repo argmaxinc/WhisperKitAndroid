@@ -49,6 +49,7 @@ class ArgmaxModelDownloaderImplTest {
         coEvery {
             huggingFaceApi.getFileMetadata(
                 from = eq(Repo(expectedTokenizerRepo, RepoType.MODELS)),
+                revision = eq("main"),
                 filename = eq("config.json"),
             )
         } returns HuggingFaceApi.FileMetadata(500L, "config.json")
@@ -57,6 +58,7 @@ class ArgmaxModelDownloaderImplTest {
         coEvery {
             huggingFaceApi.getFileMetadata(
                 from = eq(Repo(expectedTokenizerRepo, RepoType.MODELS)),
+                revision = eq("main"),
                 filename = eq("tokenizer.json"),
             )
         } returns HuggingFaceApi.FileMetadata(1000L, "tokenizer.json")
@@ -74,6 +76,7 @@ class ArgmaxModelDownloaderImplTest {
                         Repo("argmaxinc/whisperkit-litert", RepoType.MODELS)
                     },
                 ),
+                revision = any(),
                 globFilters = eq(expectedEncoderDecoderGlobFilters),
             )
         } returns
@@ -91,6 +94,7 @@ class ArgmaxModelDownloaderImplTest {
         coEvery {
             huggingFaceApi.getFileMetadata(
                 from = eq(Repo("argmaxinc/whisperkit-litert", RepoType.MODELS)),
+                revision = eq("main"),
                 filename = eq("$expectedMelSpectrogramPath/MelSpectrogram.tflite"),
             )
         } returns
@@ -162,6 +166,7 @@ class ArgmaxModelDownloaderImplTest {
         verify(exactly = 0) {
             huggingFaceApi.snapshot(
                 from = any(),
+                revision = any(),
                 globFilters = any(),
                 baseDir = any(),
             )
@@ -235,6 +240,7 @@ class ArgmaxModelDownloaderImplTest {
         every {
             huggingFaceApi.snapshot(
                 from = eq(Repo(expectedTokenizerRepo, RepoType.MODELS)),
+                revision = eq("main"),
                 globFilters = eq(listOf("config.json")),
                 baseDir = eq(root),
             )
@@ -244,6 +250,7 @@ class ArgmaxModelDownloaderImplTest {
         every {
             huggingFaceApi.snapshot(
                 from = eq(Repo(expectedTokenizerRepo, RepoType.MODELS)),
+                revision = eq("main"),
                 globFilters = eq(listOf("tokenizer.json")),
                 baseDir = eq(root),
             )
@@ -253,6 +260,7 @@ class ArgmaxModelDownloaderImplTest {
         every {
             huggingFaceApi.snapshot(
                 from = eq(Repo(expectedEncoderDecoderRepo, RepoType.MODELS)),
+                revision = any(),
                 globFilters = eq(expectedEncoderDecoderGlobFilters),
                 baseDir = eq(root),
             )
@@ -262,6 +270,7 @@ class ArgmaxModelDownloaderImplTest {
         every {
             huggingFaceApi.snapshot(
                 from = eq(Repo("argmaxinc/whisperkit-litert", RepoType.MODELS)),
+                revision = eq("main"),
                 globFilters = eq(listOf("$expectedMelSpectrogramPath/MelSpectrogram.tflite")),
                 baseDir = eq(root),
             )
@@ -301,6 +310,7 @@ class ArgmaxModelDownloaderImplTest {
         verify(exactly = 1) {
             huggingFaceApi.snapshot(
                 from = eq(Repo(expectedTokenizerRepo, RepoType.MODELS)),
+                revision = eq("main"),
                 globFilters = eq(listOf("config.json")),
                 baseDir = eq(root),
             )
@@ -308,6 +318,7 @@ class ArgmaxModelDownloaderImplTest {
         verify(exactly = 1) {
             huggingFaceApi.snapshot(
                 from = eq(Repo(expectedTokenizerRepo, RepoType.MODELS)),
+                revision = eq("main"),
                 globFilters = eq(listOf("tokenizer.json")),
                 baseDir = eq(root),
             )
@@ -325,6 +336,7 @@ class ArgmaxModelDownloaderImplTest {
                         Repo("argmaxinc/whisperkit-litert", RepoType.MODELS)
                     },
                 ),
+                revision = any(),
                 globFilters = eq(expectedEncoderDecoderGlobFilters),
                 baseDir = eq(root),
             )
@@ -332,6 +344,7 @@ class ArgmaxModelDownloaderImplTest {
         verify(exactly = 1) {
             huggingFaceApi.snapshot(
                 from = eq(Repo("argmaxinc/whisperkit-litert", RepoType.MODELS)),
+                revision = eq("main"),
                 globFilters = eq(listOf("$expectedMelSpectrogramPath/MelSpectrogram.tflite")),
                 baseDir = eq(root),
             )
@@ -647,6 +660,7 @@ class ArgmaxModelDownloaderImplTest {
             coEvery {
                 huggingFaceApi.getFileMetadata(
                     from = eq(Repo("openai/whisper-tiny.en", RepoType.MODELS)),
+                    revision = eq("main"),
                     filename = eq("config.json"),
                 )
             } returns HuggingFaceApi.FileMetadata(500L, "config.json")
@@ -655,6 +669,7 @@ class ArgmaxModelDownloaderImplTest {
             coEvery {
                 huggingFaceApi.getFileMetadata(
                     from = eq(Repo("openai/whisper-tiny.en", RepoType.MODELS)),
+                    revision = eq("main"),
                     filename = eq("tokenizer.json"),
                 )
             } returns HuggingFaceApi.FileMetadata(1000L, "tokenizer.json")
@@ -663,6 +678,7 @@ class ArgmaxModelDownloaderImplTest {
             coEvery {
                 huggingFaceApi.getFileMetadata(
                     from = eq(Repo("qualcomm/Whisper-Tiny-En", RepoType.MODELS)),
+                    revision = any(),
                     globFilters = eq(listOf("WhisperEncoder.tflite", "WhisperDecoder.tflite")),
                 )
             } returns
@@ -675,6 +691,7 @@ class ArgmaxModelDownloaderImplTest {
             coEvery {
                 huggingFaceApi.getFileMetadata(
                     from = eq(Repo("argmaxinc/whisperkit-litert", RepoType.MODELS)),
+                    revision = eq("main"),
                     filename = eq("quic_openai_whisper-tiny.en/MelSpectrogram.tflite"),
                 )
             } returns
@@ -687,6 +704,7 @@ class ArgmaxModelDownloaderImplTest {
             every {
                 huggingFaceApi.snapshot(
                     from = eq(Repo("openai/whisper-tiny.en", RepoType.MODELS)),
+                    revision = eq("main"),
                     globFilters = eq(listOf("config.json")),
                     baseDir = eq(root),
                 )
@@ -696,6 +714,7 @@ class ArgmaxModelDownloaderImplTest {
             every {
                 huggingFaceApi.snapshot(
                     from = eq(Repo("openai/whisper-tiny.en", RepoType.MODELS)),
+                    revision = eq("main"),
                     globFilters = eq(listOf("tokenizer.json")),
                     baseDir = eq(root),
                 )
@@ -705,6 +724,7 @@ class ArgmaxModelDownloaderImplTest {
             every {
                 huggingFaceApi.snapshot(
                     from = eq(Repo("qualcomm/Whisper-Tiny-En", RepoType.MODELS)),
+                    revision = any(),
                     globFilters = eq(listOf("WhisperEncoder.tflite", "WhisperDecoder.tflite")),
                     baseDir = eq(root),
                 )
@@ -714,6 +734,7 @@ class ArgmaxModelDownloaderImplTest {
             every {
                 huggingFaceApi.snapshot(
                     from = eq(Repo("argmaxinc/whisperkit-litert", RepoType.MODELS)),
+                    revision = eq("main"),
                     globFilters = eq(listOf("quic_openai_whisper-tiny.en/MelSpectrogram.tflite")),
                     baseDir = eq(root),
                 )

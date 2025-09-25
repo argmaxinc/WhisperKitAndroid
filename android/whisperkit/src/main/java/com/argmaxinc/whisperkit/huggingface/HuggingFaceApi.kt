@@ -42,10 +42,12 @@ interface HuggingFaceApi {
      *
      * @param from The repository to search in
      * @param globFilters List of glob patterns to filter files. If empty, all files are returned
+     * @param revision The revision/branch/commit to use. Defaults to "main"
      * @return List of file names that match the filters
      */
     suspend fun getFileNames(
         from: Repo,
+        revision: String = "main",
         globFilters: List<String> = listOf(),
     ): List<String>
 
@@ -53,10 +55,11 @@ interface HuggingFaceApi {
      * Retrieves detailed information about a model from a HuggingFace repository.
      *
      * @param from The repository containing the model, needs to be type [RepoType.MODELS]
+     * @param revision The revision/branch/commit to use. Defaults to "main"
      * @return [ModelInfo] object containing model details
      * @throws IllegalArgumentException if the repository type is not [RepoType.MODELS]
      */
-    suspend fun getModelInfo(from: Repo): ModelInfo
+    suspend fun getModelInfo(from: Repo, revision: String = "main"): ModelInfo
 
     /**
      * Retrieves metadata for a specific file from a HuggingFace repository.
@@ -64,10 +67,12 @@ interface HuggingFaceApi {
      *
      * @param from The repository containing the file
      * @param filename The name of the file to get metadata for
+     * @param revision The revision/branch/commit to use. Defaults to "main"
      * @return FileMetadata object containing file information
      */
     suspend fun getFileMetadata(
         from: Repo,
+        revision: String = "main",
         filename: String,
     ): FileMetadata
 
@@ -77,10 +82,12 @@ interface HuggingFaceApi {
      *
      * @param from The repository containing the files
      * @param globFilters List of glob patterns to filter files. If empty, all files are returned
+     * @param revision The revision/branch/commit to use. Defaults to "main"
      * @return List of FileMetadata objects for files that match the filters
      */
     suspend fun getFileMetadata(
         from: Repo,
+        revision: String = "main",
         globFilters: List<String> = listOf(),
     ): List<FileMetadata>
 
@@ -92,11 +99,13 @@ interface HuggingFaceApi {
      * @param from The repository to download from
      * @param globFilters List of glob patterns to filter which files to download
      * @param baseDir The local directory where files will be downloaded
+     * @param revision The revision/branch/commit to use. Defaults to "main"
      * @return Flow of [Progress] objects indicating download progress
      * @throws IllegalStateException if a file download fails after the maximum number of retry attempts
      */
     fun snapshot(
         from: Repo,
+        revision: String = "main",
         globFilters: List<String>,
         baseDir: File,
     ): Flow<Progress>
