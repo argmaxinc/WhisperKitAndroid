@@ -52,23 +52,32 @@ internal class KtorHuggingFaceApiImpl(
 
     override suspend fun getFileNames(
         from: Repo,
+        revision: String,
         globFilters: List<String>,
     ): List<String> {
-        return getModelInfo(from).fileNames(globFilters)
+        return getModelInfo(from, revision).fileNames(globFilters)
     }
 
-    override suspend fun getModelInfo(from: Repo): ModelInfo {
+    override suspend fun getModelInfo(from: Repo, revision: String): ModelInfo {
         require(from.type == RepoType.MODELS) {
             "$from needs to have type RepoType.MODELS"
         }
-        return getHuggingFaceModel("/api/${from.type.typeName}/${from.id}")
+        var url = "/api/${from.type.typeName}/${from.id}"
+        if (revision != "main") {
+            url += "/revision/$revision"
+        }
+        logger.info("Calling HF API at url '$url'")
+        val result = getHuggingFaceModel(url)
+        logger.info("Got model info: $result")
+        return result
     }
 
     override suspend fun getFileMetadata(
         from: Repo,
+        revision: String,
         filename: String,
     ): FileMetadata {
-        val response = client.httpClient.head("/${from.id}/resolve/main/$filename")
+        val response = client.httpClient.head("/${from.id}/resolve/$revision/$filename")
         val size =
             response.headers["X-Linked-Size"]?.toLongOrNull()
                 ?: response.headers["Content-Length"]?.toLongOrNull() ?: 0L
@@ -82,11 +91,12 @@ internal class KtorHuggingFaceApiImpl(
 
     override suspend fun getFileMetadata(
         from: Repo,
+        revision: String,
         globFilters: List<String>,
     ): List<FileMetadata> {
-        val files = getFileNames(from, globFilters)
+        val files = getFileNames(from, revision, globFilters)
         return files.map { filename ->
-            getFileMetadata(from, filename)
+            getFileMetadata(from, revision, filename)
         }
     }
 
@@ -113,17 +123,21 @@ internal class KtorHuggingFaceApiImpl(
      */
     override fun snapshot(
         from: Repo,
+        revision: String,
         globFilters: List<String>,
         baseDir: File,
     ): Flow<Progress> {
         return flow {
             baseDir.mkdirs()
-            getFileNames(from, globFilters).let { filesToDownload ->
+            getFileNames(from, revision, globFilters).let { filesToDownload ->
                 if (filesToDownload.isEmpty()) {
-                    logger.info("No files to download, finish immediately")
+                    logger.info(
+                        "No files to download, finish immediately, for Repo(${from.id}, " +
+                            "$revision) and glob filters: $globFilters",
+                    )
                     emit(Progress(1.0f))
                 } else {
-                    downloadFilesWithRetry(from, filesToDownload, baseDir)
+                    downloadFilesWithRetry(from, revision, filesToDownload, baseDir)
                 }
             }
         }.flowOn(ioDispatcher)
@@ -131,6 +145,7 @@ internal class KtorHuggingFaceApiImpl(
 
     private suspend fun FlowCollector<Progress>.downloadFilesWithRetry(
         from: Repo,
+        revision: String,
         files: List<String>,
         baseDir: File,
     ) {
@@ -139,7 +154,7 @@ internal class KtorHuggingFaceApiImpl(
         var totalBytes = 0L
         val fileSizes = mutableMapOf<String, Long>()
         files.forEach { file ->
-            val metadata = getFileMetadata(from, file)
+            val metadata = getFileMetadata(from, revision, file)
             fileSizes[file] = metadata.size
             totalBytes += metadata.size
         }
@@ -154,10 +169,11 @@ internal class KtorHuggingFaceApiImpl(
             val targetFile = File(baseDir, file)
             targetFile.parentFile?.mkdirs()
             var retryCount = 0
+            val url = "/${from.id}/resolve/$revision/$file"
             while (true) {
                 try {
                     logger.info("Retry attempt $retryCount for $file")
-                    client.httpClient.prepareGet("/${from.id}/resolve/main/$file")
+                    client.httpClient.prepareGet(url)
                         .execute { response ->
                             val channel = response.bodyAsChannel()
                             targetFile.outputStream().use { output ->

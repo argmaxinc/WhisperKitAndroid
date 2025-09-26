@@ -163,7 +163,7 @@ internal class KtorHuggingFaceApiImplTest {
             val repo = Repo("test-repo", RepoType.MODELS)
 
             // download test1.txt and test2.txt
-            api.snapshot(repo, listOf("test*"), testDir).test {
+            api.snapshot(repo, "main", listOf("test*"), testDir).test {
                 // Verify first progress (after test1.txt)
                 val firstProgress = awaitItem()
                 assertTrue(firstProgress.fractionCompleted < 1.0f)
@@ -203,7 +203,7 @@ internal class KtorHuggingFaceApiImplTest {
                 UnconfinedTestDispatcher(testScheduler),
             )
             val repo = Repo("test-repo", RepoType.MODELS)
-            api.snapshot(repo, listOf("test2.txt"), testDir).test(timeout = 10.seconds) {
+            api.snapshot(repo, "main", listOf("test2.txt"), testDir).test(timeout = 10.seconds) {
                 awaitItem() // first progress
                 val error = awaitError() // exception thrown
                 assertTrue(error is IllegalStateException)
@@ -239,7 +239,7 @@ internal class KtorHuggingFaceApiImplTest {
             val repo = Repo("test-repo", RepoType.MODELS)
             val progressValues = mutableListOf<Float>()
 
-            api.snapshot(repo, listOf("test2.txt"), testDir).test {
+            api.snapshot(repo, "main", listOf("test2.txt"), testDir).test {
                 val firstProgress = awaitItem()
                 progressValues.add(firstProgress.fractionCompleted)
                 verify { mockLogger.info("Retry attempt 0 for test2.txt") }
@@ -276,7 +276,7 @@ internal class KtorHuggingFaceApiImplTest {
             )
             val repo = Repo("test-repo", RepoType.MODELS)
             val globFilters = listOf("test*")
-            assertEquals(listOf("test1.txt", "test2.txt"), api.getFileNames(repo, globFilters))
+            assertEquals(listOf("test1.txt", "test2.txt"), api.getFileNames(repo, "main", globFilters))
         }
 
     @Test
@@ -318,11 +318,16 @@ internal class KtorHuggingFaceApiImplTest {
             )
             val repo = Repo("test-repo", RepoType.MODELS)
 
-            api.snapshot(repo, listOf("nonexistent*"), testDir).test {
+            api.snapshot(repo, "main", listOf("nonexistent*"), testDir).test {
                 // Should emit a single progress with 1.0f
                 val progress = awaitItem()
                 assertTrue(progress.isDone)
-                verify { mockLogger.info("No files to download, finish immediately") }
+                verify {
+                    mockLogger.info(
+                        "No files to download, finish immediately, " +
+                            "for Repo(test-repo, main) and glob filters: [nonexistent*]",
+                    )
+                }
                 awaitComplete()
             }
         }
@@ -335,11 +340,16 @@ internal class KtorHuggingFaceApiImplTest {
                 UnconfinedTestDispatcher(testScheduler),
             )
             val repo = Repo("test-repo", RepoType.MODELS)
-            api.snapshot(repo, emptyList(), testDir).test {
+            api.snapshot(repo, "main", emptyList(), testDir).test {
                 val progress = awaitItem()
                 awaitComplete()
                 assertTrue(progress.isDone)
-                verify { mockLogger.info("No files to download, finish immediately") }
+                verify {
+                    mockLogger.info(
+                        "No files to download, finish immediately, " +
+                            "for Repo(test-repo, main) and glob filters: []",
+                    )
+                }
             }
         }
 
@@ -352,7 +362,7 @@ internal class KtorHuggingFaceApiImplTest {
             )
             val repo = Repo("test-repo", RepoType.MODELS)
             val nestedDir = File(testDir, "nested/path")
-            api.snapshot(repo, listOf("test1.txt"), nestedDir).test {
+            api.snapshot(repo, "main", listOf("test1.txt"), nestedDir).test {
                 awaitItem() // progress
                 awaitComplete()
             }

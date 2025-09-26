@@ -68,73 +68,75 @@ internal class ArgmaxModelDownloaderImpl(
         ),
 ) : ArgmaxModelDownloader {
     companion object {
-        private const val TOKENIZER_REPO = "TOKENIZER_REPO"
-        private const val CONFIG_REPO = "TOKENIZER_REPO"
-        private const val ENCODER_DECODER_REPO = "ENCODER_DECODER_REPO"
-
-        // dir path under argmaxinc/whisperkit-litert to look up for MelSpectrogram.tflite
-        private const val FEATURE_EXTRACTOR_PATH = "FEATURE_EXTRACTOR_PATH"
+        /**
+         * Configuration for a model variant containing repository names and revisions.
+         * Each Pair contains (repository_name, revision) where:
+         * - repository_name: HuggingFace repo like "openai/whisper-tiny.en" or "qualcomm/Whisper-Tiny-En"
+         * - revision: branch/tag/commit hash like "main" or "8309cf4d4c30c69132f4f5e83ca8dcb7c17407ae"
+         *
+         * @property config Repository and revision for config.json file
+         * @property tokenizer Repository and revision for tokenizer.json file
+         * @property encoderDecoder Repository and revision for encoder/decoder model files
+         * @property featureExtractorPath Path within argmaxinc/whisperkit-litert repo for MelSpectrogram.tflite
+         */
+        private data class ModelConfig(
+            val config: Pair<String, String>,
+            val tokenizer: Pair<String, String>,
+            val encoderDecoder: Pair<String, String>,
+            val featureExtractorPath: String,
+        )
 
         @OptIn(ExperimentalWhisperKit::class)
-        private val modelConfigs =
-            mapOf(
-                WhisperKit.Builder.OPENAI_TINY_EN to
-                    mapOf(
-                        CONFIG_REPO to "openai/whisper-tiny.en",
-                        TOKENIZER_REPO to "openai/whisper-tiny.en",
-                        ENCODER_DECODER_REPO to "openai_whisper-tiny.en",
-                        FEATURE_EXTRACTOR_PATH to "openai_whisper-tiny.en",
-                    ),
-                WhisperKit.Builder.OPENAI_BASE_EN to
-                    mapOf(
-                        CONFIG_REPO to "openai/whisper-base.en",
-                        TOKENIZER_REPO to "openai/whisper-base.en",
-                        ENCODER_DECODER_REPO to "openai_whisper-base.en",
-                        FEATURE_EXTRACTOR_PATH to "openai_whisper-base.en",
-                    ),
-                WhisperKit.Builder.OPENAI_TINY to
-                    mapOf(
-                        CONFIG_REPO to "openai/whisper-tiny",
-                        TOKENIZER_REPO to "openai/whisper-tiny",
-                        ENCODER_DECODER_REPO to "openai_whisper-tiny",
-                        FEATURE_EXTRACTOR_PATH to "openai_whisper-tiny",
-                    ),
-                WhisperKit.Builder.OPENAI_BASE to
-                    mapOf(
-                        CONFIG_REPO to "openai/whisper-base",
-                        TOKENIZER_REPO to "openai/whisper-base",
-                        ENCODER_DECODER_REPO to "openai_whisper-base",
-                        FEATURE_EXTRACTOR_PATH to "openai_whisper-base",
-                    ),
-                WhisperKit.Builder.OPENAI_SMALL_EN to
-                    mapOf(
-                        CONFIG_REPO to "openai/whisper-small.en",
-                        TOKENIZER_REPO to "openai/whisper-small.en",
-                        ENCODER_DECODER_REPO to "openai_whisper-small.en",
-                        FEATURE_EXTRACTOR_PATH to "openai_whisper-small.en",
-                    ),
-                WhisperKit.Builder.QUALCOMM_TINY_EN to
-                    mapOf(
-                        CONFIG_REPO to "openai/whisper-tiny.en",
-                        TOKENIZER_REPO to "openai/whisper-tiny.en",
-                        ENCODER_DECODER_REPO to "qualcomm/Whisper-Tiny-En",
-                        FEATURE_EXTRACTOR_PATH to "quic_openai_whisper-tiny.en",
-                    ),
-                WhisperKit.Builder.QUALCOMM_BASE_EN to
-                    mapOf(
-                        CONFIG_REPO to "openai/whisper-base.en",
-                        TOKENIZER_REPO to "openai/whisper-base.en",
-                        ENCODER_DECODER_REPO to "qualcomm/Whisper-Base-En",
-                        FEATURE_EXTRACTOR_PATH to "quic_openai_whisper-base.en",
-                    ),
-                WhisperKit.Builder.QUALCOMM_SMALL_EN to
-                    mapOf(
-                        CONFIG_REPO to "openai/whisper-small.en",
-                        TOKENIZER_REPO to "openai/whisper-small.en",
-                        ENCODER_DECODER_REPO to "qualcomm/Whisper-Small-En",
-                        FEATURE_EXTRACTOR_PATH to "quic_openai_whisper-small.en",
-                    ),
-            )
+        private val modelConfigs = mapOf(
+            WhisperKit.Builder.OPENAI_TINY_EN to ModelConfig(
+                config = "openai/whisper-tiny.en" to "main",
+                tokenizer = "openai/whisper-tiny.en" to "main",
+                encoderDecoder = "openai_whisper-tiny.en" to "main",
+                featureExtractorPath = "openai_whisper-tiny.en",
+            ),
+            WhisperKit.Builder.OPENAI_BASE_EN to ModelConfig(
+                config = "openai/whisper-base.en" to "main",
+                tokenizer = "openai/whisper-base.en" to "main",
+                encoderDecoder = "openai_whisper-base.en" to "main",
+                featureExtractorPath = "openai_whisper-base.en",
+            ),
+            WhisperKit.Builder.OPENAI_TINY to ModelConfig(
+                config = "openai/whisper-tiny" to "main",
+                tokenizer = "openai/whisper-tiny" to "main",
+                encoderDecoder = "openai_whisper-tiny" to "main",
+                featureExtractorPath = "openai_whisper-tiny",
+            ),
+            WhisperKit.Builder.OPENAI_BASE to ModelConfig(
+                config = "openai/whisper-base" to "main",
+                tokenizer = "openai/whisper-base" to "main",
+                encoderDecoder = "openai_whisper-base" to "main",
+                featureExtractorPath = "openai_whisper-base",
+            ),
+            WhisperKit.Builder.OPENAI_SMALL_EN to ModelConfig(
+                config = "openai/whisper-small.en" to "main",
+                tokenizer = "openai/whisper-small.en" to "main",
+                encoderDecoder = "openai_whisper-small.en" to "main",
+                featureExtractorPath = "openai_whisper-small.en",
+            ),
+            WhisperKit.Builder.QUALCOMM_TINY_EN to ModelConfig(
+                config = "openai/whisper-tiny.en" to "main",
+                tokenizer = "openai/whisper-tiny.en" to "main",
+                encoderDecoder = "qualcomm/Whisper-Tiny-En" to "8309cf4d4c30c69132f4f5e83ca8dcb7c17407ae",
+                featureExtractorPath = "quic_openai_whisper-tiny.en",
+            ),
+            WhisperKit.Builder.QUALCOMM_BASE_EN to ModelConfig(
+                config = "openai/whisper-base.en" to "main",
+                tokenizer = "openai/whisper-base.en" to "main",
+                encoderDecoder = "qualcomm/Whisper-Base-En" to "4bc89f2f841ee034383a543b954a432febf10ccc",
+                featureExtractorPath = "quic_openai_whisper-base.en",
+            ),
+            WhisperKit.Builder.QUALCOMM_SMALL_EN to ModelConfig(
+                config = "openai/whisper-small.en" to "main",
+                tokenizer = "openai/whisper-small.en" to "main",
+                encoderDecoder = "qualcomm/Whisper-Small-En" to "9a356b7e31999f9141b0c54b4a6514ce2fe27597",
+                featureExtractorPath = "quic_openai_whisper-small.en",
+            ),
+        )
     }
 
     /**
@@ -187,22 +189,23 @@ internal class ArgmaxModelDownloaderImpl(
             // Clean up model directories after all downloads are complete
             if (!variant.startsWith("qualcomm/")) {
                 // For OpenAI models, clean up the model directory
-                File(root, config[ENCODER_DECODER_REPO]!!).deleteRecursively()
+                File(root, config.encoderDecoder.first).deleteRecursively()
             }
             // Clean up feature extractor directory
-            File(root, config[FEATURE_EXTRACTOR_PATH]!!).deleteRecursively()
+            File(root, config.featureExtractorPath).deleteRecursively()
         }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun downloadConfig(
-        config: Map<String, String>,
+        config: ModelConfig,
         root: File,
     ): Flow<HuggingFaceApi.Progress> {
         return flow {
             emit(
                 huggingFaceApi.getFileMetadata(
-                    from = Repo(config[CONFIG_REPO]!!, RepoType.MODELS),
+                    from = Repo(config.config.first, RepoType.MODELS),
+                    revision = config.config.second,
                     filename = "config.json",
                 ),
             )
@@ -212,7 +215,8 @@ internal class ArgmaxModelDownloaderImpl(
                 flowOf(HuggingFaceApi.Progress(1.0f))
             } else {
                 huggingFaceApi.snapshot(
-                    from = Repo(config[CONFIG_REPO]!!, RepoType.MODELS),
+                    from = Repo(config.config.first, RepoType.MODELS),
+                    revision = config.config.second,
                     globFilters = listOf("config.json"),
                     baseDir = root,
                 )
@@ -222,13 +226,14 @@ internal class ArgmaxModelDownloaderImpl(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun downloadTokenizer(
-        config: Map<String, String>,
+        config: ModelConfig,
         root: File,
     ): Flow<HuggingFaceApi.Progress> {
         return flow {
             emit(
                 huggingFaceApi.getFileMetadata(
-                    from = Repo(config[TOKENIZER_REPO]!!, RepoType.MODELS),
+                    from = Repo(config.tokenizer.first, RepoType.MODELS),
+                    revision = config.tokenizer.second,
                     filename = "tokenizer.json",
                 ),
             )
@@ -238,7 +243,8 @@ internal class ArgmaxModelDownloaderImpl(
                 flowOf(HuggingFaceApi.Progress(1.0f))
             } else {
                 huggingFaceApi.snapshot(
-                    from = Repo(config[TOKENIZER_REPO]!!, RepoType.MODELS),
+                    from = Repo(config.tokenizer.first, RepoType.MODELS),
+                    revision = config.tokenizer.second,
                     globFilters = listOf("tokenizer.json"),
                     baseDir = root,
                 )
@@ -249,7 +255,7 @@ internal class ArgmaxModelDownloaderImpl(
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun downloadEncoderDecoder(
         variant: String,
-        config: Map<String, String>,
+        config: ModelConfig,
         root: File,
     ): Flow<HuggingFaceApi.Progress> {
         return if (variant.startsWith("qualcomm/")) {
@@ -261,13 +267,14 @@ internal class ArgmaxModelDownloaderImpl(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun downloadQualcommEncoderDecoder(
-        config: Map<String, String>,
+        config: ModelConfig,
         root: File,
     ): Flow<HuggingFaceApi.Progress> {
         return flow {
             emit(
                 huggingFaceApi.getFileMetadata(
-                    from = Repo(config[ENCODER_DECODER_REPO]!!, RepoType.MODELS),
+                    from = Repo(config.encoderDecoder.first, RepoType.MODELS),
+                    revision = config.encoderDecoder.second,
                     globFilters = listOf("WhisperEncoder.tflite", "WhisperDecoder.tflite"),
                 ),
             )
@@ -283,7 +290,8 @@ internal class ArgmaxModelDownloaderImpl(
                 flowOf(HuggingFaceApi.Progress(1.0f))
             } else {
                 huggingFaceApi.snapshot(
-                    from = Repo(config[ENCODER_DECODER_REPO]!!, RepoType.MODELS),
+                    from = Repo(config.encoderDecoder.first, RepoType.MODELS),
+                    revision = config.encoderDecoder.second,
                     globFilters = listOf("WhisperEncoder.tflite", "WhisperDecoder.tflite"),
                     baseDir = root,
                 ).onCompletion {
@@ -296,14 +304,15 @@ internal class ArgmaxModelDownloaderImpl(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun downloadArgmaxEncoderDecoder(
-        config: Map<String, String>,
+        config: ModelConfig,
         root: File,
     ): Flow<HuggingFaceApi.Progress> {
-        val modelDir = config[ENCODER_DECODER_REPO]!!
+        val modelDir = config.encoderDecoder.first
         return flow {
             emit(
                 huggingFaceApi.getFileMetadata(
                     from = Repo("argmaxinc/whisperkit-litert", RepoType.MODELS),
+                    revision = config.encoderDecoder.second,
                     globFilters =
                     listOf(
                         "$modelDir/AudioEncoder.tflite",
@@ -343,14 +352,14 @@ internal class ArgmaxModelDownloaderImpl(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun downloadFeatureExtractor(
-        config: Map<String, String>,
+        config: ModelConfig,
         root: File,
     ): Flow<HuggingFaceApi.Progress> {
         return flow {
             emit(
                 huggingFaceApi.getFileMetadata(
                     from = Repo("argmaxinc/whisperkit-litert", RepoType.MODELS),
-                    filename = "${config[FEATURE_EXTRACTOR_PATH]!!}/MelSpectrogram.tflite",
+                    filename = "${config.featureExtractorPath}/MelSpectrogram.tflite",
                 ),
             )
         }.flatMapLatest { metadata ->
@@ -360,10 +369,10 @@ internal class ArgmaxModelDownloaderImpl(
             } else {
                 huggingFaceApi.snapshot(
                     from = Repo("argmaxinc/whisperkit-litert", RepoType.MODELS),
-                    globFilters = listOf("${config[FEATURE_EXTRACTOR_PATH]!!}/MelSpectrogram.tflite"),
+                    globFilters = listOf("${config.featureExtractorPath}/MelSpectrogram.tflite"),
                     baseDir = root,
                 ).onCompletion {
-                    val modelDir = config[FEATURE_EXTRACTOR_PATH]!!
+                    val modelDir = config.featureExtractorPath
                     File(root, "$modelDir/MelSpectrogram.tflite").renameTo(
                         File(
                             root,
