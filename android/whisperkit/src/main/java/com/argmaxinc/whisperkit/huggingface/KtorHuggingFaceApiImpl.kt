@@ -131,7 +131,10 @@ internal class KtorHuggingFaceApiImpl(
             baseDir.mkdirs()
             getFileNames(from, revision, globFilters).let { filesToDownload ->
                 if (filesToDownload.isEmpty()) {
-                    logger.info("No files to download, finish immediately, for Repo(${from.id}, $revision) and glob filters: $globFilters")
+                    logger.info(
+                        "No files to download, finish immediately, for Repo(${from.id}, " +
+                            "$revision) and glob filters: $globFilters",
+                    )
                     emit(Progress(1.0f))
                 } else {
                     downloadFilesWithRetry(from, revision, filesToDownload, baseDir)

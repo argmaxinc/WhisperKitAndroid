@@ -41,8 +41,8 @@ interface HuggingFaceApi {
      * Retrieves a list of file names from a HuggingFace repository that match the specified glob patterns.
      *
      * @param from The repository to search in
-     * @param globFilters List of glob patterns to filter files. If empty, all files are returned
      * @param revision The revision/branch/commit to use. Defaults to "main"
+     * @param globFilters List of glob patterns to filter files. If empty, all files are returned
      * @return List of file names that match the filters
      */
     suspend fun getFileNames(
@@ -66,8 +66,8 @@ interface HuggingFaceApi {
      * This is useful for checking file sizes before downloading.
      *
      * @param from The repository containing the file
-     * @param filename The name of the file to get metadata for
      * @param revision The revision/branch/commit to use. Defaults to "main"
+     * @param filename The name of the file to get metadata for
      * @return FileMetadata object containing file information
      */
     suspend fun getFileMetadata(
@@ -81,8 +81,8 @@ interface HuggingFaceApi {
      * This is useful for checking file sizes before downloading multiple files.
      *
      * @param from The repository containing the files
-     * @param globFilters List of glob patterns to filter files. If empty, all files are returned
      * @param revision The revision/branch/commit to use. Defaults to "main"
+     * @param globFilters List of glob patterns to filter files. If empty, all files are returned
      * @return List of FileMetadata objects for files that match the filters
      */
     suspend fun getFileMetadata(
@@ -97,9 +97,9 @@ interface HuggingFaceApi {
      * Progress is reported through a Flow of [Progress] objects.
      *
      * @param from The repository to download from
+     * @param revision The revision/branch/commit to use. Defaults to "main"
      * @param globFilters List of glob patterns to filter which files to download
      * @param baseDir The local directory where files will be downloaded
-     * @param revision The revision/branch/commit to use. Defaults to "main"
      * @return Flow of [Progress] objects indicating download progress
      * @throws IllegalStateException if a file download fails after the maximum number of retry attempts
      */

@@ -3,6 +3,7 @@
   <ManuallySuppressedIssues/>
   <CurrentIssues>
     <ID>LargeClass:ArgmaxModelDownloaderImplTest.kt$ArgmaxModelDownloaderImplTest</ID>
+    <ID>LongMethod:KtorHuggingFaceApiImpl.kt$KtorHuggingFaceApiImpl$private suspend fun FlowCollector&lt;Progress&gt;.downloadFilesWithRetry( from: Repo, revision: String, files: List&lt;String&gt;, baseDir: File, )</ID>
     <ID>ThrowsCount:WhisperKit.kt$WhisperKit.Builder$@Throws(WhisperKitException::class) fun build(): WhisperKit</ID>
     <ID>TooGenericExceptionCaught:KtorHuggingFaceApiImpl.kt$KtorHuggingFaceApiImpl$e: Exception</ID>
     <ID>TooGenericExceptionCaught:WhisperKitImpl.kt$WhisperKitImpl$e: Exception</ID>
