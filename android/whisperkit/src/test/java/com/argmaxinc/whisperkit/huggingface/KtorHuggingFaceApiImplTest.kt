@@ -322,7 +322,12 @@ internal class KtorHuggingFaceApiImplTest {
                 // Should emit a single progress with 1.0f
                 val progress = awaitItem()
                 assertTrue(progress.isDone)
-                verify { mockLogger.info("No files to download, finish immediately, for Repo(test-repo, main) and glob filters: [nonexistent*]") }
+                verify {
+                    mockLogger.info(
+                        "No files to download, finish immediately, " +
+                            "for Repo(test-repo, main) and glob filters: [nonexistent*]",
+                    )
+                }
                 awaitComplete()
             }
         }
@@ -339,7 +344,12 @@ internal class KtorHuggingFaceApiImplTest {
                 val progress = awaitItem()
                 awaitComplete()
                 assertTrue(progress.isDone)
-                verify { mockLogger.info("No files to download, finish immediately, for Repo(test-repo, main) and glob filters: []") }
+                verify {
+                    mockLogger.info(
+                        "No files to download, finish immediately, " +
+                            "for Repo(test-repo, main) and glob filters: []",
+                    )
+                }
             }
         }
 
