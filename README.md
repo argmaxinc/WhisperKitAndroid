@@ -49,8 +49,8 @@ dependencies {
    implementation("com.argmaxinc:whisperkit:0.3.3")  // Check badge above for latest version
 
    // 2. QNN dependencies for hardware acceleration
-   implementation("com.qualcomm.qnn:qnn-runtime:2.34.0")
-   implementation("com.qualcomm.qnn:qnn-litert-delegate:2.34.0")
+   implementation("com.qualcomm.qti:qnn-runtime:2.34.0")
+   implementation("com.qualcomm.qti:qnn-litert-delegate:2.34.0")
 }
 ```
 
@@ -80,7 +80,7 @@ class YourActivity : AppCompatActivity() {
       // Initialize WhisperKit
       // Note: Always use applicationContext to avoid memory leaks and ensure proper lifecycle management
       whisperKit = WhisperKit.Builder()
-         .setModel(WhisperKit.OPENAI_TINY_EN)
+         .setModel(WhisperKit.Builder.OPENAI_TINY_EN)
          .setApplicationContext(applicationContext)
          .setCallback { what, result ->
             // Handle transcription output
